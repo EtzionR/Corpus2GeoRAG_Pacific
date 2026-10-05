@@ -1,0 +1,2440 @@
+{
+ "nodes": [
+  {
+   "id": "loc:pearl_harbor",
+   "name": "Pearl Harbor",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -157.95,
+     21.35
+    ]
+   },
+   "sources": [
+    {
+     "page": "Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Pearl_Harbor"
+    }
+   ],
+   "text": "Pearl Harbor is a lagoon harbor on the island of Oahu, Hawaii, west of Honolulu. It was the home base of the United States Pacific Fleet in 1941.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:oahu",
+   "name": "Oahu",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -158.0,
+     21.47
+    ]
+   },
+   "sources": [
+    {
+     "page": "Oahu",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Oahu"
+    }
+   ],
+   "text": "Oahu is the third-largest of the Hawaiian Islands and hosted major US military installations during World War II.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:midway_atoll",
+   "name": "Midway Atoll",
+   "type": "location",
+   "aliases": [
+    "Midway",
+    "Midway Island"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -177.37,
+     28.21
+    ]
+   },
+   "sources": [
+    {
+     "page": "Midway Atoll",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Midway_Atoll"
+    }
+   ],
+   "text": "Midway Atoll is a small atoll in the North Pacific Ocean, roughly equidistant between North America and Asia. It hosted a US naval air station.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:solomon_islands",
+   "name": "Solomon Islands",
+   "type": "location",
+   "aliases": [
+    "Solomons"
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       155.5,
+       -5.0
+      ],
+      [
+       162.8,
+       -5.0
+      ],
+      [
+       162.8,
+       -11.0
+      ],
+      [
+       155.5,
+       -11.0
+      ],
+      [
+       155.5,
+       -5.0
+      ]
+     ]
+    ]
+   },
+   "sources": [
+    {
+     "page": "Solomon Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Solomon_Islands_campaign"
+    }
+   ],
+   "text": "The Solomon Islands are an archipelago in Melanesia, east of New Guinea. They saw prolonged fighting between Allied and Japanese forces from 1942 to 1945.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:guadalcanal",
+   "name": "Guadalcanal",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       159.6,
+       -9.2
+      ],
+      [
+       160.9,
+       -9.2
+      ],
+      [
+       160.9,
+       -10.0
+      ],
+      [
+       159.6,
+       -10.0
+      ],
+      [
+       159.6,
+       -9.2
+      ]
+     ]
+    ]
+   },
+   "sources": [
+    {
+     "page": "Guadalcanal",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal"
+    }
+   ],
+   "text": "Guadalcanal is the largest island of the Solomon Islands. The Japanese began building an airfield there in mid-1942, which prompted the Allied landings in August 1942.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:henderson_field",
+   "name": "Henderson Field",
+   "type": "location",
+   "aliases": [
+    "Lunga Point airfield"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     160.05,
+     -9.43
+    ]
+   },
+   "sources": [
+    {
+     "page": "Henderson Field (Guadalcanal)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Henderson_Field_(Guadalcanal)"
+    }
+   ],
+   "text": "Henderson Field is the airfield on Guadalcanal, begun by the Japanese and completed by US forces after its capture in August 1942. It was named after Major Lofton Henderson, killed at Midway.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:tulagi",
+   "name": "Tulagi",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     160.15,
+     -9.1
+    ]
+   },
+   "sources": [
+    {
+     "page": "Tulagi",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tulagi"
+    }
+   ],
+   "text": "Tulagi is a small island in the Solomon Islands, north of Guadalcanal. Japan occupied it in May 1942 as a seaplane base.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:coral_sea",
+   "name": "Coral Sea",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     155.0,
+     -15.0
+    ]
+   },
+   "sources": [
+    {
+     "page": "Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Coral_Sea"
+    }
+   ],
+   "text": "The Coral Sea is a marginal sea of the South Pacific off the northeast coast of Australia.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:iwo_jima",
+   "name": "Iwo Jima",
+   "type": "location",
+   "aliases": [
+    "Iwo To"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     141.32,
+     24.78
+    ]
+   },
+   "sources": [
+    {
+     "page": "Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Iwo_Jima"
+    }
+   ],
+   "text": "Iwo Jima is a small volcanic island in the Volcano Islands, about 1,200 km south of Tokyo. Its airfields made it a key objective in 1945.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:corregidor",
+   "name": "Corregidor",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.57,
+     14.38
+    ]
+   },
+   "sources": [
+    {
+     "page": "Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Corregidor"
+    }
+   ],
+   "text": "Corregidor is an island at the entrance of Manila Bay in the Philippines. It was fortified to protect Manila and was the last US stronghold in the Philippines in 1942.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:bataan",
+   "name": "Bataan Peninsula",
+   "type": "location",
+   "aliases": [
+    "Bataan"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.48,
+     14.62
+    ]
+   },
+   "sources": [
+    {
+     "page": "Bataan",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bataan"
+    }
+   ],
+   "text": "The Bataan Peninsula lies on the western side of Manila Bay in Luzon, Philippines.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:tokyo",
+   "name": "Tokyo",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     139.69,
+     35.69
+    ]
+   },
+   "sources": [
+    {
+     "page": "Tokyo",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tokyo"
+    }
+   ],
+   "text": "Tokyo is the capital of Japan.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:hiroshima",
+   "name": "Hiroshima",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     132.46,
+     34.39
+    ]
+   },
+   "sources": [
+    {
+     "page": "Hiroshima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Hiroshima"
+    }
+   ],
+   "text": "Hiroshima is a city on the island of Honshu, Japan.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:attack_on_pearl_harbor",
+   "name": "Attack on Pearl Harbor",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "text": "The attack on Pearl Harbor was a surprise military strike by the Imperial Japanese Navy Air Service on the US naval base at Pearl Harbor on the morning of 7 December 1941. Commanded by Vice Admiral Chuichi Nagumo, six aircraft carriers launched two waves of aircraft that sank or damaged eight US battleships.",
+   "attributes": {
+    "start_date": "1941-12-07",
+    "end_date": "1941-12-07"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_coral_sea",
+   "name": "Battle of the Coral Sea",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of the Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea"
+    }
+   ],
+   "text": "The Battle of the Coral Sea, from 4 to 8 May 1942, was a major naval battle between the Imperial Japanese Navy and naval and air forces of the United States and Australia. It was the first action in which aircraft carriers engaged each other.",
+   "attributes": {
+    "start_date": "1942-05-04",
+    "end_date": "1942-05-08"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_midway",
+   "name": "Battle of Midway",
+   "type": "event",
+   "aliases": [
+    "Midway battle"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "text": "The Battle of Midway was a major naval battle fought from 4 to 7 June 1942. The US Navy under Admirals Chester Nimitz, Frank Jack Fletcher and Raymond Spruance defeated an attacking fleet of the Imperial Japanese Navy under Admirals Isoroku Yamamoto and Chuichi Nagumo near Midway Atoll, sinking four Japanese carriers.",
+   "attributes": {
+    "start_date": "1942-06-04",
+    "end_date": "1942-06-07"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:guadalcanal_campaign",
+   "name": "Guadalcanal campaign",
+   "type": "event",
+   "aliases": [
+    "Battle of Guadalcanal",
+    "Operation Watchtower"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "text": "The Guadalcanal campaign, codenamed Operation Watchtower, was fought from 7 August 1942 to 9 February 1943 on and around Guadalcanal. US Marines landed on Guadalcanal and Tulagi, seized the airfield later named Henderson Field, and held it against repeated Japanese counterattacks.",
+   "attributes": {
+    "start_date": "1942-08-07",
+    "end_date": "1943-02-09"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_corregidor",
+   "name": "Battle of Corregidor",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "text": "The Battle of Corregidor, 5-6 May 1942, was the culmination of the Japanese campaign for the conquest of the Philippines. Japanese forces under Lieutenant General Masaharu Homma landed on the island and forced the surrender of the US garrison.",
+   "attributes": {
+    "start_date": "1942-05-05",
+    "end_date": "1942-05-06"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:doolittle_raid",
+   "name": "Doolittle Raid",
+   "type": "event",
+   "aliases": [
+    "Tokyo Raid"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Doolittle Raid",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Doolittle_Raid"
+    }
+   ],
+   "text": "The Doolittle Raid of 18 April 1942 was an air raid by the United States on Tokyo and other places on Honshu. Sixteen B-25 bombers of the US Army Air Forces led by Lieutenant Colonel James Doolittle were launched from the carrier USS Hornet.",
+   "attributes": {
+    "start_date": "1942-04-18",
+    "end_date": "1942-04-18"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_iwo_jima",
+   "name": "Battle of Iwo Jima",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "text": "The Battle of Iwo Jima, 19 February to 26 March 1945, was a major battle in which the US Marine Corps landed on and captured the island of Iwo Jima from the Imperial Japanese Army, defended by General Tadamichi Kuribayashi.",
+   "attributes": {
+    "start_date": "1945-02-19",
+    "end_date": "1945-03-26"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:bombing_of_hiroshima",
+   "name": "Atomic bombing of Hiroshima",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Atomic bombings of Hiroshima and Nagasaki",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Atomic_bombings_of_Hiroshima_and_Nagasaki"
+    }
+   ],
+   "text": "On 6 August 1945 the United States detonated an atomic bomb over Hiroshima, dropped from a B-29 of the US Army Air Forces.",
+   "attributes": {
+    "start_date": "1945-08-06",
+    "end_date": "1945-08-06"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:ijn",
+   "name": "Imperial Japanese Navy",
+   "type": "org",
+   "aliases": [
+    "IJN",
+    "Japanese Navy"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Imperial Japanese Navy",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Imperial_Japanese_Navy"
+    }
+   ],
+   "text": "The Imperial Japanese Navy was the navy of the Empire of Japan from 1868 to 1945.",
+   "attributes": {
+    "side": "Axis"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:ija",
+   "name": "Imperial Japanese Army",
+   "type": "org",
+   "aliases": [
+    "IJA",
+    "Japanese Army"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Imperial Japanese Army",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Imperial_Japanese_Army"
+    }
+   ],
+   "text": "The Imperial Japanese Army was the principal ground force of the Empire of Japan from 1871 to 1945.",
+   "attributes": {
+    "side": "Axis"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:us_navy",
+   "name": "United States Navy",
+   "type": "org",
+   "aliases": [
+    "US Navy",
+    "USN",
+    "Pacific Fleet"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "United States Navy",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/United_States_Navy"
+    }
+   ],
+   "text": "The United States Navy fought the Pacific War mainly through the US Pacific Fleet.",
+   "attributes": {
+    "side": "Allies"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:usmc",
+   "name": "United States Marine Corps",
+   "type": "org",
+   "aliases": [
+    "US Marines",
+    "USMC",
+    "1st Marine Division"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "United States Marine Corps",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/United_States_Marine_Corps"
+    }
+   ],
+   "text": "The United States Marine Corps carried out the amphibious assaults of the Pacific island-hopping campaign.",
+   "attributes": {
+    "side": "Allies"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:us_army",
+   "name": "United States Army",
+   "type": "org",
+   "aliases": [
+    "US Army",
+    "USAFFE"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "United States Army",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/United_States_Army"
+    }
+   ],
+   "text": "The United States Army defended the Philippines in 1941-42 under General Douglas MacArthur.",
+   "attributes": {
+    "side": "Allies"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:usaaf",
+   "name": "United States Army Air Forces",
+   "type": "org",
+   "aliases": [
+    "USAAF"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "United States Army Air Forces",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/United_States_Army_Air_Forces"
+    }
+   ],
+   "text": "The United States Army Air Forces was the aerial warfare service of the United States during World War II.",
+   "attributes": {
+    "side": "Allies"
+   },
+   "embedding": null
+  },
+  {
+   "id": "per:yamamoto",
+   "name": "Isoroku Yamamoto",
+   "type": "person",
+   "aliases": [
+    "Yamamoto"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Isoroku Yamamoto",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Isoroku_Yamamoto"
+    }
+   ],
+   "text": "Isoroku Yamamoto was the commander-in-chief of the Combined Fleet of the Imperial Japanese Navy, who planned the attack on Pearl Harbor and the Midway operation.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:nagumo",
+   "name": "Chuichi Nagumo",
+   "type": "person",
+   "aliases": [
+    "Nagumo"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Chuichi Nagumo",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Chuichi_Nagumo"
+    }
+   ],
+   "text": "Chuichi Nagumo was an admiral of the Imperial Japanese Navy who commanded the carrier striking force at Pearl Harbor and Midway.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:nimitz",
+   "name": "Chester W. Nimitz",
+   "type": "person",
+   "aliases": [
+    "Nimitz",
+    "Chester Nimitz"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Chester W. Nimitz",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Chester_W._Nimitz"
+    }
+   ],
+   "text": "Chester W. Nimitz was Commander in Chief, US Pacific Fleet, during World War II.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:vandegrift",
+   "name": "Alexander Vandegrift",
+   "type": "person",
+   "aliases": [
+    "Vandegrift"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Alexander Vandegrift",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Alexander_Vandegrift"
+    }
+   ],
+   "text": "Alexander Vandegrift commanded the 1st Marine Division in the Guadalcanal campaign.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:doolittle",
+   "name": "James Doolittle",
+   "type": "person",
+   "aliases": [
+    "Jimmy Doolittle",
+    "Doolittle"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Jimmy Doolittle",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Jimmy_Doolittle"
+    }
+   ],
+   "text": "James 'Jimmy' Doolittle led the April 1942 air raid on Tokyo.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:kuribayashi",
+   "name": "Tadamichi Kuribayashi",
+   "type": "person",
+   "aliases": [
+    "Kuribayashi"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Tadamichi Kuribayashi",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tadamichi_Kuribayashi"
+    }
+   ],
+   "text": "Tadamichi Kuribayashi was the Imperial Japanese Army general who commanded the defense of Iwo Jima.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:macarthur",
+   "name": "Douglas MacArthur",
+   "type": "person",
+   "aliases": [
+    "MacArthur"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Douglas MacArthur",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Douglas_MacArthur"
+    }
+   ],
+   "text": "Douglas MacArthur commanded US Army forces in the Far East and was ordered out of the Philippines in March 1942.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "per:homma",
+   "name": "Masaharu Homma",
+   "type": "person",
+   "aliases": [
+    "Homma"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Masaharu Homma",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Masaharu_Homma"
+    }
+   ],
+   "text": "Masaharu Homma commanded the Japanese 14th Army during the invasion of the Philippines.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:kiska",
+   "name": "Kiska",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     177.57,
+     51.98
+    ]
+   },
+   "sources": [
+    {
+     "page": "Kiska",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Kiska"
+    }
+   ],
+   "text": "Kiska is one of the Rat Islands in the western Aleutians of Alaska. Japanese forces occupied it in June 1942.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:adak",
+   "name": "Adak Island",
+   "type": "location",
+   "aliases": [
+    "Adak"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -176.65,
+     51.87
+    ]
+   },
+   "sources": [
+    {
+     "page": "Adak Island",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Adak_Island"
+    }
+   ],
+   "text": "Adak Island lies in the Andreanof Islands of the Aleutians. US forces built an airfield there in 1942 to strike Kiska.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "loc:taveuni",
+   "name": "Taveuni",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "MultiPolygon",
+    "coordinates": [
+     [
+      [
+       [
+        179.85,
+        -16.7
+       ],
+       [
+        180.0,
+        -16.7
+       ],
+       [
+        180.0,
+        -17.0
+       ],
+       [
+        179.85,
+        -17.0
+       ],
+       [
+        179.85,
+        -16.7
+       ]
+      ]
+     ],
+     [
+      [
+       [
+        -180.0,
+        -16.7
+       ],
+       [
+        -179.88,
+        -16.7
+       ],
+       [
+        -179.88,
+        -17.0
+       ],
+       [
+        -180.0,
+        -17.0
+       ],
+       [
+        -180.0,
+        -16.7
+       ]
+      ]
+     ]
+    ]
+   },
+   "sources": [
+    {
+     "page": "Taveuni",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Taveuni"
+    }
+   ],
+   "text": "Taveuni is an island in Fiji that straddles the 180th meridian.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:aleutian_islands_campaign",
+   "name": "Aleutian Islands campaign",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Aleutian Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Aleutian_Islands_campaign"
+    }
+   ],
+   "text": "The Aleutian Islands campaign, June 1942 to August 1943, was fought over the Aleutian Islands of Alaska. Japan occupied Kiska and Attu; US and Canadian forces retook them, landing on Kiska in August 1943 to find it abandoned.",
+   "attributes": {
+    "start_date": "1942-06-03",
+    "end_date": "1943-08-15"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:guam",
+   "name": "Guam",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     144.79,
+     13.44
+    ]
+   },
+   "sources": [
+    {
+     "page": "Guam",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guam"
+    }
+   ],
+   "text": "Guam is the largest island of the Mariana Islands and was a US territory before the war.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_guam_1941",
+   "name": "Battle of Guam (1941)",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Guam (1941)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)"
+    }
+   ],
+   "text": "The Battle of Guam of 8-10 December 1941 was the Japanese capture of Guam from the small US garrison.",
+   "attributes": {
+    "start_date": "1941-12-08",
+    "end_date": "1941-12-10"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_guam_1944",
+   "name": "Battle of Guam (1944)",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Guam (1944)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)"
+    }
+   ],
+   "text": "The Battle of Guam of 21 July to 10 August 1944 was the American recapture of Guam during the Mariana Islands campaign.",
+   "attributes": {
+    "start_date": "1944-07-21",
+    "end_date": "1944-08-10"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:darwin",
+   "name": "Darwin",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     130.84,
+     -12.46
+    ]
+   },
+   "sources": [
+    {
+     "page": "Darwin, Northern Territory",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Darwin,_Northern_Territory"
+    }
+   ],
+   "text": "Darwin is the capital of the Northern Territory of Australia.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:bombing_of_darwin",
+   "name": "Bombing of Darwin",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Bombing of Darwin",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bombing_of_Darwin"
+    }
+   ],
+   "text": "The bombing of Darwin on 19 February 1942 was the largest single attack ever mounted on Australia, carried out by Japanese carrier and land-based aircraft.",
+   "attributes": {
+    "start_date": "1942-02-19",
+    "end_date": "1942-02-19"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:chongqing",
+   "name": "Chongqing",
+   "type": "location",
+   "aliases": [
+    "Chungking"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     106.55,
+     29.56
+    ]
+   },
+   "sources": [
+    {
+     "page": "Chongqing",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Chongqing"
+    }
+   ],
+   "text": "Chongqing was the wartime capital of the Republic of China.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:bombing_of_chongqing",
+   "name": "Bombing of Chongqing",
+   "type": "event",
+   "aliases": [
+    "Bombing of Chungking"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Bombing of Chongqing",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bombing_of_Chongqing"
+    }
+   ],
+   "text": "The bombing of Chongqing was a sustained Japanese air campaign against the Chinese wartime capital from 1938 to 1943.",
+   "attributes": {
+    "start_date": "1938-02-18",
+    "end_date": "1943-08-23"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:tarawa",
+   "name": "Tarawa",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     172.98,
+     1.42
+    ]
+   },
+   "sources": [
+    {
+     "page": "Tarawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tarawa"
+    }
+   ],
+   "text": "Tarawa is an atoll in the Gilbert Islands, now part of Kiribati.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_tarawa",
+   "name": "Battle of Tarawa",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Tarawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa"
+    }
+   ],
+   "text": "The Battle of Tarawa, 20-23 November 1943, was a US Marine Corps assault on the Japanese-held Tarawa Atoll.",
+   "attributes": {
+    "start_date": "1943-11-20",
+    "end_date": "1943-11-23"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:tarakan",
+   "name": "Tarakan",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     117.6,
+     3.3
+    ]
+   },
+   "sources": [
+    {
+     "page": "Tarakan",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tarakan"
+    }
+   ],
+   "text": "Tarakan is an island off the northeast coast of Borneo with oil fields.",
+   "attributes": {},
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_tarakan",
+   "name": "Battle of Tarakan",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Tarakan (1942)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarakan_(1942)"
+    }
+   ],
+   "text": "The Battle of Tarakan, 11-12 January 1942, was the Japanese seizure of the oil island of Tarakan from the Dutch garrison.",
+   "attributes": {
+    "start_date": "1942-01-11",
+    "end_date": "1942-01-12"
+   },
+   "embedding": null
+  }
+ ],
+ "edges": [
+  {
+   "source": "event:attack_on_pearl_harbor",
+   "target": "loc:pearl_harbor",
+   "type": "OCCURRED_AT",
+   "count": 5,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "loc:pearl_harbor",
+   "type": "ATTACKED",
+   "count": 9,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "loc:pearl_harbor",
+   "type": "DEFENDED",
+   "count": 3,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "event:attack_on_pearl_harbor",
+   "type": "PARTICIPATED_IN",
+   "count": 6,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "event:attack_on_pearl_harbor",
+   "type": "PARTICIPATED_IN",
+   "count": 4,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:nagumo",
+   "target": "event:attack_on_pearl_harbor",
+   "type": "COMMANDED",
+   "count": 2,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:yamamoto",
+   "target": "event:attack_on_pearl_harbor",
+   "type": "PARTICIPATED_IN",
+   "count": 3,
+   "start_date": "1941-12-07",
+   "end_date": "1941-12-07",
+   "sources": [
+    {
+     "page": "Attack on Pearl Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_coral_sea",
+   "target": "loc:coral_sea",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1942-05-04",
+   "end_date": "1942-05-08",
+   "sources": [
+    {
+     "page": "Battle of the Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_coral_sea",
+   "target": "loc:tulagi",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1942-05-04",
+   "end_date": "1942-05-04",
+   "sources": [
+    {
+     "page": "Battle of the Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "event:battle_of_coral_sea",
+   "type": "PARTICIPATED_IN",
+   "count": 5,
+   "start_date": "1942-05-04",
+   "end_date": "1942-05-08",
+   "sources": [
+    {
+     "page": "Battle of the Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "event:battle_of_coral_sea",
+   "type": "PARTICIPATED_IN",
+   "count": 5,
+   "start_date": "1942-05-04",
+   "end_date": "1942-05-08",
+   "sources": [
+    {
+     "page": "Battle of the Coral Sea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:tulagi",
+   "type": "OCCUPIED",
+   "count": 2,
+   "start_date": "1942-05-03",
+   "end_date": "1942-08-07",
+   "sources": [
+    {
+     "page": "Tulagi",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Tulagi"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_midway",
+   "target": "loc:midway_atoll",
+   "type": "OCCURRED_AT",
+   "count": 8,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "loc:midway_atoll",
+   "type": "ATTACKED",
+   "count": 6,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-04",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "loc:midway_atoll",
+   "type": "DEFENDED",
+   "count": 4,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "event:battle_of_midway",
+   "type": "PARTICIPATED_IN",
+   "count": 7,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "event:battle_of_midway",
+   "type": "PARTICIPATED_IN",
+   "count": 7,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:yamamoto",
+   "target": "event:battle_of_midway",
+   "type": "COMMANDED",
+   "count": 3,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:nagumo",
+   "target": "event:battle_of_midway",
+   "type": "COMMANDED",
+   "count": 2,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:nimitz",
+   "target": "event:battle_of_midway",
+   "type": "COMMANDED",
+   "count": 3,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "Battle of Midway",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:guadalcanal_campaign",
+   "target": "loc:guadalcanal",
+   "type": "OCCURRED_AT",
+   "count": 12,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:guadalcanal_campaign",
+   "target": "loc:tulagi",
+   "type": "OCCURRED_AT",
+   "count": 2,
+   "start_date": "1942-08-07",
+   "end_date": "1942-08-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:guadalcanal_campaign",
+   "target": "loc:henderson_field",
+   "type": "OCCURRED_AT",
+   "count": 6,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:guadalcanal",
+   "type": "LANDED_AT",
+   "count": 4,
+   "start_date": "1942-08-07",
+   "end_date": "1942-08-07",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:guadalcanal",
+   "type": "ATTACKED",
+   "count": 5,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:tulagi",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1942-08-07",
+   "end_date": "1942-08-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:henderson_field",
+   "type": "CAPTURED",
+   "count": 3,
+   "start_date": "1942-08-08",
+   "end_date": "1942-08-08",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:henderson_field",
+   "type": "ATTACKED",
+   "count": 4,
+   "start_date": "1942-09-12",
+   "end_date": "1942-10-26",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "loc:henderson_field",
+   "type": "BOMBED",
+   "count": 2,
+   "start_date": "1942-10-13",
+   "end_date": "1942-10-14",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:guadalcanal",
+   "type": "DEFENDED",
+   "count": 3,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "event:guadalcanal_campaign",
+   "type": "PARTICIPATED_IN",
+   "count": 6,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "event:guadalcanal_campaign",
+   "type": "PARTICIPATED_IN",
+   "count": 5,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "event:guadalcanal_campaign",
+   "type": "PARTICIPATED_IN",
+   "count": 3,
+   "start_date": "1942-08-07",
+   "end_date": "1943-02-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:vandegrift",
+   "target": "event:guadalcanal_campaign",
+   "type": "COMMANDED",
+   "count": 3,
+   "start_date": "1942-08-07",
+   "end_date": "1942-12-09",
+   "sources": [
+    {
+     "page": "Guadalcanal campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_corregidor",
+   "target": "loc:corregidor",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1942-05-05",
+   "end_date": "1942-05-06",
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:corregidor",
+   "type": "ATTACKED",
+   "count": 3,
+   "start_date": "1942-05-05",
+   "end_date": "1942-05-06",
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:corregidor",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1942-05-06",
+   "end_date": "1942-05-06",
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_army",
+   "target": "loc:corregidor",
+   "type": "DEFENDED",
+   "count": 2,
+   "start_date": "1942-05-05",
+   "end_date": "1942-05-06",
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:bataan",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1942-04-09",
+   "end_date": "1942-04-09",
+   "sources": [
+    {
+     "page": "Battle of Bataan",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Bataan"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:homma",
+   "target": "event:battle_of_corregidor",
+   "type": "COMMANDED",
+   "count": 2,
+   "start_date": "1942-05-05",
+   "end_date": "1942-05-06",
+   "sources": [
+    {
+     "page": "Battle of Corregidor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:doolittle_raid",
+   "target": "loc:tokyo",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1942-04-18",
+   "end_date": "1942-04-18",
+   "sources": [
+    {
+     "page": "Doolittle Raid",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Doolittle_Raid"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usaaf",
+   "target": "loc:tokyo",
+   "type": "BOMBED",
+   "count": 3,
+   "start_date": "1942-04-18",
+   "end_date": "1942-04-18",
+   "sources": [
+    {
+     "page": "Doolittle Raid",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Doolittle_Raid"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:doolittle",
+   "target": "event:doolittle_raid",
+   "type": "COMMANDED",
+   "count": 4,
+   "start_date": "1942-04-18",
+   "end_date": "1942-04-18",
+   "sources": [
+    {
+     "page": "Doolittle Raid",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Doolittle_Raid"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_iwo_jima",
+   "target": "loc:iwo_jima",
+   "type": "OCCURRED_AT",
+   "count": 9,
+   "start_date": "1945-02-19",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:iwo_jima",
+   "type": "ATTACKED",
+   "count": 6,
+   "start_date": "1945-02-19",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:iwo_jima",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1945-03-26",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:iwo_jima",
+   "type": "DEFENDED",
+   "count": 4,
+   "start_date": "1945-02-19",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:kuribayashi",
+   "target": "event:battle_of_iwo_jima",
+   "type": "COMMANDED",
+   "count": 3,
+   "start_date": "1945-02-19",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Battle of Iwo Jima",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:bombing_of_hiroshima",
+   "target": "loc:hiroshima",
+   "type": "OCCURRED_AT",
+   "count": 5,
+   "start_date": "1945-08-06",
+   "end_date": "1945-08-06",
+   "sources": [
+    {
+     "page": "Atomic bombings of Hiroshima and Nagasaki",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Atomic_bombings_of_Hiroshima_and_Nagasaki"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usaaf",
+   "target": "loc:hiroshima",
+   "type": "BOMBED",
+   "count": 4,
+   "start_date": "1945-08-06",
+   "end_date": "1945-08-06",
+   "sources": [
+    {
+     "page": "Atomic bombings of Hiroshima and Nagasaki",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Atomic_bombings_of_Hiroshima_and_Nagasaki"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:yamamoto",
+   "target": "org:ijn",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:nagumo",
+   "target": "org:ijn",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:nimitz",
+   "target": "org:us_navy",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:vandegrift",
+   "target": "org:usmc",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:doolittle",
+   "target": "org:usaaf",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:kuribayashi",
+   "target": "org:ija",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:macarthur",
+   "target": "org:us_army",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:homma",
+   "target": "org:ija",
+   "type": "MEMBER_OF",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:macarthur",
+   "target": "org:us_army",
+   "type": "COMMANDED",
+   "count": 2,
+   "start_date": "1941-07-26",
+   "end_date": "1942-03-11",
+   "sources": [
+    {
+     "page": "Douglas MacArthur",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Douglas_MacArthur"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:nimitz",
+   "target": "org:us_navy",
+   "type": "COMMANDED",
+   "count": 3,
+   "start_date": "1941-12-31",
+   "end_date": "1945-11-24",
+   "sources": [
+    {
+     "page": "Chester W. Nimitz",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Chester_W._Nimitz"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_navy",
+   "target": "org:usmc",
+   "type": "ALLIED_WITH",
+   "count": 3,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "org:ija",
+   "type": "ALLIED_WITH",
+   "count": 2,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "per:yamamoto",
+   "target": "per:nimitz",
+   "type": "CO_MENTIONED",
+   "count": 4,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "loc:guadalcanal",
+   "target": "loc:solomon_islands",
+   "type": "LOCATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "loc:tulagi",
+   "target": "loc:solomon_islands",
+   "type": "LOCATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "loc:henderson_field",
+   "target": "loc:guadalcanal",
+   "type": "LOCATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "loc:pearl_harbor",
+   "target": "loc:oahu",
+   "type": "LOCATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [],
+   "embedding": null
+  },
+  {
+   "source": "event:aleutian_islands_campaign",
+   "target": "loc:kiska",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1942-06-03",
+   "end_date": "1943-08-15",
+   "sources": [
+    {
+     "page": "Aleutian Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Aleutian_Islands_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:aleutian_islands_campaign",
+   "target": "loc:adak",
+   "type": "OCCURRED_AT",
+   "count": 2,
+   "start_date": "1942-08-30",
+   "end_date": "1943-08-15",
+   "sources": [
+    {
+     "page": "Aleutian Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Aleutian_Islands_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:kiska",
+   "type": "OCCUPIED",
+   "count": 3,
+   "start_date": "1942-06-06",
+   "end_date": "1943-07-28",
+   "sources": [
+    {
+     "page": "Aleutian Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Aleutian_Islands_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:us_army",
+   "target": "loc:kiska",
+   "type": "LANDED_AT",
+   "count": 2,
+   "start_date": "1943-08-15",
+   "end_date": "1943-08-15",
+   "sources": [
+    {
+     "page": "Aleutian Islands campaign",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Aleutian_Islands_campaign"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_guam_1941",
+   "target": "loc:guam",
+   "type": "OCCURRED_AT",
+   "count": 3,
+   "start_date": "1941-12-08",
+   "end_date": "1941-12-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1941)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "loc:guam",
+   "type": "ATTACKED",
+   "count": 3,
+   "start_date": "1941-12-08",
+   "end_date": "1941-12-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1941)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ijn",
+   "target": "loc:guam",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1941-12-10",
+   "end_date": "1941-12-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1941)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_guam_1944",
+   "target": "loc:guam",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1944-07-21",
+   "end_date": "1944-08-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1944)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:guam",
+   "type": "ATTACKED",
+   "count": 4,
+   "start_date": "1944-07-21",
+   "end_date": "1944-08-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1944)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:guam",
+   "type": "CAPTURED",
+   "count": 2,
+   "start_date": "1944-08-10",
+   "end_date": "1944-08-10",
+   "sources": [
+    {
+     "page": "Battle of Guam (1944)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:bombing_of_darwin",
+   "target": "loc:darwin",
+   "type": "OCCURRED_AT",
+   "count": 3,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Bombing of Darwin",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bombing_of_Darwin"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:bombing_of_chongqing",
+   "target": "loc:chongqing",
+   "type": "OCCURRED_AT",
+   "count": 3,
+   "start_date": "1938-02-18",
+   "end_date": "1943-08-23",
+   "sources": [
+    {
+     "page": "Bombing of Chongqing",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bombing_of_Chongqing"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:chongqing",
+   "type": "BOMBED",
+   "count": 3,
+   "start_date": "1938-02-18",
+   "end_date": "1943-08-23",
+   "sources": [
+    {
+     "page": "Bombing of Chongqing",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Bombing_of_Chongqing"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_tarawa",
+   "target": "loc:tarawa",
+   "type": "OCCURRED_AT",
+   "count": 4,
+   "start_date": "1943-11-20",
+   "end_date": "1943-11-23",
+   "sources": [
+    {
+     "page": "Battle of Tarawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:usmc",
+   "target": "loc:tarawa",
+   "type": "ATTACKED",
+   "count": 4,
+   "start_date": "1943-11-20",
+   "end_date": "1943-11-23",
+   "sources": [
+    {
+     "page": "Battle of Tarawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_tarakan",
+   "target": "loc:tarakan",
+   "type": "OCCURRED_AT",
+   "count": 3,
+   "start_date": "1942-01-11",
+   "end_date": "1942-01-12",
+   "sources": [
+    {
+     "page": "Battle of Tarakan (1942)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarakan_(1942)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:ija",
+   "target": "loc:tarakan",
+   "type": "ATTACKED",
+   "count": 3,
+   "start_date": "1942-01-11",
+   "end_date": "1942-01-12",
+   "sources": [
+    {
+     "page": "Battle of Tarakan (1942)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Tarakan_(1942)"
+    }
+   ],
+   "embedding": null
+  }
+ ]
+}
