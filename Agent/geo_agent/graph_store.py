@@ -112,7 +112,7 @@ def _date_bounds(value: str | None, *, end: bool) -> str | None:
     return value
 
 
-def _normalize(text: str) -> str:
+def normalize_name(text: str) -> str:
     """Comparison form of a name: no diacritics, casefolded, punctuation-light."""
     decomposed = unicodedata.normalize("NFKD", text)
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
@@ -152,10 +152,10 @@ class GraphStore:
         self._norm_name: dict[str, str] = {}  # node id -> normalized name
         self._norm_aliases: dict[str, set[str]] = {}  # node id -> normalized aliases
         for n in nodes:
-            self._norm_name[n.id] = _normalize(n.name)
-            self._norm_aliases[n.id] = {_normalize(a) for a in n.aliases}
+            self._norm_name[n.id] = normalize_name(n.name)
+            self._norm_aliases[n.id] = {normalize_name(a) for a in n.aliases}
             for label in [n.name, *n.aliases]:
-                self._names.append(_normalize(label))
+                self._names.append(normalize_name(label))
                 self._labels.append(label)
                 self._name_owner.append(n.id)
 
@@ -231,7 +231,7 @@ class GraphStore:
           and no other result within AMBIGUITY_MARGIN of it; else "uncertain"
         - `ambiguous`: true when another result scores within AMBIGUITY_MARGIN
         """
-        q = _normalize(query)
+        q = normalize_name(query)
         # processor=None: strings are already normalized; don't depend on rapidfuzz defaults.
         matches = process.extract(q, self._names, scorer=fuzz.WRatio, processor=None,
                                   limit=len(self._names), score_cutoff=MATCH_CUTOFF)
@@ -399,8 +399,16 @@ class GraphStore:
         return [{**self.summarize_node(i), "distance_km": round(d, 1)} for d, i in hits[:limit]]
 
     def in_bbox(self, min_lon: float, min_lat: float, max_lon: float, max_lat: float, type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        """Entities whose geometry intersects the bounding box."""
-        region = box(min_lon, min_lat, max_lon, max_lat)
+        """Entities whose geometry intersects the bounding box.
+
+        A box with min_lon > max_lon crosses the 180° meridian (e.g. 170 to -170
+        is the 20° strip around the date line); it is searched as two boxes,
+        [min_lon, 180] and [-180, max_lon]. Otherwise the box is used as given.
+        """
+        if min_lon > max_lon:
+            region = box(min_lon, min_lat, 180.0, max_lat).union(box(-180.0, min_lat, max_lon, max_lat))
+        else:
+            region = box(min_lon, min_lat, max_lon, max_lat)
         return [
             self.summarize_node(i)
             for i, g in self.geoms.items()
@@ -460,12 +468,14 @@ class GraphStore:
             })
         return out
 
-    def to_geojson(self, entity_ids: list[str]) -> dict[str, Any]:
+    def to_geojson(self, entity_ids: list[str], restrict_to: set[str] | None = None) -> dict[str, Any]:
         """FeatureCollection for the map UI.
 
         Entities without geometry (events, people, orgs) are drawn at the
         locations they are linked to, so `to_geojson(["event:battle_of_midway"])`
-        still yields a map feature.
+        still yields a map feature. With `restrict_to`, such an entity is drawn
+        only at linked locations in that set (spec R23); otherwise at all of them.
+        Entities with geometry are always drawn.
         """
         features, seen = [], set()
 
@@ -486,5 +496,6 @@ class GraphStore:
                 add(eid)
             else:
                 for loc in self.locations_of(eid):
-                    add(loc["id"], via=eid)
+                    if restrict_to is None or loc["id"] in restrict_to:
+                        add(loc["id"], via=eid)
         return {"type": "FeatureCollection", "features": features}

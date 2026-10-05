@@ -203,7 +203,6 @@ def test_r5_polygon_spanning_meridian(store):
     assert store.distance_km("loc:taveuni", -16.8, -179.95) == 0.0
 
 
-@pytest.mark.xfail(strict=True, reason="spec R5, plan step 7")
 def test_r5_bbox_crossing_meridian():
     s = point_store({"east": (175.0, -15.0), "west": (-175.0, -15.0), "greenwich": (0.0, -15.0)})
     assert {r["id"] for r in s.in_bbox(170, -20, -170, -10)} == {"east", "west"}
@@ -244,3 +243,10 @@ def test_r4_quality_rule_holds_for_any_query(store, query):
     for r in results:
         assert r["match"] in ("name", "alias", "fuzzy") and isinstance(r["ambiguous"], bool)
         assert r["score"] >= 60
+
+
+def test_r5_bbox_crossing_meridian_on_fixture(store):
+    ids = {r["id"] for r in store.in_bbox(170, -20, -170, -10)}
+    assert ids == {"loc:taveuni"}  # straddles 180; nothing at the Greenwich side, no Coral Sea / Darwin
+    aleutians = {r["id"] for r in store.in_bbox(175, 50, -175, 55)}
+    assert aleutians == {"loc:kiska", "loc:adak"}  # one on each side of the date line

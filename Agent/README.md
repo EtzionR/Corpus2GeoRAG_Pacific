@@ -31,19 +31,22 @@ uv run geo-agent --trace last      # timeline of the last run (see "Debugging a 
 3. **LLM via OpenRouter**, through `ChatOpenAI` on the OpenAI-compatible endpoint. The default model is `z-ai/glm-5.2`, chosen for cost. Change it with `GEO_AGENT_MODEL`; it must support tool calling.
 4. **MCP is opt-in and allowlisted.** Built-in graph tools are native LangChain tools. External MCP tools load only if (a) the server is in `mcp_servers.json`, (b) the tool name is in that server's `allowed_tools`, and (c) the name does not collide with an existing tool. A server that fails to load is skipped, and the agent keeps working.
 5. **The LLM returns ids and the code builds the map data.** The model returns `{answer, entity_ids, sources}`, and `GeoAgent.ask()` builds the GeoJSON from the graph. The map therefore always gets real geometry, and the LLM never has to reproduce coordinates.
-6. **Pure query layer.** All logic lives in `GraphStore`, so it can be tested without an LLM. A future MCP server or REST API for the UI can wrap the same methods.
-7. **Tolerant input schema.** Pydantic models allow extra fields, and node/edge types are open strings. Edges that point to unknown nodes are dropped, not fatal.
-8. **Spatial semantics.** Distance is great-circle km from the query point to the *nearest point* of a geometry (0 if inside). A point on Guadalcanal therefore matches the island polygon and the Solomon Islands.
-9. **Dates.** Partial ISO dates are allowed (`1942`, `1942-06`). Date filters use interval overlap, and undated edges are excluded when a filter is set.
-10. **Sub-locations.** `find_relations` expands a location through `LOCATED_IN` by default. "Who attacked Guadalcanal" therefore includes attacks on Henderson Field.
-11. **Text retrieval is BM25** over node text paragraphs. It is simple, needs no API, and returns citable paragraphs.
-12. **Local tracing, no hosted service.** Every run writes JSONL events through a LangChain callback handler, so tools and `GraphStore` stay untouched. Trace writes can never fail a run. Questions and 1000-character result previews are stored locally; keys and env values never are.
-13. **Errors are returned as data.** `ask()` never raises for model, tool, step-limit or post-processing failures; it returns `error: {type, message, stage}` so the UI always gets a reply and the trace says where the run stopped.
+6. **Evidence-checked output.** Only ids and source pages that this turn's graph queries returned are kept; the rest are reported as dropped or unverified. Coordinates written in the answer text are checked against the values the tools returned and flagged if they don't match (the text itself is never changed). Orgs, people and events are drawn only at places in the answer's evidence.
+7. **Answer and context are separate.** The model returns `answer_ids` (what answers the question, e.g. the attackers) and `context_ids` (the place, defenders, commanders). With one flat list, a defender the answer mentions looked exactly like a wrong attacker. The roles come from the question, so nothing extra is needed in the graph. Telling attackers from defenders does need typed relations (`ATTACKED` vs `DEFENDED`), as "who attacked X" always did.
+8. **Visible name resolution.** Every name match has a quality (`clear`/`uncertain`). On an uncertain match the agent asks a short clarification question instead of guessing; when a name was read differently from how it was typed, `interpretation` says so in plain words. A question year outside the resolved event's dates is flagged, never silently corrected.
+9. **Pure query layer.** All logic lives in `GraphStore`, so it can be tested without an LLM. A future MCP server or REST API for the UI can wrap the same methods.
+10. **Tolerant input schema.** Pydantic models allow extra fields, and node/edge types are open strings. Edges that point to unknown nodes are dropped, not fatal.
+11. **Spatial semantics.** Distance is great-circle km from the query point to the *nearest point* of a geometry (0 if inside). A point on Guadalcanal therefore matches the island polygon and the Solomon Islands. Distances wrap correctly across the 180° meridian (Kiska to Adak is ~396 km, not ~40,000). A bounding box with `min_lon > max_lon` crosses the meridian: `170 … -170` is the strip around the date line.
+12. **Dates.** Partial ISO dates are allowed (`1942`, `1942-06`). Date filters use interval overlap, and undated edges are excluded when a filter is set.
+13. **Sub-locations.** `find_relations` expands a location through `LOCATED_IN` by default. "Who attacked Guadalcanal" therefore includes attacks on Henderson Field.
+14. **Text retrieval is BM25** over node text paragraphs. It is simple, needs no API, and returns citable paragraphs.
+15. **Local tracing, no hosted service.** Every run writes JSONL events through a LangChain callback handler, so tools and `GraphStore` stay untouched. Trace writes can never fail a run. Questions and 1000-character result previews are stored locally; keys and env values never are.
+16. **Errors are returned as data.** `ask()` never raises for model, tool, step-limit or post-processing failures; it returns `error: {type, message, stage}` so the UI always gets a reply and the trace says where the run stopped.
 
 ## Input schema (for the knowledge-graph builder)
 The agent reads **one JSON file**, set by `GRAPH_PATH` (default `data/sample_graph.json`). It holds two arrays:
 
-```json
+```text
 {"nodes": [ ... ], "edges": [ ... ]}
 ```
 
@@ -177,12 +180,20 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
 | Field | Type | Meaning |
 |---|---|---|
 | `answer` | string | Text for the chat panel. May contain Markdown (bold, lists). Empty when `error` is set. |
-| `entity_ids` | list of strings | Graph ids the answer is about, e.g. `["loc:guadalcanal", "org:usmc"]`. Can include places, events, orgs and people. Empty for a clarification question, a "not in the graph" answer, or an error. |
-| `sources` | list of strings | Wikipedia page titles the answer relies on, e.g. `["Guadalcanal campaign"]`. |
+| `answer_ids` | list of strings | The entities that **answer the question**. "Who attacked X": only the attackers. "Where did X happen": the places. "What happened at (x, y)": the events. Highlight these. Empty for a clarification question, a "not in the graph" answer, or an error. |
+| `context_ids` | list of strings | Other entities the answer mentions that help on the map: the place asked about, defenders, commanders, the related battle. Show these more quietly. |
+| `entity_ids` | list of strings | `answer_ids` followed by `context_ids`, e.g. `["org:usmc", "loc:guadalcanal"]`. Kept so code written for the earlier output keeps working. All three lists hold only ids that the agent's graph queries actually returned; anything else the model named goes to `dropped_ids`. |
+| `sources` | list of strings | Wikipedia page titles the answer relies on, e.g. `["Guadalcanal campaign"]`. Only pages that appeared in the agent's evidence; others go to `unverified_sources`. |
 | `geojson` | GeoJSON FeatureCollection | Ready-to-draw map data built from the graph, never from the model (see below). Empty `features` when there's nothing to show. |
 | `tool_calls` | list of `{name, args}` | The graph queries the agent ran. Useful for a "how I found this" panel or for debugging. |
 | `run_id` | string | Id of this run's trace file entry. Show it in bug reports: `uv run geo-agent --trace <run_id>` replays what happened. |
-| `warnings` | list of strings | Codes for things worth flagging, empty when all went well: `structured_output_failed` (the answer is plain text without ids), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`. |
+| `confidence` | `{level, basis}` | `level` is `high`, `medium` or `low`: how well the graph supports the answer. Show it as a label, not a percentage; the thresholds aren't calibrated yet. `basis` has `max_edge_count`, `n_source_pages`, `uncertain_match_used`. |
+| `interpretation` | list of strings | How names in the question were read when it wasn't literal, e.g. `"'Chungking' read as Chongqing (alias)"`. **Show these to the user**, so a wrong reading is visible. Empty when every name matched as typed. |
+| `resolved_entities` | list of objects | One per final entity found by name: `id`, `name`, `typed` (the text searched), `matched_label`, `match` (`name`/`alias`/`fuzzy`), `score`, `quality` (`clear`/`uncertain`), `model_rewritten_query`, and `context_mismatch` when the question's year doesn't fit the event's dates. For debugging or a details panel. |
+| `dropped_ids` | list of `{id, reason}` | Ids the model named but the evidence didn't support (`reason`: `unknown` or `not_in_tool_output`). Not drawn. |
+| `unverified_sources` | list of strings | Pages the model cited that never appeared in its evidence. |
+| `unverified_numbers` | list of numbers | Coordinates written in `answer` that match no value the graph returned. The text isn't changed; consider a small "unverified" marker. |
+| `warnings` | list of strings | Codes for things worth flagging, empty when all went well. Answer quality: `low_confidence`, `uncertain_match_used` (a weak or ambiguous name match was used), `context_mismatch` (e.g. "Battle of Midway in 1944"; the battle was 1942), `model_rewritten_query` (the model searched a spelling the user didn't type), `ids_dropped`, `sources_unverified`, `text_coordinates_unverified`. Run health: `structured_output_failed` (plain text without ids), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`. |
 | `error` | `null` or `{type, message, stage}` | `null` on success. On failure: `stage` is `model_call` (the model provider failed or timed out), `tool_call`, `step_limit` (the agent looped too long), `post_processing` or `unknown`. `answer`, `entity_ids` and `sources` are then empty. |
 
 ### The `geojson` field
@@ -194,52 +205,61 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
   - `name`: display name, for the label
   - `type`: `location` today
   - `related_to`: present when the place is drawn on behalf of a non-spatial entity. For example, `event:battle_of_midway` is drawn at Midway Atoll with `related_to: "event:battle_of_midway"`. Use it to style or group markers.
-- Known issue, being fixed: an org in `entity_ids` is currently drawn at **every** place it's linked to anywhere in the graph. For example, the Imperial Japanese Army is drawn at Kiska and Chongqing for a Corregidor question. The fix will draw it only at the places relevant to the answer.
+  - `role`: `answer` when the feature (or the entity it's drawn for) is in `answer_ids`, otherwise `context`. Use it to highlight the answer, e.g. a stronger color for `answer`.
+- An org, person or event in `entity_ids` is drawn only at its linked places that are part of this answer's evidence. For "Who attacked Corregidor in 1942?", the Imperial Japanese Army is drawn at Corregidor, not at every place it fought.
 
 ### The three kinds of reply to handle
 **1. Answer.** Text, ids and map features:
 ```json
 {"answer": "The US Marine Corps attacked Guadalcanal from 7 August 1942; the Imperial Japanese Army attacked Henderson Field in September-October 1942.",
- "entity_ids": ["loc:guadalcanal", "loc:henderson_field", "org:usmc", "org:ija"],
+ "answer_ids": ["org:usmc", "org:ija"],
+ "context_ids": ["loc:guadalcanal", "loc:henderson_field"],
+ "entity_ids": ["org:usmc", "org:ija", "loc:guadalcanal", "loc:henderson_field"],
  "sources": ["Guadalcanal campaign"],
  "geojson": {"type": "FeatureCollection", "features": [
    {"type": "Feature",
     "geometry": {"type": "Polygon", "coordinates": [[[159.6, -9.2], [160.9, -9.2], [160.9, -10.0], [159.6, -10.0], [159.6, -9.2]]]},
-    "properties": {"id": "loc:guadalcanal", "name": "Guadalcanal", "type": "location"}},
+    "properties": {"id": "loc:guadalcanal", "name": "Guadalcanal", "type": "location", "related_to": "org:usmc", "role": "answer"}},
    {"type": "Feature", "geometry": {"type": "Point", "coordinates": [160.05, -9.43]},
-    "properties": {"id": "loc:henderson_field", "name": "Henderson Field", "type": "location"}}]},
+    "properties": {"id": "loc:henderson_field", "name": "Henderson Field", "type": "location", "related_to": "org:ija", "role": "answer"}}]},
  "tool_calls": [{"name": "search_entities", "args": {"query": "Guadalcanal"}},
                 {"name": "find_relations", "args": {"target_id": "loc:guadalcanal", "relation_type": "ATTACKED", "year": 1942}}],
- "run_id": "605f2d20c1e44f0e9a3b7d2a4c1f8e01", "warnings": [], "error": null}
+ "run_id": "605f2d20c1e44f0e9a3b7d2a4c1f8e01",
+ "confidence": {"level": "high", "basis": {"max_edge_count": 5, "n_source_pages": 2, "uncertain_match_used": false}},
+ "interpretation": [],
+ "resolved_entities": [{"id": "loc:guadalcanal", "name": "Guadalcanal", "typed": "Guadalcanal", "matched_label": "Guadalcanal",
+                        "match": "name", "score": 100, "quality": "clear", "model_rewritten_query": false}],
+ "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [],
+ "warnings": [], "error": null}
 ```
 
 **2. Clarification question.** The name was ambiguous, so the agent asks instead of guessing. `entity_ids` and `features` are empty. Show the question, and send the user's reply with the **same `thread_id`**:
 ```json
 {"answer": "Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?",
- "entity_ids": [], "sources": [], "geojson": {"type": "FeatureCollection", "features": []},
+ "answer_ids": [], "context_ids": [], "entity_ids": [], "sources": [], "geojson": {"type": "FeatureCollection", "features": []},
  "tool_calls": [{"name": "search_entities", "args": {"query": "Battle of Guam"}}],
- "run_id": "…", "warnings": [], "error": null}
+ "run_id": "…", "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "uncertain_match_used": false}},
+ "interpretation": [], "resolved_entities": [], "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [],
+ "warnings": [], "error": null}
 ```
-"Not in the graph" replies look the same: an explanation in `answer` and no ids.
+"Not in the graph" replies look the same: an explanation in `answer` and no `answer_ids`. They may still have `context_ids`, e.g. the place that was asked about.
 
 **3. Error.** Show a friendly message and keep `run_id` for the bug report:
 ```json
-{"answer": "", "entity_ids": [], "sources": [], "geojson": {"type": "FeatureCollection", "features": []},
+{"answer": "", "answer_ids": [], "context_ids": [], "entity_ids": [], "sources": [],
+ "geojson": {"type": "FeatureCollection", "features": []},
  "tool_calls": [], "run_id": "…", "warnings": [],
+ "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "uncertain_match_used": false}},
+ "interpretation": [], "resolved_entities": [], "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [],
  "error": {"type": "ModelDeadlineExceeded", "message": "model call exceeded 90s deadline 2 times", "stage": "model_call"}}
 ```
 
-### Planned additions
-These fields will be added later. Nothing existing will change name or type.
-- `confidence` (`high`/`medium`/`low` with its basis)
-- `interpretation`: how each name was read, e.g. "'Chungking' read as Chongqing (alias)". Meant to be shown to the user.
-- `resolved_entities`
-- `dropped_ids`, `unverified_sources`, `unverified_numbers`: claims the evidence check couldn't confirm.
+Every reply has all of these keys, including errors; list fields are empty and `confidence` is `low` when there is nothing to report. New keys may be added later; existing keys won't change name or type.
 
-`sources` will also get stricter: it will list only pages that appeared in the agent's evidence.
+For a clarification reply, `confidence` is `low` but no `low_confidence` warning is raised: that warning is only for answers that have entities.
 
 ## Debugging a run
-Every `ask()` appends events to `logs/trace-YYYY-MM-DD.jsonl`: `run_start` (question, model, graph hash, tools, step limit), `model_end` per step (latency, tokens, requested tools, text), `tool_end` / `tool_error` per tool call (args, status `ok`/`empty`/`error`, latency, result hash and preview), `structured_output`, and `run_end` (outcome, failure stage, warnings, diagnostics).
+Every `ask()` appends events to `logs/trace-YYYY-MM-DD.jsonl`: `run_start` (question, model, graph hash, tools, step limit), `model_end` per step (latency, tokens, requested tools, text), `tool_end` / `tool_error` per tool call (args, status `ok`/`empty`/`error`, latency, result hash and preview), `structured_output`, `finalize` (claimed vs kept ids and sources, resolved entities, confidence), and `run_end` (outcome, failure stage, warnings, diagnostics).
 
 ```bash
 uv run geo-agent --trace last          # timeline of the latest run (or a run id / 8-char prefix)
