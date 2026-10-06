@@ -137,7 +137,12 @@ def build_tools(store: GraphStore) -> list[BaseTool]:
     @tool
     def entities_in_bbox(min_lon: float, min_lat: float, max_lon: float, max_lat: float, type: str | None = None) -> str:
         """Find geolocated entities intersecting a bounding box (decimal degrees),
-        e.g. the area currently visible or selected on the map."""
+        e.g. the area currently visible or selected on the map.
+
+        Longitudes are -180..180. For a box that crosses the 180° meridian (the
+        date line, e.g. Fiji or the Aleutians), pass min_lon > max_lon:
+        min_lon=170, max_lon=-170 means 170°E eastward to 170°W.
+        """
         return _json(store.in_bbox(min_lon, min_lat, max_lon, max_lat, type) or {"result": "nothing in graph inside bbox"})
 
     @tool

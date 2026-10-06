@@ -49,7 +49,7 @@ def ai(*calls, usage=None):
 
 
 def final(answer="done", ids=()):
-    return ai(call("AgentAnswer", "final", answer=answer, entity_ids=list(ids), sources=[]))
+    return ai(call("AgentAnswer", "final", answer=answer, context_ids=[], answer_ids=list(ids), sources=[]))
 
 
 def ask(responses, question="q", model_cls=FakeToolModel):
@@ -107,7 +107,7 @@ def test_event_order_end_to_end(isolated_env):
     out = ask(MIDWAY_RUN)
     events = read_events(isolated_env)
     assert [e["event"] for e in events] == [
-        "run_start", "model_end", "tool_end", "model_end", "tool_end", "model_end", "structured_output", "run_end",
+        "run_start", "model_end", "tool_end", "model_end", "tool_end", "model_end", "structured_output", "finalize", "run_end",
     ]
     assert [e["seq"] for e in events] == list(range(1, len(events) + 1))
     assert {e["run_id"] for e in events} == {out["run_id"]}
@@ -185,6 +185,10 @@ def test_unknown_stage(isolated_env):
         ("repeated_tool_call", [ai(call("search_entities", "a", query="Midway")), ai(call("search_entities", "b", query="Midway")), final()], {}),
         ("empty_resolution", [ai(call("search_entities", "a", query="Leyte Gulf")), final()], {}),
         ("many_steps", [ai(call("graph_schema", "a")), ai(call("graph_schema", "b")), final()], {"GEO_AGENT_WARN_STEPS": "2"}),
+        ("ids_dropped", [final("Tokyo", ["loc:tokyo"])], {}),  # no tool ever returned loc:tokyo
+        ("sources_unverified", [ai(call("AgentAnswer", "f", answer="x", context_ids=[], answer_ids=[], sources=["Made-up page"]))], {}),
+        ("text_coordinates_unverified", [final("It is at 12.34, 56.78.")], {}),
+        ("low_confidence", [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])], {}),  # uncertain match -> low
     ],
 )
 def test_warning_codes(isolated_env, monkeypatch, code, responses, env):
@@ -500,3 +504,56 @@ def test_resolving_an_allowed_related_entity_is_not_wrong():
                               ("get_entity", {"entity_id": "event:doolittle_raid"}, ["event:doolittle_raid"])],
                        ids=["loc:tokyo", "org:usaaf"])
     assert "wrong_entity_accepted" not in attribute_failure(q, trace)
+
+
+def test_finalize_event_and_dropped_id_warning(isolated_env, caplog):
+    out = ask([ai(call("search_entities", "a", query="Midway")), final("Midway", ["loc:midway_atoll", "loc:tokyo"])])
+    fin = next(e for e in read_events(isolated_env) if e["event"] == "finalize")
+    assert fin["claimed_ids"] == ["loc:midway_atoll", "loc:tokyo"] and fin["kept_ids"] == ["loc:midway_atoll"]
+    assert fin["dropped_ids"] == [{"id": "loc:tokyo", "reason": "not_in_tool_output"}]
+    assert out["dropped_ids"] == fin["dropped_ids"] and "ids_dropped" in out["warnings"]
+    assert any("dropped ids" in r.getMessage() and r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.parametrize(
+    "code,question,responses",
+    [
+        ("uncertain_match_used", "What happened at Tara?",
+         [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])]),
+        ("model_rewritten_query", "Who bombed China's wartime capital?",
+         [ai(call("search_entities", "a", query="Chongqing")), final("Japan", ["loc:chongqing"])]),
+        ("context_mismatch", "What happened in the Battle of Midway in 1944?",
+         [ai(call("search_entities", "a", query="Battle of Midway")), final("It was 1942", ["event:battle_of_midway"])]),
+    ],
+)
+def test_resolution_warning_codes(isolated_env, code, question, responses):
+    out = ask(responses, question=question)
+    assert code in out["warnings"]
+    events = read_events(isolated_env)
+    fin = next(e for e in events if e["event"] == "finalize")
+    assert fin["resolved_entities"] and code in events[-1]["warnings"]
+
+
+def test_final_answer_missing_ids_is_sent_back_and_retried(isolated_env):
+    """The model's first final answer omits entity_ids/sources; the validation error goes back and the retry is used."""
+    out = ask([
+        ai(call("search_entities", "a", query="Midway")),
+        ai(call("AgentAnswer", "f1", answer="Midway Atoll")),  # required fields missing
+        final("Midway Atoll", ["loc:midway_atoll"]),
+    ])
+    assert out["entity_ids"] == ["loc:midway_atoll"] and "structured_output_failed" not in out["warnings"]
+    assert read_events(isolated_env)[-1]["diagnostics"]["steps"] == 3
+
+
+def test_r24_extra_ids_only_on_answer_ids():
+    q = {"expected_entity_ids": ["loc:corregidor", "org:ija"], "allowed_extra_ids": [], "expected_resolved_ids": ["loc:corregidor"],
+         "expected_behavior": "answer"}
+    trace = stub_trace(searches=[("Corregidor", ["loc:corregidor"])],
+                       tools=[("find_relations", {"target_id": "loc:corregidor"}, ["org:ija", "org:us_army", "loc:corregidor"])],
+                       ids=["org:ija", "loc:corregidor", "org:us_army"])
+    # pre-R24 trace (no answer_ids): every final id is an answer id, so the defender counts as extra
+    assert "extra_ids" in attribute_failure(q, trace)
+    # R24 trace: the defender is a context id
+    trace.insert(-1, {"run_id": "r", "seq": 98, "event": "finalize", "kept_ids": ["org:ija", "loc:corregidor", "org:us_army"],
+                      "answer_ids": ["org:ija"], "context_ids": ["loc:corregidor", "org:us_army"], "dropped_ids": []})
+    assert "extra_ids" not in attribute_failure(q, trace)
