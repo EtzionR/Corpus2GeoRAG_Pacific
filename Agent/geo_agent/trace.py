@@ -314,6 +314,9 @@ def trace_warnings(events: list[dict[str, Any]], warn_steps: int | None = None) 
         warnings.append("empty_resolution")
     if diag["steps"] > warn_steps:
         warnings.append("many_steps")
+    budget = env_int("GEO_AGENT_TOKEN_BUDGET", 40000)
+    if budget and diag["input_tokens"] > budget:
+        warnings.append("token_budget")
     return warnings
 
 
@@ -600,9 +603,13 @@ def resolved_ids(events: list[dict[str, Any]]) -> set[str]:
     return (candidates & queried) or (candidates & set(final_answer(events)[1]))
 
 
+ASK_RE = re.compile(r"\?|\bplease (clarify|specify|confirm|tell me)\b|\bwhich (one|of these|of the)\b", re.IGNORECASE)
+
+
 def asked(answer: str, final_ids: list[str]) -> bool:
-    """A reply that asks the user back: no ids and a question mark."""
-    return not final_ids and "?" in answer
+    """A reply that asks the user back: no ids, and a question mark or a clarification request
+    ("Please specify which battle ..." counts even without "?")."""
+    return not final_ids and bool(ASK_RE.search(answer))
 
 
 def attribute_failure(question: dict[str, Any], events: list[dict[str, Any]]) -> list[str]:
