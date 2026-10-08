@@ -41,6 +41,30 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
 
 EARTH_RADIUS_KM = 6371.0
+# Sentences in source text that address an AI rather than describe history (spec R32).
+# They are replaced before any tool returns the text, so the model never reads them.
+INSTRUCTION_RE = re.compile(
+    r"\b(ignore|disregard|forget|override)\b[^.!?\]]{0,40}\b(instructions?|prompts?|rules)\b"
+    r"|\byou are now\b|\bsystem prompt\b|\b(as an|you are an?) (ai|assistant|language model)\b"
+    r"|\b(answer|reply|respond) (to )?(every|all|any) (question|request)s?\b",
+    re.IGNORECASE)
+REDACTED = "[instruction-like text removed]"
+
+
+def redact_instructions(text: str) -> tuple[str, int]:
+    """Replace each bracketed note or sentence that looks like an instruction to an AI."""
+    count = 0
+
+    def scrub(segment: str) -> str:
+        nonlocal count
+        if INSTRUCTION_RE.search(segment):
+            count += 1
+            return REDACTED
+        return segment
+
+    text = re.sub(r"\[[^\]]*\]", lambda m: scrub(m.group(0)), text)  # [editor notes] first
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    return " ".join(scrub(p) if p != REDACTED else p for p in parts), count
 
 # Name-match quality (spec R4). Starting values, to be calibrated on the eval set.
 CLEAR_SCORE = 90  # minimum score for a "clear" best match
@@ -220,11 +244,24 @@ class GraphStore:
                 self._labels.append(label)
                 self._name_owner.append(n.id)
 
-        # Text index: one chunk per paragraph of each node's raw text.
+        # Instruction-like sentences are removed from source text before it is indexed or
+        # returned by any tool (spec R32); the raw text stays on the node.
+        self.safe_text: dict[str, str] = {}
+        self.redacted_ids: set[str] = set()
+        for n in nodes:
+            paras = []
+            for para in n.text.split("\n\n"):
+                clean, removed = redact_instructions(para)
+                paras.append(clean)
+                if removed:
+                    self.redacted_ids.add(n.id)
+            self.safe_text[n.id] = "\n\n".join(paras)
+
+        # Text index: one chunk per paragraph of each node's (redacted) text.
         self._chunks: list[tuple[str, str]] = [
             (n.id, para.strip())
             for n in nodes
-            for para in n.text.split("\n\n")
+            for para in self.safe_text[n.id].split("\n\n")
             if para.strip()
         ]
         self._bm25 = BM25Okapi([_tokenize(t) for _, t in self._chunks]) if self._chunks else None
@@ -326,7 +363,8 @@ class GraphStore:
             "attributes": n.attributes,
             "geometry": n.geometry,
             "sources": [s.model_dump(exclude_none=True) for s in n.sources],
-            "text": n.text[:text_chars],
+            "text": self.safe_text[entity_id][:text_chars],
+            **({"text_redacted": True} if entity_id in self.redacted_ids else {}),
             "degree": len(self.out_edges[entity_id]) + len(self.in_edges[entity_id]),
         }
 
@@ -743,7 +781,8 @@ class GraphStore:
         unique.sort(key=lambda e: (e.start_date or "9999", -e.count))
         events = sorted(
             (
-                {**self.summarize_node(ev), **self.nodes[ev].attributes, "excerpt": self.nodes[ev].text[:text_chars]}
+                {**self.summarize_node(ev), **self.nodes[ev].attributes, "excerpt": self.safe_text[ev][:text_chars],
+                 **({"text_redacted": True} if ev in self.redacted_ids else {})}
                 for ev in event_ids
             ),
             key=lambda x: x.get("start_date", "9999"),
@@ -773,6 +812,7 @@ class GraphStore:
             out.append({
                 "entity": {"id": nid, "name": n.name, "type": n.type},
                 "text": text,
+                **({"text_redacted": True} if nid in self.redacted_ids else {}),
                 "sources": [s.model_dump(exclude_none=True) for s in n.sources],
                 "score": round(float(scores[i]), 3),
             })

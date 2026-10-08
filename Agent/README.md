@@ -20,7 +20,7 @@ uv run geo-agent --trace last      # timeline of the last run (see "Debugging a 
 | `geo_agent/tools.py` | LangChain tools wrapping `GraphStore`. The docstrings are the LLM's tool descriptions. |
 | `geo_agent/agent.py` | OpenRouter LLM, system prompt, allowlisted MCP loading, `GeoAgent.ask()`, `finalize_answer()`, CLI. |
 | `geo_agent/trace.py` | Run tracing (callback handler, JSONL writer), diagnostics, timeline, replay, report. |
-| `data/sample_graph.json` | Hand-written WWII Pacific fixture (68 nodes, 115 edges) used until the real graph exists. It includes edge cases: meridian (Kiska/Adak, Taveuni), near-tied names (Guam 1941/1944), Chungking alias, Tarawa/Tarakan, and set-question structure (kinds, countries, `PART_OF` campaigns, the Combined Fleet, the Manhattan Project chain). |
+| `data/sample_graph.json` | Hand-written WWII Pacific fixture (69 nodes, 115 edges) used until the real graph exists. It includes edge cases: meridian (Kiska/Adak, Taveuni), near-tied names (Guam 1941/1944), Chungking alias, Tarawa/Tarakan, and set-question structure (kinds, countries, `PART_OF` campaigns, the Combined Fleet, the Manhattan Project chain), and `loc:nauru`, whose text holds a deliberate prompt-injection test. |
 | `mcp_servers.json` | Allowlist of optional external MCP servers/tools (empty by default). |
 | `tests/test_tools.py` | Tool/store tests: the three example questions, name matching, meridian and date cases. |
 | `tests/test_trace.py`, `tests/test_agent.py` | Tracing, failure stages, viewer/replay/report, error results. Fake model, no network. |
@@ -35,16 +35,17 @@ uv run geo-agent --trace last      # timeline of the last run (see "Debugging a 
 7. **Set questions: the model plans, the code enumerates.** For "all locations connected to X", one tool computes the whole set from fixed connection paths (never through membership or co-mention hubs). The model sees only a count, groupings and the top rows, plus a handle. The map is filled from the handle. A set of 500 places costs the same ~1k tokens as one of 5, and the model never copies ids.
 8. **Bounded context.** Past a threshold, old tool outputs are hidden from the model (the stored messages, which the evidence check uses, stay intact). A per-question token budget makes the model finish and raises a warning.
 9. **Honest approximations.** When the graph lacks kinds, countries or a campaign node, the agent guesses from names or text but always says so (`interpretation`, `approximation_used`). A text-only campaign answer is never above low confidence.
-10. **Answer and context are separate.** The model returns `answer_ids` (what answers the question, e.g. the attackers) and `context_ids` (the place, defenders, commanders). With one flat list, a defender the answer mentions looked exactly like a wrong attacker. The roles come from the question, so nothing extra is needed in the graph. Telling attackers from defenders does need typed relations (`ATTACKED` vs `DEFENDED`), as "who attacked X" always did.
-11. **Visible name resolution.** Every name match has a quality (`clear`/`uncertain`). On an uncertain match the agent asks a short clarification question instead of guessing; when a name was read differently from how it was typed, `interpretation` says so in plain words. A question year outside the resolved event's dates is flagged, never silently corrected.
-12. **Pure query layer.** All logic lives in `GraphStore`, so it can be tested without an LLM. A future MCP server or REST API for the UI can wrap the same methods.
-13. **Tolerant input schema.** Pydantic models allow extra fields, and node/edge types are open strings. Edges that point to unknown nodes are dropped, not fatal.
-14. **Spatial semantics.** Distance is great-circle km from the query point to the *nearest point* of a geometry (0 if inside). A point on Guadalcanal therefore matches the island polygon and the Solomon Islands. Distances wrap correctly across the 180° meridian (Kiska to Adak is ~396 km, not ~40,000). A bounding box with `min_lon > max_lon` crosses the meridian: `170 … -170` is the strip around the date line.
-15. **Dates.** Partial ISO dates are allowed (`1942`, `1942-06`). Date filters use interval overlap, and undated edges are excluded when a filter is set.
-16. **Sub-locations.** `find_relations` expands a location through `LOCATED_IN` by default. "Who attacked Guadalcanal" therefore includes attacks on Henderson Field.
-17. **Text retrieval is BM25** over node text paragraphs. It is simple, needs no API, and returns citable paragraphs.
-18. **Local tracing, no hosted service.** Every run writes JSONL events through a LangChain callback handler, so tools and `GraphStore` stay untouched. Trace writes can never fail a run. Questions and 1000-character result previews are stored locally; keys and env values never are.
-19. **Errors are returned as data.** `ask()` never raises for model, tool, step-limit or post-processing failures; it returns `error: {type, message, stage}` so the UI always gets a reply and the trace says where the run stopped.
+10. **Scope guard in code.** Every grounded answer needs at least one graph query (even "not in the graph" needs a search). So a reply made with no tool call is replaced with a fixed scope message (`off_topic`), whatever the model wrote: a poem, chit-chat, or a jailbreak attempt that got through. The prompt also tells the model to decline off-topic requests, and that tool results (including Wikipedia text) are data whose instructions it must never follow. On top of that, sentences in the source text that address an AI ("ignore all previous instructions…", "you are now…") are replaced with `[instruction-like text removed]` when the graph loads, so the model never reads them; the raw text stays in the graph. Tools are read-only, with no code execution, files or network, so a jailbreak can't make the agent do anything; the remaining exposure is the answer text, which the UI renders as untrusted.
+11. **Answer and context are separate.** The model returns `answer_ids` (what answers the question, e.g. the attackers) and `context_ids` (the place, defenders, commanders). With one flat list, a defender the answer mentions looked exactly like a wrong attacker. The roles come from the question, so nothing extra is needed in the graph. Telling attackers from defenders does need typed relations (`ATTACKED` vs `DEFENDED`), as "who attacked X" always did.
+12. **Visible name resolution.** Every name match has a quality (`clear`/`uncertain`). On an uncertain match the agent asks a short clarification question instead of guessing; when a name was read differently from how it was typed, `interpretation` says so in plain words. A question year outside the resolved event's dates is flagged, never silently corrected.
+13. **Pure query layer.** All logic lives in `GraphStore`, so it can be tested without an LLM. A future MCP server or REST API for the UI can wrap the same methods.
+14. **Tolerant input schema.** Pydantic models allow extra fields, and node/edge types are open strings. Edges that point to unknown nodes are dropped, not fatal.
+15. **Spatial semantics.** Distance is great-circle km from the query point to the *nearest point* of a geometry (0 if inside). A point on Guadalcanal therefore matches the island polygon and the Solomon Islands. Distances wrap correctly across the 180° meridian (Kiska to Adak is ~396 km, not ~40,000). A bounding box with `min_lon > max_lon` crosses the meridian: `170 … -170` is the strip around the date line.
+16. **Dates.** Partial ISO dates are allowed (`1942`, `1942-06`). Date filters use interval overlap, and undated edges are excluded when a filter is set.
+17. **Sub-locations.** `find_relations` expands a location through `LOCATED_IN` by default. "Who attacked Guadalcanal" therefore includes attacks on Henderson Field.
+18. **Text retrieval is BM25** over node text paragraphs. It is simple, needs no API, and returns citable paragraphs.
+19. **Local tracing, no hosted service.** Every run writes JSONL events through a LangChain callback handler, so tools and `GraphStore` stay untouched. Trace writes can never fail a run. Questions and 1000-character result previews are stored locally; keys and env values never are.
+20. **Errors are returned as data.** `ask()` never raises for model, tool, step-limit or post-processing failures; it returns `error: {type, message, stage}` so the UI always gets a reply and the trace says where the run stopped.
 
 ## Input schema (for the knowledge-graph builder)
 The agent reads **one JSON file**, set by `GRAPH_PATH` (default `data/sample_graph.json`). It holds two arrays:
@@ -214,7 +215,7 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
 ### Fields
 | Field | Type | Meaning |
 |---|---|---|
-| `answer` | string | Text for the chat panel. May contain Markdown (bold, lists). Empty when `error` is set. |
+| `answer` | string | Text for the chat panel. May contain Markdown (bold, lists). Empty when `error` is set. **Treat it as untrusted text:** render it with a sanitizing Markdown renderer (e.g. markdown-it with HTML disabled, or DOMPurify on the output) and never insert it as raw HTML. It's written by a language model that also reads Wikipedia text, so it could contain HTML or links that someone planted in the data. |
 | `answer_ids` | list of strings | The entities that **answer the question**. "Who attacked X": only the attackers. "Where did X happen": the places. "What happened at (x, y)": the events. Highlight these. Empty for a clarification question, a "not in the graph" answer, or an error. |
 | `context_ids` | list of strings | Other entities the answer mentions that help on the map: the place asked about, defenders, commanders, the related battle. Show these more quietly. |
 | `entity_ids` | list of strings | `answer_ids` followed by `context_ids`, e.g. `["org:usmc", "loc:guadalcanal"]`. Kept so code written for the earlier output keeps working. All three lists hold only ids that the agent's graph queries actually returned; anything else the model named goes to `dropped_ids`. |
@@ -228,7 +229,7 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
 | `dropped_ids` | list of `{id, reason}` | Ids the model named but the evidence didn't support (`reason`: `unknown` or `not_in_tool_output`). Not drawn. |
 | `unverified_sources` | list of strings | Pages the model cited that never appeared in its evidence. |
 | `unverified_numbers` | list of numbers | Coordinates written in `answer` that match no value the graph returned. The text isn't changed; consider a small "unverified" marker. |
-| `warnings` | list of strings | Codes for things worth flagging, empty when all went well. Answer quality: `low_confidence`, `uncertain_match_used` (a weak or ambiguous name match was used), `context_mismatch` (e.g. "Battle of Midway in 1944"; the battle was 1942), `model_rewritten_query` (the model searched a spelling the user didn't type), `ids_dropped`, `sources_unverified`, `text_coordinates_unverified`, `approximation_used` (a kind, country or concept was guessed; see `interpretation`), `result_set_unknown`. Run health: `structured_output_failed` (plain text without ids), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`, `token_budget` (the question used more tokens than the budget). |
+| `warnings` | list of strings | Codes for things worth flagging, empty when all went well. Answer quality: `low_confidence`, `uncertain_match_used` (a weak or ambiguous name match was used), `context_mismatch` (e.g. "Battle of Midway in 1944"; the battle was 1942), `model_rewritten_query` (the model searched a spelling the user didn't type), `ids_dropped`, `sources_unverified`, `text_coordinates_unverified`, `approximation_used` (a kind, country or concept was guessed; see `interpretation`), `result_set_unknown`. Scope: `off_topic` (the question wasn't about the graph; `answer` is the fixed scope message), `instruction_text_removed` (source text used for this answer contained instruction-like sentences, which were removed before the model saw them). Run health: `structured_output_failed` (plain text without ids), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`, `token_budget` (the question used more tokens than the budget). |
 | `result_sets` | list of `{handle, label, total, on_map, map_truncated}` | For set questions: the sets the answer is about, e.g. `{"label": "locations connected to Isoroku Yamamoto", "total": 5, "on_map": 5}`. Their members are in `answer_ids` and on the map. Show `total` ("5 places"), since the text names only the top ones. |
 | `dropped_sets` | list of `{handle, reason}` | Set handles the model named that weren't valid. For debugging. |
 | `error` | `null` or `{type, message, stage}` | `null` on success. On failure: `stage` is `model_call` (the model provider failed or timed out), `tool_call`, `step_limit` (the agent looped too long), `post_processing` or `unknown`. `answer`, `entity_ids` and `sources` are then empty. |
@@ -247,7 +248,7 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
 - Set questions can put many places on the map, up to 1,000 features (`result_sets[].map_truncated` says if more were cut). Use marker clustering, and consider coloring by the battle or org in `via`. The answer text is a summary (count, groups, top places), because the map holds the full set.
 - An org, person or event in `entity_ids` is drawn only at its linked places that are part of this answer's evidence. For "Who attacked Corregidor in 1942?", the Imperial Japanese Army is drawn at Corregidor, not at every place it fought.
 
-### The three kinds of reply to handle
+### The four kinds of reply to handle
 **1. Answer.** Text, ids and map features:
 ```json
 {"answer": "The US Marine Corps attacked Guadalcanal from 7 August 1942; the Imperial Japanese Army attacked Henderson Field in September-October 1942.",
@@ -283,7 +284,14 @@ From the command line, `GEO_AGENT_JSON=1 uv run geo-agent "question"` prints the
 ```
 "Not in the graph" replies look the same: an explanation in `answer` and no `answer_ids`. They may still have `context_ids`, e.g. the place that was asked about.
 
-**3. Error.** Show a friendly message and keep `run_id` for the bug report:
+**3. Off-topic.** Poems, code, other subjects, requests to change role or reveal instructions. `answer` is a fixed message written by the code (not the model), ids and map are empty, and `warnings` is `["off_topic"]`:
+```json
+{"answer": "I can only answer questions about the Pacific theatre of World War II, using the knowledge graph built from Wikipedia: places, battles, people and organizations, and how they are connected. For example: \"Where did the Battle of Midway happen?\" or \"Show me all locations connected to Admiral Yamamoto.\"",
+ "answer_ids": [], "context_ids": [], "entity_ids": [], "sources": [], "geojson": {"type": "FeatureCollection", "features": []},
+ "tool_calls": [], "run_id": "…", "warnings": ["off_topic"], "error": null}
+```
+
+**4. Error.** Show a friendly message and keep `run_id` for the bug report:
 ```json
 {"answer": "", "answer_ids": [], "context_ids": [], "entity_ids": [], "sources": [],
  "geojson": {"type": "FeatureCollection", "features": []},
