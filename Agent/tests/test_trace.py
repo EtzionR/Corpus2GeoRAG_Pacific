@@ -49,7 +49,7 @@ def ai(*calls, usage=None):
 
 
 def final(answer="done", ids=()):
-    return ai(call("AgentAnswer", "final", answer=answer, context_ids=[], answer_ids=list(ids), sources=[]))
+    return ai(call("AgentAnswer", "final", answer=answer, context_ids=[], answer_ids=list(ids), answer_sets=[], sources=[]))
 
 
 def ask(responses, question="q", model_cls=FakeToolModel):
@@ -81,7 +81,9 @@ def test_run_start_context(isolated_env):
     assert start["question"] == "Where is Midway?" and start["thread_id"] == "default"
     assert start["model"] == "FakeToolModel" and start["base_url_host"] == "openrouter.ai"
     assert len(start["system_prompt_hash"]) == 12
-    assert start["graph"]["nodes"] == 50 and start["graph"]["edges"] == 84 and len(start["graph"]["sha256"]) == 12
+    graph = json.loads(GRAPH.read_text())
+    assert (start["graph"]["nodes"], start["graph"]["edges"]) == (len(graph["nodes"]), len(graph["edges"]))
+    assert len(start["graph"]["sha256"]) == 12
     assert "search_entities" in start["tools"] and start["mcp_loaded"] == [] and start["mcp_skipped"] == []
     assert start["step_limit"] == 25 and start["version"] == "0.1.0"
 
@@ -186,7 +188,7 @@ def test_unknown_stage(isolated_env):
         ("empty_resolution", [ai(call("search_entities", "a", query="Leyte Gulf")), final()], {}),
         ("many_steps", [ai(call("graph_schema", "a")), ai(call("graph_schema", "b")), final()], {"GEO_AGENT_WARN_STEPS": "2"}),
         ("ids_dropped", [final("Tokyo", ["loc:tokyo"])], {}),  # no tool ever returned loc:tokyo
-        ("sources_unverified", [ai(call("AgentAnswer", "f", answer="x", context_ids=[], answer_ids=[], sources=["Made-up page"]))], {}),
+        ("sources_unverified", [ai(call("AgentAnswer", "f", answer="x", context_ids=[], answer_ids=[], answer_sets=[], sources=["Made-up page"]))], {}),
         ("text_coordinates_unverified", [final("It is at 12.34, 56.78.")], {}),
         ("low_confidence", [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])], {}),  # uncertain match -> low
     ],
@@ -557,3 +559,69 @@ def test_r24_extra_ids_only_on_answer_ids():
     trace.insert(-1, {"run_id": "r", "seq": 98, "event": "finalize", "kept_ids": ["org:ija", "loc:corregidor", "org:us_army"],
                       "answer_ids": ["org:ija"], "context_ids": ["loc:corregidor", "org:us_army"], "dropped_ids": []})
     assert "extra_ids" not in attribute_failure(q, trace)
+
+
+def test_r27_end_to_end_answer_set(isolated_env, monkeypatch):
+    """The model names only the handle; the map gets every place in the set."""
+    import uuid as uuid_mod
+    monkeypatch.setattr("geo_agent.graph_store.uuid.uuid4", lambda: uuid_mod.UUID("abcdef00000000000000000000000000"))
+    out = ask([
+        ai(call("search_entities", "a", query="Isoroku Yamamoto")),
+        ai(call("connected_locations", "b", entity_id="per:yamamoto")),
+        ai(call("AgentAnswer", "f", answer="Five places.", answer_ids=[], context_ids=["per:yamamoto"], sources=[],
+                answer_sets=["rs-abcdef"])),
+    ], question="Show me all locations connected to Admiral Isoroku Yamamoto.")
+    assert out["result_sets"][0]["total"] == 5 and len(out["geojson"]["features"]) == 5
+    fin = next(e for e in read_events(isolated_env) if e["event"] == "finalize")
+    assert fin["answer_sets"] == ["rs-abcdef"] and fin["result_sets"][0]["on_map"] == 5
+
+
+class RecordingModel(FakeToolModel):
+    """Remembers the system prompt each step saw."""
+    systems: list = []
+
+    def _generate(self, messages, *args, **kwargs):
+        RecordingModel.systems.append(next((m.content for m in messages if m.type == "system"), ""))
+        return super()._generate(messages, *args, **kwargs)
+
+
+def test_r29_token_budget(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_TOKEN_BUDGET", "1000")
+    RecordingModel.systems = []
+    big = {"input_tokens": 5000, "output_tokens": 10, "total_tokens": 5010}
+    out = ask([ai(call("graph_schema", "a"), usage=big), final()], model_cls=RecordingModel)
+    assert "token_budget" in out["warnings"]
+    assert "TOKEN BUDGET REACHED" not in RecordingModel.systems[0] and "TOKEN BUDGET REACHED" in RecordingModel.systems[1]
+
+
+def test_plan_answer_is_sent_back_and_the_tool_gets_called(isolated_env):
+    out = ask([
+        ai(call("search_entities", "a", query="Isoroku Yamamoto")),
+        ai(call("AgentAnswer", "f1", answer="Found him. Let me retrieve all locations connected to him.", answer_ids=[],
+                context_ids=[], answer_sets=[], sources=[])),
+        ai(call("connected_locations", "b", entity_id="per:yamamoto")),
+        final("Five places.", ["loc:midway_atoll"]),
+    ])
+    assert out["answer"] == "Five places." and "connected_locations" in [c["name"] for c in out["tool_calls"]]
+
+
+def test_invented_result_set_is_sent_back_once(isolated_env, monkeypatch):
+    """Eval step 17c: the model named "rs-1" without calling a set tool; it must get a chance to call it."""
+    import uuid as uuid_mod
+    monkeypatch.setattr("geo_agent.graph_store.uuid.uuid4", lambda: uuid_mod.UUID("abcdef00000000000000000000000000"))
+    out = ask([
+        ai(call("search_entities", "a", query="Douglas MacArthur")),
+        ai(call("AgentAnswer", "f1", answer="Here are his places.", answer_ids=["per:macarthur"], context_ids=[], sources=[],
+                answer_sets=["rs-1"])),  # invented handle -> rejected
+        ai(call("connected_locations", "b", entity_id="per:macarthur")),
+        ai(call("AgentAnswer", "f2", answer="Three places.", answer_ids=[], context_ids=["per:macarthur"], sources=[],
+                answer_sets=["rs-abcdef"])),
+    ], question="Show me all locations associated with General Douglas MacArthur.")
+    assert {f["properties"]["id"] for f in out["geojson"]["features"]} == {"loc:bataan", "loc:port_moresby", "loc:buna"}
+    assert "result_set_unknown" not in out["warnings"] and out["result_sets"][0]["total"] == 3
+
+
+def test_invented_result_set_still_dropped_if_the_model_insists(isolated_env):
+    bad = lambda i: ai(call("AgentAnswer", i, answer="Here.", answer_ids=["per:macarthur"], context_ids=[], sources=[], answer_sets=["rs-1"]))
+    out = ask([ai(call("search_entities", "a", query="Douglas MacArthur")), bad("f1"), bad("f2")])
+    assert "result_set_unknown" in out["warnings"] and out["dropped_sets"] == [{"handle": "rs-1", "reason": "unknown"}]

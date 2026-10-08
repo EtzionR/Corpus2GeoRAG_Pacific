@@ -49,17 +49,18 @@ import httpx
 import openai
 from dotenv import load_dotenv
 from langchain.agents import create_agent
-from langchain.agents.middleware import AgentMiddleware
+from langchain.agents.middleware import AgentMiddleware, ClearToolUsesEdit, ContextEditingMiddleware
+from langchain_core.messages import SystemMessage, ToolMessage
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from rapidfuzz import fuzz
 
-from geo_agent.graph_store import GraphStore, normalize_name
+from geo_agent.graph_store import GraphStore, ResultSets, normalize_name
 from geo_agent.tools import build_tools
 from geo_agent.trace import RunTrace, TraceWriter, diagnostics, env_int, env_on, short_hash, tool_calls_of, trace_warnings
 
@@ -91,6 +92,14 @@ How to work:
   * what happened at (lat, lon) -> what_happened_at (widen radius_km if nothing is found)
   * call graph_schema when you are unsure which relation or entity types exist.
 - Back claims with evidence: prefer relations with higher counts, and use search_source_text for supporting text.
+- "Show me all locations connected to / associated with X", "all islands of X", "major battles",
+  "where are A and B both connected": resolve the names, then use ONE set tool (connected_locations,
+  find_entities, shared_connections; entities_mentioning only if the concept is not an entity).
+  Put its result_set handle in answer_sets. Never answer such a question without calling the set tool in this
+  turn: the map is empty unless a result_set is in answer_sets. In the answer give the count, the main groups (by_via /
+  by_region) and at most ~10 top places; never list every place: the map shows the whole set.
+- If a tool result has an "approximation" note, say in the answer that the result is approximate and why.
+- List tools return {total, shown, truncated, results}. If truncated is true, the list is incomplete: say how many there are in total and never present the shown rows as all of them.
 - Only put entity_ids and sources in the final answer that appeared in tool results; anything else is dropped.
 - Quote coordinates only as returned by tools, in decimal degrees (e.g. 28.21, -177.37). Never estimate them.
 - If the graph does not contain the answer, say so plainly. Never fill gaps from general knowledge.
@@ -99,7 +108,8 @@ How to work:
 Final answer fields (all required):
 - answer: concise answer for the user, mentioning dates and places.
 - answer_ids: ids of the entities that directly answer the question, and nothing else.
-  * "who attacked/bombed/captured X": only the side that did it (the attackers), never the defenders.
+  * "who attacked/bombed/captured X": only the side that did it (the attackers), never the defenders. Include
+    every attacker in the relation results, also those that attacked places inside X (e.g. an airfield on X).
   * "where did X happen" / "which places ...": the places.
   * "what happened at (lat, lon)" / "what happened in X": the events.
 - context_ids: ids of other entities your answer mentions that help on the map: the place asked about,
@@ -107,6 +117,13 @@ Final answer fields (all required):
 - sources: Wikipedia page titles you relied on.
 Use [] for answer_ids and context_ids only in a clarification question; when the graph has no answer, answer_ids is [].
 Take every id from tool results."""
+
+
+# Announcements of a next step, which mean the model stopped before doing it.
+PLAN_RE = re.compile(
+    r"\blet me\b(?!\s+(know|clarify|explain|summari[sz]e|be clear))"  # "let me pull up ..." (not "let me know")
+    r"|\b(i will now|i'll now|i am going to|i'm going to|next,? i will)\s+(now\s+)?\w+",
+    re.IGNORECASE)
 
 
 class AgentAnswer(BaseModel):
@@ -132,6 +149,23 @@ class AgentAnswer(BaseModel):
                     "asked about, defenders, commanders, related battles. [] if none.")
     sources: list[str] = Field(
         description="Wikipedia page titles (from tool results) the answer relies on. [] only when there are no ids.")
+    answer_sets: list[str] = Field(
+        description="Handles of result sets (the `result_set` value, like 'rs-3f9a1c') returned by connected_locations, "
+                    "find_entities or shared_connections that answer the question. The map then shows every member; "
+                    "do not copy their ids. [] when you used no set tool.")
+
+    @field_validator("answer")
+    @classmethod
+    def not_a_plan(cls, value: str) -> str:
+        """Reject a plan submitted as the answer ("Let me retrieve all locations ...").
+
+        GLM sometimes ends the run with its next step instead of taking it (eval: set-7,
+        set-9, mer-2). The validation error goes back to the model, which then calls the
+        tool it announced, the same retry path as a missing required field.
+        """
+        if PLAN_RE.search(value):
+            raise ValueError("This is a plan, not an answer. Call the tools you need first, then answer from their results.")
+        return value
 
     @property
     def entity_ids(self) -> list[str]:
@@ -157,6 +191,72 @@ def get_llm() -> ChatOpenAI:
         timeout=float(os.getenv("GEO_AGENT_TIMEOUT", "60")),
         max_retries=env_int("GEO_AGENT_MAX_RETRIES", 2),
     )
+
+
+SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning")
+BUDGET_NOTE = ("TOKEN BUDGET REACHED for this question: do not call more tools. Give your final answer now "
+               "with what you already have, and say that the answer may be incomplete.")
+
+
+class TokenBudget(AgentMiddleware):
+    """Tell the model to finish once this turn has used `budget` input tokens (spec R29).
+
+    Counts the usage the provider reported on this turn's model replies. Past the
+    budget, the system prompt gets BUDGET_NOTE; the run_end warning `token_budget`
+    comes from the trace.
+    """
+
+    def __init__(self, budget: int):
+        super().__init__()
+        self.budget = budget
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        msgs = request.messages
+        last_user = max((i for i, m in enumerate(msgs) if m.type == "human"), default=-1)
+        used = sum((getattr(m, "usage_metadata", None) or {}).get("input_tokens", 0) for m in msgs[last_user + 1:] if m.type == "ai")
+        if self.budget and used >= self.budget:
+            base = request.system_message.content if request.system_message is not None else ""
+            request = request.override(system_message=SystemMessage(content=f"{base}\n\n{BUDGET_NOTE}"))
+        return await handler(request)
+
+
+class SetHandleGuard(AgentMiddleware):
+    """Send back a final answer that names a result set no tool returned this turn (spec R27).
+
+    Eval step 17c: GLM answered "all locations connected to MacArthur" with
+    answer_sets=["rs-1"] without calling connected_locations. finalize_answer would
+    drop the handle and draw nothing; instead the model is told the handle doesn't
+    exist and gets `retries` more tries to call the set tool. After that, the
+    finalize check drops what is still unknown, with the warning result_set_unknown.
+    """
+
+    def __init__(self, retries: int = 1):
+        super().__init__()
+        self.retries = retries
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        for _ in range(self.retries):
+            parsed = getattr(response, "structured_response", None)
+            if not isinstance(parsed, AgentAnswer) or not parsed.answer_sets:
+                return response
+            msgs = request.messages
+            last_user = max((i for i, m in enumerate(msgs) if m.type == "human"), default=-1)
+            tool_text = "\n".join(str(m.content) for m in msgs[last_user + 1:] if m.type == "tool")
+            unknown = [h for h in parsed.answer_sets if h not in tool_text]
+            if not unknown:
+                return response
+            ai = response.result[0]
+            call_id = next((c["id"] for c in ai.tool_calls if c["name"] == AgentAnswer.__name__), None)
+            rejection = ToolMessage(
+                content=(f"Rejected: result set {', '.join(unknown)} does not exist. A result_set handle only comes from "
+                         "calling connected_locations, find_entities, shared_connections or entities_mentioning in this "
+                         "turn. Call the right set tool now, then answer with the handle it returns."),
+                tool_call_id=call_id or "answer", name=AgentAnswer.__name__)
+            log.info("final answer named unknown result set(s) %s; asking the model to call the set tool", unknown)
+            request = request.override(messages=[*msgs, ai, rejection])
+            response = await handler(request)
+        return response
 
 
 class ModelDeadlineExceeded(TimeoutError):
@@ -266,6 +366,7 @@ def classify_failure(exc: BaseException, trace: RunTrace) -> str:
 # Evidence check (spec R8). Starting values, see spec Q11/Q12.
 COORD_TOLERANCE = 0.01  # degrees: a coordinate in the answer must match a tool value this closely
 MAX_FALLBACK_SOURCES = 5
+MAX_MAP_FEATURES = 1000  # GeoJSON cap for very large result sets (spec R27)
 HIGH_CONFIDENCE_EDGE_COUNT = 3  # spec R9 starting rule; not a probability, calibrate on the eval set
 HIGH_CONFIDENCE_PAGES = 2
 REWRITE_RATIO = 85  # typed text matching the question less than this was chosen by the model (spec R21)
@@ -463,7 +564,26 @@ def confidence(kept_ids: list[str], sources: list[str], edges: list[dict[str, An
                                       "uncertain_match_used": uncertain_match_used}}
 
 
-def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any]) -> dict[str, Any]:
+def expand_sets(sets: ResultSets | None, handles: list[str], messages: list[Any]) -> tuple[list[tuple[str, dict[str, Any]]], list[dict[str, str]]]:
+    """Result sets named in the answer (spec R27): (used [(handle, entry)], dropped [{handle, reason}]).
+
+    A handle counts only if the registry knows it and it appears in a tool result of this
+    thread, so the model can't invent one or reuse a set it never saw.
+    """
+    tool_text = "\n".join(str(m.content) for m in messages if m.type == "tool")
+    used, dropped = [], []
+    for h in dict.fromkeys(handles):
+        entry = sets.get(h) if sets is not None else None
+        if entry is None:
+            dropped.append({"handle": h, "reason": "unknown"})
+        elif h not in tool_text:
+            dropped.append({"handle": h, "reason": "not_in_tool_output"})
+        else:
+            used.append((h, entry))
+    return used, dropped
+
+
+def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any], sets: ResultSets | None = None) -> dict[str, Any]:
     """Turn the model's parsed answer and this run's messages into the UI output.
 
     Pure function: no I/O, no LLM. Only this turn's tool results count as
@@ -500,6 +620,20 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any])
     answer_ids = [i for i in dict.fromkeys(parsed.answer_ids) if i in kept]
     context_ids = [i for i in kept if i not in answer_ids]
 
+    # Result sets: their members are tool output by construction, so they join the answer
+    # without the per-id evidence check; their locations are drawn on the map.
+    used_sets, dropped_sets = expand_sets(sets, parsed.answer_sets, messages)
+    draw: list[str] = []
+    set_meta: dict[str, dict[str, Any]] = {}
+    for _, entry in used_sets:
+        for i in entry["ids"]:
+            if i in store.nodes and i not in answer_ids:
+                answer_ids.append(i)
+        draw += [d for d in entry["meta"].get("draw", entry["ids"]) if d in store.nodes and d not in draw]
+        set_meta.update(entry["meta"].get("locations", {}))
+    context_ids = [i for i in context_ids if i not in answer_ids]
+    kept = answer_ids + context_ids
+
     sources = [p for p in dict.fromkeys(parsed.sources) if p in evidence["pages"]]
     unverified_sources = [p for p in dict.fromkeys(parsed.sources) if p not in evidence["pages"]]
     if kept and not parsed.sources:
@@ -513,6 +647,10 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any])
     resolved = resolution_records(store, kept, turn, question)
     interpretation = [f"'{r['typed']}' read as {r['name']} ({r['match']})"
                       for r in resolved if r["typed"] and normalize_name(r["typed"]) != normalize_name(r["name"])]
+    # R30: approximations reported by tools this turn (name heuristics, text-based concepts)
+    approx = [d for _, data in tool_results(turn) for d in _walk(data) if isinstance(d.get("approximation"), str)]
+    interpretation += [f"approximation: {n}" for n in dict.fromkeys(d["approximation"] for d in approx)]
+    text_based = any(d.get("text_based") for d in approx)
 
     if dropped:
         warnings.append("ids_dropped")
@@ -521,7 +659,11 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any])
     if unverified_numbers:
         warnings.append("text_coordinates_unverified")
     uncertain_used = bool(kept) and any(r["quality"] != "clear" for r in resolved)
-    conf = confidence(kept, sources, evidence["edges"], uncertain_used)
+    set_edges = [{"source": None, "target": loc, "count": m["strength"]} for loc, m in set_meta.items()
+                 if isinstance(m.get("strength"), (int, float))]
+    conf = confidence(kept, sources, evidence["edges"] + set_edges, uncertain_used)
+    if text_based:  # R30: a concept found only through text mentions is never more than low
+        conf = {"level": "low", "basis": {**conf["basis"], "text_based_approximation": True}}
     if uncertain_used:
         warnings.append("uncertain_match_used")
     if any(r["model_rewritten_query"] for r in resolved):
@@ -530,13 +672,27 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any])
         warnings.append("context_mismatch")
     if kept and conf["level"] == "low":  # clarification and not-in-graph replies have no ids: no warning
         warnings.append("low_confidence")
+    if dropped_sets:
+        warnings.append("result_set_unknown")
+    if approx:
+        warnings.append("approximation_used")
 
     # R23: a non-spatial entity (org, person, event) is drawn only at linked places that are
     # final ids or appeared in this turn's tool results, not at every place it ever touched.
-    geojson = store.to_geojson(kept, restrict_to=set(kept) | evidence["ids"])
-    for f in geojson["features"]:  # R24: highlight what answers the question
+    geojson = store.to_geojson(kept + [d for d in draw if d not in kept], restrict_to=set(kept) | evidence["ids"] | set(draw))
+    map_truncated = len(geojson["features"]) > MAX_MAP_FEATURES
+    geojson["features"] = geojson["features"][:MAX_MAP_FEATURES]
+    draw_set = set(draw)
+    for f in geojson["features"]:  # R24: highlight what answers the question; R27: set paths
         props = f["properties"]
-        props["role"] = "answer" if props["id"] in answer_ids or props.get("related_to") in answer_ids else "context"
+        in_answer = props["id"] in answer_ids or props.get("related_to") in answer_ids or props["id"] in draw_set
+        props["role"] = "answer" if in_answer else "context"
+        if props["id"] in set_meta:
+            props["via"], props["strength"] = set_meta[props["id"]]["via"], set_meta[props["id"]]["strength"]
+    drawn = {f["properties"]["id"] for f in geojson["features"]}
+    result_sets = [{"handle": h, "label": e["label"], "total": len(e["ids"]),
+                    "on_map": sum(d in drawn for d in e["meta"].get("draw", e["ids"])), "map_truncated": map_truncated}
+                   for h, e in used_sets]
 
     return {
         "answer": parsed.answer,
@@ -558,6 +714,8 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any])
         "resolved_entities": resolved,
         "interpretation": interpretation,
         "confidence": conf,
+        "result_sets": result_sets,
+        "dropped_sets": dropped_sets,
     }
 
 
@@ -578,6 +736,8 @@ def error_result(run_id: str, exc: BaseException, stage: str, tool_calls: list[d
         "unverified_numbers": [],
         "resolved_entities": [],
         "interpretation": [],
+        "result_sets": [],
+        "dropped_sets": [],
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "uncertain_match_used": False}},
         "error": {"type": type(exc).__name__, "message": str(exc), "stage": stage},
     }
@@ -597,9 +757,11 @@ class GeoAgent:
         tool_names: list[str] | None = None,
         mcp_loaded: list[str] | None = None,
         mcp_skipped: list[str] | None = None,
+        sets: ResultSets | None = None,
     ):
         self.store = store
         self.agent = agent
+        self.sets = sets if sets is not None else ResultSets()  # shared with the set tools (spec R27)
         self.max_steps = env_int("GEO_AGENT_MAX_STEPS", 25)
         self.writer = TraceWriter.from_env()
         self.log_questions = env_on("GEO_AGENT_LOG_QUESTIONS", True)
@@ -635,7 +797,8 @@ class GeoAgent:
         mcp_config = Path(mcp_config or os.getenv("MCP_CONFIG_PATH", ROOT / "mcp_servers.json"))
 
         store = GraphStore.from_json(graph_path)
-        tools = build_tools(store)
+        sets = ResultSets()
+        tools = build_tools(store, sets)
         builtin = [t.name for t in tools]
         skipped: list[str] = []
         mcp_tools = await load_mcp_tools(mcp_config, set(builtin), skipped)
@@ -646,7 +809,15 @@ class GeoAgent:
             tools,
             system_prompt=SYSTEM_PROMPT,
             response_format=AgentAnswer,
-            middleware=[ModelCallDeadline(float(os.getenv("GEO_AGENT_MODEL_DEADLINE", "90")))],
+            middleware=[
+                ModelCallDeadline(float(os.getenv("GEO_AGENT_MODEL_DEADLINE", "90"))),
+                # R29: past the trigger, old tool outputs are shown to the model as "[cleared]" (the stored
+                # messages, used by the evidence check, are untouched); set-tool outputs keep their handles.
+                ContextEditingMiddleware(edits=[ClearToolUsesEdit(
+                    trigger=env_int("GEO_AGENT_CONTEXT_TRIGGER", 30000), keep=3, exclude_tools=SET_TOOLS)]),
+                TokenBudget(env_int("GEO_AGENT_TOKEN_BUDGET", 40000)),
+                SetHandleGuard(retries=1),
+            ],
             checkpointer=InMemorySaver(),  # per-thread conversation memory
         )
         return cls(
@@ -657,6 +828,7 @@ class GeoAgent:
             tool_names=builtin,
             mcp_loaded=[t.name for t in mcp_tools],
             mcp_skipped=skipped,
+            sets=sets,
         )
 
     async def ask(self, question: str, thread_id: str = "default") -> dict[str, Any]:
@@ -696,12 +868,12 @@ class GeoAgent:
                 raw = str(messages[-1].content) if messages else ""
                 trace.emit("structured_output", ok=False, raw_text=raw[: trace.text_chars])
                 warnings.append("structured_output_failed")
-                parsed = AgentAnswer(answer=raw, answer_ids=[], context_ids=[], sources=[])
+                parsed = AgentAnswer(answer=raw, answer_ids=[], context_ids=[], sources=[], answer_sets=[])
             else:
                 trace.emit("structured_output", ok=True, answer=parsed.model_dump())
 
             try:
-                out = finalize_answer(self.store, parsed, messages)
+                out = finalize_answer(self.store, parsed, messages, self.sets)
             except Exception as exc:
                 stage = "post_processing"
                 log.error("%s post-processing failed", run_id[:8], exc_info=exc)
@@ -717,7 +889,8 @@ class GeoAgent:
                 claimed_sources=parsed.sources, kept_sources=out["sources"],
                 unverified_sources=out["unverified_sources"], unverified_numbers=out["unverified_numbers"],
                 resolved_entities=out["resolved_entities"], interpretation=out["interpretation"],
-                confidence=out["confidence"],
+                confidence=out["confidence"], answer_sets=parsed.answer_sets,
+                result_sets=out["result_sets"], dropped_sets=out["dropped_sets"],
                 warnings=warnings,
             )
             out.update(run_id=run_id, warnings=warnings, error=None)
