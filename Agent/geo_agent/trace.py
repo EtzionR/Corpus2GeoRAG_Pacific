@@ -194,6 +194,9 @@ class RunTrace(BaseCallbackHandler):
             log.info("%s step %d tool %s %s %dms", rid, ev["step"], ev["name"], ev["status"], ev["latency_ms"])
         elif kind == "tool_error":
             log.error("%s step %d tool %s raised %s: %s\n%s", rid, ev["step"], ev["name"], ev["error_type"], ev["message"], ev["traceback"])
+        elif kind == "finalize" and ev.get("dropped_ids"):
+            log.warning("%s dropped ids not supported by tool output: %s", rid,
+                        ", ".join(f"{d['id']} ({d['reason']})" for d in ev["dropped_ids"]))
         elif kind == "structured_output" and not ev["ok"]:
             log.warning("%s structured output failed; using plain-text answer", rid)
         elif kind == "run_end":
@@ -311,6 +314,9 @@ def trace_warnings(events: list[dict[str, Any]], warn_steps: int | None = None) 
         warnings.append("empty_resolution")
     if diag["steps"] > warn_steps:
         warnings.append("many_steps")
+    budget = env_int("GEO_AGENT_TOKEN_BUDGET", 40000)
+    if budget and diag["input_tokens"] > budget:
+        warnings.append("token_budget")
     return warnings
 
 
@@ -414,7 +420,11 @@ def render_timeline(events: list[dict[str, Any]]) -> str:
             lines.append("")
             if e["ok"]:
                 lines.append(f"Answer: {e['answer']['answer']}")
-                lines.append(f"   entity_ids: {e['answer']['entity_ids']}   sources: {e['answer']['sources']}")
+                if "answer_ids" in e["answer"]:
+                    lines.append(f"   answer_ids: {e['answer']['answer_ids']}   context_ids: {e['answer']['context_ids']}"
+                                 f"   sources: {e['answer']['sources']}")
+                else:
+                    lines.append(f"   entity_ids: {e['answer']['entity_ids']}   sources: {e['answer']['sources']}")
             else:
                 lines.append("Structured output failed; plain-text answer:")
                 lines.append(_indent(e.get("raw_text") or ""))
@@ -535,6 +545,13 @@ FAILURE_CLASSES = (
 )
 
 
+def _claimed(answer: dict[str, Any], key: str) -> list[str]:
+    """Ids from a structured answer; traces from before spec R24 only have `entity_ids`."""
+    if key == "entity_ids" and "entity_ids" not in answer:
+        return list(dict.fromkeys((answer.get("answer_ids") or []) + (answer.get("context_ids") or [])))
+    return list(answer.get(key) or answer.get("entity_ids") or [])
+
+
 def final_answer(events: list[dict[str, Any]]) -> tuple[str, list[str]]:
     """(answer text, final entity ids) of a run, from its trace."""
     fin = next((e for e in events if e["event"] == "finalize"), None)
@@ -544,7 +561,18 @@ def final_answer(events: list[dict[str, Any]]) -> tuple[str, list[str]]:
         text = so["answer"]["answer"] if so["ok"] else so.get("raw_text") or ""
     if fin is not None:  # kept ids after the evidence check (plan step 9)
         return text, list(fin.get("kept_ids") or [])
-    return text, list(so["answer"]["entity_ids"]) if so is not None and so["ok"] else []
+    return text, _claimed(so["answer"], "entity_ids") if so is not None and so["ok"] else []
+
+
+def final_answer_ids(events: list[dict[str, Any]]) -> list[str]:
+    """The run's answer ids (spec R24); runs from before R24 count all final ids as answer ids."""
+    fin = next((e for e in events if e["event"] == "finalize"), None)
+    if fin is not None and "answer_ids" in fin:
+        return list(fin["answer_ids"])
+    so = next((e for e in events if e["event"] == "structured_output"), None)
+    if fin is None and so is not None and so["ok"] and "answer_ids" in so["answer"]:
+        return list(so["answer"]["answer_ids"])
+    return final_answer(events)[1]
 
 
 def retrieved_ids(events: list[dict[str, Any]]) -> set[str]:
@@ -575,9 +603,13 @@ def resolved_ids(events: list[dict[str, Any]]) -> set[str]:
     return (candidates & queried) or (candidates & set(final_answer(events)[1]))
 
 
+ASK_RE = re.compile(r"\?|\bplease (clarify|specify|confirm|tell me)\b|\bwhich (one|of these|of the)\b", re.IGNORECASE)
+
+
 def asked(answer: str, final_ids: list[str]) -> bool:
-    """A reply that asks the user back: no ids and a question mark."""
-    return not final_ids and "?" in answer
+    """A reply that asks the user back: no ids, and a question mark or a clarification request
+    ("Please specify which battle ..." counts even without "?")."""
+    return not final_ids and bool(ASK_RE.search(answer))
 
 
 def attribute_failure(question: dict[str, Any], events: list[dict[str, Any]]) -> list[str]:
@@ -585,12 +617,13 @@ def attribute_failure(question: dict[str, Any], events: list[dict[str, Any]]) ->
     end = next((e for e in events if e["event"] == "run_end"), None)
     if end is None or end["outcome"] == "error":
         return ["run_error"]
-    expected = set(question["expected_entity_ids"])  # required ids
+    expected = set(question["expected_entity_ids"])  # required ids, checked on answer + context ids
     acceptable = expected | set(question.get("allowed_extra_ids") or [])
     expected_resolved = set(question.get("expected_resolved_ids") or [])
     behavior = question["expected_behavior"]
     answer, final_ids = final_answer(events)
     final = set(final_ids)
+    answer_ids = set(final_answer_ids(events))
     retrieved = retrieved_ids(events)
     dropped = {d["id"] if isinstance(d, dict) else d
                for e in events if e["event"] == "finalize" for d in e.get("dropped_ids") or []}
@@ -604,7 +637,7 @@ def attribute_failure(question: dict[str, Any], events: list[dict[str, Any]]) ->
         classes.append("not_selected")
     if expected & dropped:
         classes.append("dropped_by_check")
-    if final - acceptable:
+    if answer_ids - acceptable:  # spec R24: context ids may name anyone the answer mentions
         classes.append("extra_ids")
     expected_tools = question.get("expected_tools")
     if expected_tools:

@@ -28,7 +28,8 @@ import json
 import math
 import re
 import unicodedata
-from collections import Counter, defaultdict
+import uuid
+from collections import Counter, OrderedDict, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,30 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
 
 EARTH_RADIUS_KM = 6371.0
+# Sentences in source text that address an AI rather than describe history (spec R32).
+# They are replaced before any tool returns the text, so the model never reads them.
+INSTRUCTION_RE = re.compile(
+    r"\b(ignore|disregard|forget|override)\b[^.!?\]]{0,40}\b(instructions?|prompts?|rules)\b"
+    r"|\byou are now\b|\bsystem prompt\b|\b(as an|you are an?) (ai|assistant|language model)\b"
+    r"|\b(answer|reply|respond) (to )?(every|all|any) (question|request)s?\b",
+    re.IGNORECASE)
+REDACTED = "[instruction-like text removed]"
+
+
+def redact_instructions(text: str) -> tuple[str, int]:
+    """Replace each bracketed note or sentence that looks like an instruction to an AI."""
+    count = 0
+
+    def scrub(segment: str) -> str:
+        nonlocal count
+        if INSTRUCTION_RE.search(segment):
+            count += 1
+            return REDACTED
+        return segment
+
+    text = re.sub(r"\[[^\]]*\]", lambda m: scrub(m.group(0)), text)  # [editor notes] first
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    return " ".join(scrub(p) if p != REDACTED else p for p in parts), count
 
 # Name-match quality (spec R4). Starting values, to be calibrated on the eval set.
 CLEAR_SCORE = 90  # minimum score for a "clear" best match
@@ -112,7 +137,7 @@ def _date_bounds(value: str | None, *, end: bool) -> str | None:
     return value
 
 
-def _normalize(text: str) -> str:
+def normalize_name(text: str) -> str:
     """Comparison form of a name: no diacritics, casefolded, punctuation-light."""
     decomposed = unicodedata.normalize("NFKD", text)
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
@@ -125,6 +150,66 @@ def _tokenize(text: str) -> list[str]:
 
 
 # --------------------------------------------------------------------- store
+
+
+# --------------------------------------------------------- connection profiles
+# Which paths lead from an entity to "its" locations (spec R26). One table, so
+# the definition of "connected" can be tuned in one place:
+#   person   direct person->location edges; events it COMMANDED / PARTICIPATED_IN -> event paths
+#   org      LOCATION_RELATIONS to locations; events it PARTICIPATED_IN / COMMANDED -> event paths;
+#            sub-units (org -PART_OF-> this org), recursively
+#   event    OCCURRED_AT; sub-events (event -PART_OF-> this event), recursively
+#   location itself and LOCATED_IN children
+# Never traversed: MEMBER_OF, ALLIED_WITH (hubs: Yamamoto would get every IJN
+# place), and CO_MENTIONED unless include_weak (with a minimum count).
+LOCATION_RELATIONS = {"ATTACKED", "DEFENDED", "CAPTURED", "OCCUPIED", "LANDED_AT", "BOMBED", "BASED_AT"}
+EVENT_LINKS = {"COMMANDED", "PARTICIPATED_IN"}
+STRUCTURAL_RELATIONS = {"PART_OF", "LOCATED_IN"}  # timeless: pass date filters
+WEAK_RELATION = "CO_MENTIONED"
+# location_kind values that cover several graph kinds
+KIND_GROUPS = {"island": {"island", "atoll"}, "city": {"city", "town", "village", "port"}}
+SELF_STRENGTH = 99  # strength of an entity's own location (no path needed)
+
+# Flagged approximations while the graph lacks kinds / countries (spec R30). Each one is
+# used only when NO node of that type carries the attribute, and tools report it.
+KIND_NAME_PATTERNS = {
+    "island": r"\b(island|islands|isle|atoll|jima|lagoon)\b",
+    "city": r"\b(city|town|port)\b",
+    "battle": r"\bbattle\b",
+    "campaign": r"\bcampaign\b",
+    "raid": r"\braid\b",
+    "bombing": r"\bbomb(ing|ings)?\b",
+}
+COUNTRY_NAME_PATTERNS = {
+    "japan": r"\b(japan|japanese|imperial)\b",
+    "united states": r"\b(united states|u\.s\.|us)\b",
+}
+
+
+class ResultSets:
+    """Bounded registry of id sets behind short handles (spec R27).
+
+    Set tools put the full list of ids here and give the model only the handle
+    plus a summary, so the model never carries or copies a large list; the
+    final answer names the handle and the map is built from the stored ids.
+    """
+
+    def __init__(self, max_sets: int = 200):
+        self.max_sets = max_sets
+        self._sets: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    def add(self, ids: list[str], label: str, meta: dict[str, Any] | None = None) -> str:
+        handle = "rs-" + uuid.uuid4().hex[:6]
+        self._sets[handle] = {"ids": list(dict.fromkeys(ids)), "label": label, "meta": meta or {}}
+        while len(self._sets) > self.max_sets:
+            self._sets.popitem(last=False)  # least recently used
+        return handle
+
+    def get(self, handle: str) -> dict[str, Any] | None:
+        entry = self._sets.get(handle)
+        if entry is not None:
+            self._sets.move_to_end(handle)
+        return entry
 
 
 class GraphStore:
@@ -152,18 +237,31 @@ class GraphStore:
         self._norm_name: dict[str, str] = {}  # node id -> normalized name
         self._norm_aliases: dict[str, set[str]] = {}  # node id -> normalized aliases
         for n in nodes:
-            self._norm_name[n.id] = _normalize(n.name)
-            self._norm_aliases[n.id] = {_normalize(a) for a in n.aliases}
+            self._norm_name[n.id] = normalize_name(n.name)
+            self._norm_aliases[n.id] = {normalize_name(a) for a in n.aliases}
             for label in [n.name, *n.aliases]:
-                self._names.append(_normalize(label))
+                self._names.append(normalize_name(label))
                 self._labels.append(label)
                 self._name_owner.append(n.id)
 
-        # Text index: one chunk per paragraph of each node's raw text.
+        # Instruction-like sentences are removed from source text before it is indexed or
+        # returned by any tool (spec R32); the raw text stays on the node.
+        self.safe_text: dict[str, str] = {}
+        self.redacted_ids: set[str] = set()
+        for n in nodes:
+            paras = []
+            for para in n.text.split("\n\n"):
+                clean, removed = redact_instructions(para)
+                paras.append(clean)
+                if removed:
+                    self.redacted_ids.add(n.id)
+            self.safe_text[n.id] = "\n\n".join(paras)
+
+        # Text index: one chunk per paragraph of each node's (redacted) text.
         self._chunks: list[tuple[str, str]] = [
             (n.id, para.strip())
             for n in nodes
-            for para in n.text.split("\n\n")
+            for para in self.safe_text[n.id].split("\n\n")
             if para.strip()
         ]
         self._bm25 = BM25Okapi([_tokenize(t) for _, t in self._chunks]) if self._chunks else None
@@ -231,7 +329,7 @@ class GraphStore:
           and no other result within AMBIGUITY_MARGIN of it; else "uncertain"
         - `ambiguous`: true when another result scores within AMBIGUITY_MARGIN
         """
-        q = _normalize(query)
+        q = normalize_name(query)
         # processor=None: strings are already normalized; don't depend on rapidfuzz defaults.
         matches = process.extract(q, self._names, scorer=fuzz.WRatio, processor=None,
                                   limit=len(self._names), score_cutoff=MATCH_CUTOFF)
@@ -265,7 +363,8 @@ class GraphStore:
             "attributes": n.attributes,
             "geometry": n.geometry,
             "sources": [s.model_dump(exclude_none=True) for s in n.sources],
-            "text": n.text[:text_chars],
+            "text": self.safe_text[entity_id][:text_chars],
+            **({"text_redacted": True} if entity_id in self.redacted_ids else {}),
             "degree": len(self.out_edges[entity_id]) + len(self.in_edges[entity_id]),
         }
 
@@ -299,7 +398,7 @@ class GraphStore:
         date_from: str | None = None,
         date_to: str | None = None,
         include_sublocations: bool = True,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[dict[str, Any]]:
         """Filter edges by endpoint(s), type and date. Sorted by count, descending.
 
@@ -338,7 +437,7 @@ class GraphStore:
         neighbor_type: str | None = None,
         date_from: str | None = None,
         date_to: str | None = None,
-        limit: int = 50,
+        limit: int | None = 50,
     ) -> list[dict[str, Any]]:
         """One-hop neighborhood. `direction` is "out", "in" or "both"."""
         rels = {r.upper() for r in relation_types} if relation_types else None
@@ -356,6 +455,255 @@ class GraphStore:
         ]
         results.sort(key=lambda r: -r["count"])
         return results[:limit]
+
+    # ------------------------------------------------------ set queries (R26)
+
+    def _edge_ok(self, e: Edge, date_from: str | None, date_to: str | None) -> bool:
+        """Date filter for path edges: structural edges are timeless; an undated
+        OCCURRED_AT falls back to its event's dates (as what_happened_at does)."""
+        if not date_from and not date_to:
+            return True
+        if e.type in STRUCTURAL_RELATIONS and not (e.start_date or e.end_date):
+            return True
+        if e.type == "OCCURRED_AT" and not (e.start_date or e.end_date):
+            attrs = self.nodes[e.source].attributes
+            proxy = Edge(source=e.source, target=e.target, type=e.type,
+                         start_date=attrs.get("start_date"), end_date=attrs.get("end_date"))
+            return self.edge_in_range(proxy, date_from, date_to)
+        return self.edge_in_range(e, date_from, date_to)
+
+    def _profile_paths(self, entity_id: str, ok, include_weak: bool, min_weak_count: int, seen: set[str]):
+        """Yield (location_id, [edges]) for every path the entity's profile allows."""
+        if entity_id in seen:  # PART_OF cycles
+            return
+        seen = seen | {entity_id}
+        node = self.nodes[entity_id]
+
+        def event_paths(event_id: str, prefix: list[Edge], visited: set[str]):
+            if event_id in visited:
+                return
+            visited = visited | {event_id}
+            for e in self.out_edges[event_id]:
+                if e.type == "OCCURRED_AT" and self.nodes[e.target].type == "location" and ok(e):
+                    yield e.target, prefix + [e]
+            for e in self.in_edges[event_id]:  # sub-event -PART_OF-> event
+                if e.type == "PART_OF" and self.nodes[e.source].type == "event" and ok(e):
+                    yield from event_paths(e.source, prefix + [e], visited)
+
+        if node.type == "location":
+            yield entity_id, []
+            for child in self.sublocations(entity_id) - {entity_id}:
+                yield child, [e for e in self.out_edges[child] if e.type == "LOCATED_IN"][:1]
+            return
+        if node.type == "event":
+            yield from event_paths(entity_id, [], set())
+            return
+
+        for e in self.out_edges[entity_id]:
+            target = self.nodes[e.target]
+            if not ok(e):
+                continue
+            if target.type == "location" and (e.type in LOCATION_RELATIONS or (node.type != "org" and e.type != WEAK_RELATION)):
+                yield e.target, [e]
+            elif target.type == "event" and e.type in EVENT_LINKS:
+                yield from event_paths(e.target, [e], set())
+        if node.type == "org":  # sub-units: unit -PART_OF-> this org
+            for e in self.in_edges[entity_id]:
+                if e.type == "PART_OF" and self.nodes[e.source].type == "org" and ok(e):
+                    for loc, path in self._profile_paths(e.source, ok, include_weak, min_weak_count, seen):
+                        yield loc, [e] + path
+        if include_weak:
+            for e, other in [(e, e.target) for e in self.out_edges[entity_id]] + [(e, e.source) for e in self.in_edges[entity_id]]:
+                if e.type == WEAK_RELATION and e.count >= min_weak_count and self.nodes[other].type == "location" and ok(e):
+                    yield other, [e]
+
+    def _path_text(self, start_id: str, path: list[Edge]) -> tuple[str, str | None]:
+        """Readable path ("Yamamoto -COMMANDED-> Battle of Midway -OCCURRED_AT-> Midway Atoll") and its first intermediate id."""
+        parts, current, via_id = [self.nodes[start_id].name], start_id, None
+        for e in path:
+            nxt = e.target if e.source == current else e.source
+            arrow = f"-{e.type}->" if e.source == current else f"<-{e.type}-"
+            parts += [arrow, self.nodes[nxt].name]
+            if via_id is None and self.nodes[nxt].type != "location":
+                via_id = nxt
+            current = nxt
+        return " ".join(parts), via_id
+
+    def connected_locations(
+        self,
+        entity_id: str,
+        location_kind: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        include_weak: bool = False,
+        min_weak_count: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Locations connected to an entity by its profile's paths (spec R26), strongest first.
+
+        Each row: id, name, type, lat/lon, kind, `via` (the best path as text),
+        `via_id` (first intermediate entity, e.g. the battle), `strength` (the
+        weakest edge count on the best path) and `paths` (number of distinct paths).
+        """
+        if entity_id not in self.nodes:
+            return []
+        ok = lambda e: self._edge_ok(e, date_from, date_to)
+        best: dict[str, tuple[int, list[Edge]]] = {}
+        n_paths: Counter[str] = Counter()
+        for loc, path in self._profile_paths(entity_id, ok, include_weak, min_weak_count, set()):
+            if location_kind and not self._matches_kind(self.nodes[loc], location_kind):
+                continue
+            strength = min((e.count for e in path), default=SELF_STRENGTH)
+            n_paths[loc] += 1
+            if loc not in best or (strength, -len(path)) > (best[loc][0], -len(best[loc][1])):
+                best[loc] = (strength, path)
+        rows = []
+        for loc, (strength, path) in best.items():
+            via, via_id = self._path_text(entity_id, path)
+            rows.append({**self.summarize_node(loc), "kind": self.nodes[loc].attributes.get("kind"),
+                         "via": via, "via_id": via_id, "strength": strength, "paths": n_paths[loc]})
+        rows.sort(key=lambda r: (-r["strength"], -r["paths"], r["name"]))
+        return rows
+
+    def has_attribute(self, type: str, key: str) -> bool:
+        """True if any node of `type` carries attributes[key] (cached: the graph doesn't change after loading)."""
+        cache = self.__dict__.setdefault("_attr_cache", {})
+        if (type, key) not in cache:
+            cache[(type, key)] = any(n.attributes.get(key) for n in self.nodes.values() if n.type == type)
+        return cache[(type, key)]
+
+    def _matches_kind(self, node: Node, kind: str) -> bool:
+        """Kind test: the attribute when the graph has kinds for this type, else the name heuristic (R30)."""
+        if self.has_attribute(node.type, "kind"):
+            return node.attributes.get("kind") in KIND_GROUPS.get(kind, {kind})
+        pattern = KIND_NAME_PATTERNS.get(kind)
+        labels = [node.name, *node.aliases]
+        return bool(pattern) and any(re.search(pattern, l, re.IGNORECASE) for l in labels)
+
+    def approximations(self, type: str, kind: str | None = None, group: str | list[str] | None = None) -> list[str]:
+        """Plain-language notes for every approximation a query on `type` would use (spec R30)."""
+        notes = []
+        if kind and not self.has_attribute(type, "kind"):
+            notes.append(f"'{kind}' approximated from names: the graph has no {type} kinds")
+        for g in group if isinstance(group, list) else [group]:
+            if isinstance(g, str) and g.startswith("country:") and not self.has_attribute("org", "country"):
+                notes.append(f"'{g[8:]}' orgs approximated from names: the graph has no org countries")
+        return notes
+
+    def entities_mentioning(self, phrase: str, type: str = "event") -> list[dict[str, Any]]:
+        """Entities whose name, aliases or raw text mention `phrase` (normalized). A text-based
+        approximation for concepts that aren't graph entities, e.g. a campaign (spec R30)."""
+        needle = normalize_name(phrase)
+        rows = []
+        for node in self.nodes.values():
+            if node.type != type:
+                continue
+            haystack = normalize_name(" ".join([node.name, *node.aliases, node.text]))
+            if needle and needle in haystack:
+                rows.append({**self.summarize_node(node.id), "importance": self.importance(node.id)})
+        rows.sort(key=lambda r: (-r["importance"], r["name"]))
+        return rows
+
+    def importance(self, entity_id: str) -> int:
+        """Ranking signal for "major" (spec R28): the graph's `importance` attribute when
+        present, else the sum of edge counts plus the number of source pages."""
+        node = self.nodes[entity_id]
+        if isinstance(node.attributes.get("importance"), (int, float)):
+            return int(node.attributes["importance"])
+        edges = self.out_edges[entity_id] + self.in_edges[entity_id]
+        return sum(e.count for e in edges) + len({s.page for s in node.sources})
+
+    def find_entities(
+        self,
+        type: str,
+        kind: str | None = None,
+        country: str | None = None,
+        side: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Entities of a type, filtered by kind / country / side / dates, most important first.
+
+        Dates match the entity's own start_date / end_date attributes (interval
+        overlap); entities without dates are dropped when a date filter is set.
+        """
+        rows = []
+        name_country = country and not self.has_attribute(type, "country")
+        for node in self.nodes.values():
+            a = node.attributes
+            if node.type != type or (kind and not self._matches_kind(node, kind)):
+                continue
+            if country and name_country:  # R30: no country attribute in the graph
+                pattern = COUNTRY_NAME_PATTERNS.get(country.casefold(), re.escape(country))
+                if not any(re.search(pattern, l, re.IGNORECASE) for l in [node.name, *node.aliases]):
+                    continue
+            elif country and str(a.get("country", "")).casefold() != country.casefold():
+                continue
+            if side and str(a.get("side", "")).casefold() != side.casefold():
+                continue
+            if date_from or date_to:
+                proxy = Edge(source=node.id, target=node.id, type="SELF", start_date=a.get("start_date"), end_date=a.get("end_date"))
+                if not self.edge_in_range(proxy, date_from, date_to):
+                    continue
+            rows.append({**self.summarize_node(node.id), "kind": a.get("kind"), "importance": self.importance(node.id),
+                         "start_date": a.get("start_date"), "end_date": a.get("end_date")})
+        rows.sort(key=lambda r: (-r["importance"], r["name"]))
+        return rows
+
+    def group_members(self, spec: str | list[str]) -> list[str]:
+        """Org ids for a group: a list of entity ids, "country:<name>" or "side:<name>"."""
+        if isinstance(spec, list):
+            return [i for i in spec if i in self.nodes]
+        key, _, value = spec.partition(":")
+        if key not in ("country", "side") or not value:
+            return [spec] if spec in self.nodes else []
+        return [r["id"] for r in self.find_entities("org", **{key: value})]
+
+    def shared_connections(self, group_a: str | list[str], group_b: str | list[str]) -> dict[str, Any]:
+        """Places and events both groups connect to (spec R28).
+
+        Each group's places are the union of its members' connection profiles;
+        the shared places are their intersection. Shared events are events both
+        groups took part in or commanded.
+        """
+        def side_data(members: list[str]):
+            locs: dict[str, dict[str, Any]] = {}
+            events: set[str] = set()
+            for m in members:
+                for r in self.connected_locations(m):
+                    if r["id"] not in locs or r["strength"] > locs[r["id"]]["strength"]:
+                        locs[r["id"]] = r
+                events |= {e.target for e in self.out_edges[m] if e.type in EVENT_LINKS and self.nodes[e.target].type == "event"}
+            return locs, events
+
+        a_members, b_members = self.group_members(group_a), self.group_members(group_b)
+        a_locs, a_events = side_data(a_members)
+        b_locs, b_events = side_data(b_members)
+        rows = []
+        for loc in a_locs.keys() & b_locs.keys():
+            ra, rb = a_locs[loc], b_locs[loc]
+            rows.append({**self.summarize_node(loc), "kind": self.nodes[loc].attributes.get("kind"),
+                         "via": f"{ra['via']}  |  {rb['via']}", "via_id": ra.get("via_id"),
+                         "strength": min(ra["strength"], rb["strength"]), "paths": ra["paths"] + rb["paths"]})
+        rows.sort(key=lambda r: (-r["strength"], -r["paths"], r["name"]))
+        shared_events = sorted(a_events & b_events, key=lambda e: -self.importance(e))
+        return {"a_members": a_members, "b_members": b_members, "shared_events": shared_events, "locations": rows}
+
+    def summarize_set(self, rows: list[dict[str, Any]], top: int = 15) -> dict[str, Any]:
+        """Compact view of a large location list for the model (spec R27): counts and the top rows."""
+        by_via = Counter(self.nodes[r["via_id"]].name if r.get("via_id") else "direct" for r in rows)
+        by_region = Counter()
+        for r in rows:
+            parent = next((e.target for e in self.out_edges[r["id"]] if e.type == "LOCATED_IN"), None)
+            by_region[self.nodes[parent].name if parent else "(no region)"] += 1
+        keep = ("id", "name", "lat", "lon", "via", "strength")
+        return {
+            "total": len(rows),
+            "shown": min(len(rows), top),
+            "truncated": len(rows) > top,
+            "by_via": dict(by_via.most_common(10)),
+            "by_region": dict(by_region.most_common(10)),
+            "top": [{k: r[k] for k in keep if k in r} for r in rows[:top]],
+        }
 
     def locations_of(self, entity_id: str) -> list[dict[str, Any]]:
         """Locations directly linked to an entity (any relation, either direction).
@@ -386,7 +734,7 @@ class GraphStore:
         near, _ = nearest_points(g, p)
         return haversine_km(lat, lon, near.y, near.x)
 
-    def near(self, lat: float, lon: float, radius_km: float, type: str | None = None, limit: int = 25) -> list[dict[str, Any]]:
+    def near(self, lat: float, lon: float, radius_km: float, type: str | None = None, limit: int | None = 25) -> list[dict[str, Any]]:
         """Entities whose geometry lies within `radius_km` of (lat, lon), nearest first."""
         hits = []
         for node_id in self.geoms:
@@ -398,9 +746,17 @@ class GraphStore:
         hits.sort()
         return [{**self.summarize_node(i), "distance_km": round(d, 1)} for d, i in hits[:limit]]
 
-    def in_bbox(self, min_lon: float, min_lat: float, max_lon: float, max_lat: float, type: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        """Entities whose geometry intersects the bounding box."""
-        region = box(min_lon, min_lat, max_lon, max_lat)
+    def in_bbox(self, min_lon: float, min_lat: float, max_lon: float, max_lat: float, type: str | None = None, limit: int | None = 100) -> list[dict[str, Any]]:
+        """Entities whose geometry intersects the bounding box.
+
+        A box with min_lon > max_lon crosses the 180° meridian (e.g. 170 to -170
+        is the 20° strip around the date line); it is searched as two boxes,
+        [min_lon, 180] and [-180, max_lon]. Otherwise the box is used as given.
+        """
+        if min_lon > max_lon:
+            region = box(min_lon, min_lat, 180.0, max_lat).union(box(-180.0, min_lat, max_lon, max_lat))
+        else:
+            region = box(min_lon, min_lat, max_lon, max_lat)
         return [
             self.summarize_node(i)
             for i, g in self.geoms.items()
@@ -416,7 +772,7 @@ class GraphStore:
         3. For the events found, their participants and commanders.
         Relations are sorted chronologically, and events carry a text excerpt.
         """
-        places = self.near(lat, lon, radius_km, type="location")
+        places = self.near(lat, lon, radius_km, type="location", limit=None)  # the tool caps and reports totals
         place_ids = {p["id"] for p in places}
         edges = [e for pid in place_ids for e in self.in_edges[pid] + self.out_edges[pid]]
         event_ids = {e.source for e in edges if self.nodes[e.source].type == "event"}
@@ -425,7 +781,8 @@ class GraphStore:
         unique.sort(key=lambda e: (e.start_date or "9999", -e.count))
         events = sorted(
             (
-                {**self.summarize_node(ev), **self.nodes[ev].attributes, "excerpt": self.nodes[ev].text[:text_chars]}
+                {**self.summarize_node(ev), **self.nodes[ev].attributes, "excerpt": self.safe_text[ev][:text_chars],
+                 **({"text_redacted": True} if ev in self.redacted_ids else {})}
                 for ev in event_ids
             ),
             key=lambda x: x.get("start_date", "9999"),
@@ -455,17 +812,20 @@ class GraphStore:
             out.append({
                 "entity": {"id": nid, "name": n.name, "type": n.type},
                 "text": text,
+                **({"text_redacted": True} if nid in self.redacted_ids else {}),
                 "sources": [s.model_dump(exclude_none=True) for s in n.sources],
                 "score": round(float(scores[i]), 3),
             })
         return out
 
-    def to_geojson(self, entity_ids: list[str]) -> dict[str, Any]:
+    def to_geojson(self, entity_ids: list[str], restrict_to: set[str] | None = None) -> dict[str, Any]:
         """FeatureCollection for the map UI.
 
         Entities without geometry (events, people, orgs) are drawn at the
         locations they are linked to, so `to_geojson(["event:battle_of_midway"])`
-        still yields a map feature.
+        still yields a map feature. With `restrict_to`, such an entity is drawn
+        only at linked locations in that set (spec R23); otherwise at all of them.
+        Entities with geometry are always drawn.
         """
         features, seen = [], set()
 
@@ -486,5 +846,6 @@ class GraphStore:
                 add(eid)
             else:
                 for loc in self.locations_of(eid):
-                    add(loc["id"], via=eid)
+                    if restrict_to is None or loc["id"] in restrict_to:
+                        add(loc["id"], via=eid)
         return {"type": "FeatureCollection", "features": features}
