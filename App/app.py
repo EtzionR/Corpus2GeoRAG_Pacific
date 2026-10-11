@@ -592,30 +592,31 @@ if "current_map_data" not in st.session_state:
 # ==========================================
 # MAP GENERATION FUNCTION (Folium - Pacific)
 # ==========================================
-def render_folium_map(map_data: Dict[str, Any], tile_theme: str = "Positron"):
+def render_folium_map(map_data: Dict[str, Any], tile_theme: str = "OpenStreetMap (Standard)"):
     """
     Constructs a customized Folium map with styling and overlays
     centered on the Pacific Ocean, East Asia, and maritime theaters.
+    Uses free, standard basemaps (e.g. OpenStreetMap) without requiring API keys.
     """
     center = map_data.get("center", [15.0, 150.0])
     zoom = map_data.get("zoom", 3)
     
-    # Select Tile Theme
+    # Select Tile Theme (Standard free tiles without external API key requirements)
     tiles_dict = {
-        "Positron (Light/Minimal - Presentation Style)": (
-            "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        ),
-        "Dark Matter (Sleek Dark)": (
-            "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        ),
         "OpenStreetMap (Standard)": (
             "OpenStreetMap",
             None
+        ),
+        "CartoDB Positron (Minimal)": (
+            "CartoDB positron",
+            None
+        ),
+        "CartoDB Dark Matter (Dark)": (
+            "CartoDB dark_matter",
+            None
         )
     }
-    tile_url, tile_attr = tiles_dict.get(tile_theme, tiles_dict["Positron (Light/Minimal - Presentation Style)"])
+    tile_url, tile_attr = tiles_dict.get(tile_theme, ("OpenStreetMap", None))
     
     # Initialize Folium Map
     if tile_attr:
@@ -851,9 +852,9 @@ with st.sidebar:
     tile_choice = st.selectbox(
         "Map Theme:",
         [
-            "Positron (Light/Minimal - Presentation Style)",
-            "Dark Matter (Sleek Dark)",
-            "OpenStreetMap (Standard)"
+            "OpenStreetMap (Standard)",
+            "CartoDB Positron (Minimal)",
+            "CartoDB Dark Matter (Dark)"
         ],
         index=0
     )
