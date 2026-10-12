@@ -1,0 +1,24 @@
+# Umbrella conflicts: In-scope Battles so broad that a tie to them says nothing about
+# US–Japan engagement. They stay in the Corpus themselves but can never be an Article's
+# only anchor (an Article tied only through them lands in the Gray zone, decided by e5).
+umbrella_conflicts:
+  - World War II
+  - Pacific War
+  - Second Sino-Japanese War
+  - Burma campaign
+  - South-East Asian theatre of World War II
+  - China Burma India theater of World War II
+  - Indian Ocean in World War II
+  - Pacific Ocean theater of World War II
+  - South West Pacific theatre of World War II
+  - Soviet–Japanese War
+
+# e5 Relevance for the Gray zone = similarity to `in_scope` − similarity to `out_of_scope`,
+# measured against each Article's war-related sentences. This is the scope, in plain English.
+relevance_queries:
+  in_scope: >-
+    an American or Japanese ship, military unit, person, aircraft or place that took part in the
+    fighting between the United States and Japan in the Pacific during World War II
+  out_of_scope: >-
+    the war in China, Burma, Europe or the Atlantic, or civilian life, not involving combat between
+    the United States and Japan

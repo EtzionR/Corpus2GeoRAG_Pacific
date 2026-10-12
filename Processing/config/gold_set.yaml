@@ -1,0 +1,74 @@
+# Gold set: Articles known to be in scope (US–Japan engagement), grouped by expected Tag.
+# Used to suggest Seed categories (reverse discovery) and as a recall test:
+# every title here must end up in the Corpus with the listed Tag.
+# Titles are canonical (post-redirect) English Wikipedia titles.
+
+Battle:
+  - Attack on Pearl Harbor
+  - Battle of Midway
+  - Battle of the Coral Sea
+  - Battle of Leyte Gulf
+  - Battle of Iwo Jima
+  - Battle of Okinawa
+  - Battle of the Philippine Sea
+  - Battle of Tarawa
+Campaign:
+  - Guadalcanal campaign
+  - Aleutian Islands campaign
+  - Philippines campaign (1944–1945)
+  - Mariana and Palau Islands campaign
+Operation:
+  - Operation Downfall
+  - Doolittle Raid
+  - Operation Vengeance
+  - Operation Starvation
+  - Atomic bombings of Hiroshima and Nagasaki
+Person:
+  - Chester W. Nimitz
+  - Douglas MacArthur
+  - Isoroku Yamamoto
+  - William Halsey Jr.
+  - Raymond A. Spruance
+  - Tomoyuki Yamashita
+  - Chūichi Nagumo
+  - Paul Tibbets
+Military unit:
+  - 1st Marine Division
+  - 1st Air Fleet
+  - 509th Composite Group
+  - Merrill's Marauders
+  - Combined Fleet
+Ship:
+  - Japanese battleship Yamato
+  - USS Enterprise (CV-6)
+  - USS Arizona
+  - Japanese aircraft carrier Akagi
+  - USS Indianapolis (CA-35)
+Ship class:
+  - Yamato-class battleship
+  - Yorktown-class aircraft carrier
+Aircraft:
+  - Mitsubishi A6M Zero
+  - Boeing B-29 Superfortress
+  - Grumman F6F Hellcat
+  - Enola Gay
+Weapon/Equipment:
+  - Little Boy
+  - Type 93 torpedo
+Location:
+  - Henderson Field (Guadalcanal)
+  - Chuuk Lagoon
+  - Iwo Jima
+Event:
+  - Bataan Death March
+  - Surrender of Japan
+Organization:
+  - Imperial General Headquarters
+Diplomacy/Document:
+  - Potsdam Declaration
+  - Hull note
+  - Japanese Instrument of Surrender
+Intelligence:
+  - Magic (cryptography)
+  - Code talker
+  - Japanese naval codes

@@ -1,0 +1,11 @@
+requests
+pyyaml
+mwparserfromhell
+tqdm
+ipykernel
+sentence-transformers
+torch
+numpy
+streamlit
+altair
+pandas
