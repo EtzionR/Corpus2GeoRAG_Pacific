@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.env
+.pytest_cache/
+logs/
+evals/report*.json
+.DS_Store
+
+# Data owned by other pipeline stages: kept on disk, not versioned here
+DATA.json
+DATA_Pacific.json
+entities.csv
+Project_*.pdf

@@ -1,0 +1,4 @@
+{
+  "_comment": "Allowlist of external MCP servers. Only servers listed here AND only their allowed_tools are loaded; built-in tool names can't be overridden. Empty by default. See README.",
+  "servers": {}
+}
