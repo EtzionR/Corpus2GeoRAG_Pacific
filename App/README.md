@@ -1,5 +1,7 @@
 # Corpus2GeoRAG: Pacific Theater (WWII) 🌊
 
+🚀 **Live app:** [corpus2georagpacific.streamlit.app](https://corpus2georagpacific.streamlit.app/)
+
 An interactive Geospatial Intelligence and Agentic RAG platform built with **Streamlit** and **Folium**, applying Knowledge Graph extraction and geospatial reasoning strictly to the **World War II Pacific Theater** (Asia, Oceanic, and Maritime campaigns).
 
 ## Features ✨
