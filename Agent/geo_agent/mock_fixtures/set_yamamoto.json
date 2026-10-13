@@ -1,0 +1,229 @@
+{
+  "question": "Show me all locations connected to Admiral Yamamoto",
+  "after": null,
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "**5 places** are connected to Isoroku Yamamoto in the graph: 3 through the Battle of Midway (Midway Atoll, Sand Island, Eastern Island) and 2 through the Attack on Pearl Harbor (Pearl Harbor, Hickam Field). The map shows all of them.",
+    "answer_ids": [
+      "loc:midway_atoll",
+      "loc:pearl_harbor",
+      "loc:eastern_island",
+      "loc:hickam_field",
+      "loc:sand_island"
+    ],
+    "context_ids": [
+      "per:yamamoto"
+    ],
+    "entity_ids": [
+      "loc:midway_atoll",
+      "loc:pearl_harbor",
+      "loc:eastern_island",
+      "loc:hickam_field",
+      "loc:sand_island",
+      "per:yamamoto"
+    ],
+    "sources": [
+      "Midway Atoll",
+      "Pearl Harbor",
+      "Eastern Island",
+      "Hickam Field",
+      "Sand Island (Midway Atoll)"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Midway_Atoll",
+        "page": "Midway Atoll"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Pearl_Harbor",
+        "page": "Pearl Harbor"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Eastern_Island",
+        "page": "Eastern Island"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Hickam_Field",
+        "page": "Hickam Field"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Sand_Island_(Midway_Atoll)",
+        "page": "Sand Island (Midway Atoll)"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.37,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:midway_atoll",
+            "name": "Midway Atoll",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "via": "Isoroku Yamamoto -COMMANDED-> Battle of Midway -OCCURRED_AT-> Midway Atoll",
+            "strength": 3
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -157.95,
+              21.35
+            ]
+          },
+          "properties": {
+            "id": "loc:pearl_harbor",
+            "name": "Pearl Harbor",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "via": "Isoroku Yamamoto -PARTICIPATED_IN-> Attack on Pearl Harbor -OCCURRED_AT-> Pearl Harbor",
+            "strength": 3
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.33,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:eastern_island",
+            "name": "Eastern Island",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "via": "Isoroku Yamamoto -COMMANDED-> Battle of Midway -OCCURRED_AT-> Eastern Island",
+            "strength": 2
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -157.94,
+              21.33
+            ]
+          },
+          "properties": {
+            "id": "loc:hickam_field",
+            "name": "Hickam Field",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "via": "Isoroku Yamamoto -PARTICIPATED_IN-> Attack on Pearl Harbor -OCCURRED_AT-> Hickam Field",
+            "strength": 2
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.36,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:sand_island",
+            "name": "Sand Island",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "via": "Isoroku Yamamoto -COMMANDED-> Battle of Midway -OCCURRED_AT-> Sand Island",
+            "strength": 2
+          }
+        }
+      ]
+    },
+    "bbox": [
+      -177.37,
+      21.33,
+      -157.94,
+      28.21
+    ],
+    "center": {
+      "lat": 24.77,
+      "lon": -167.655
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Admiral Yamamoto"
+        }
+      },
+      {
+        "name": "connected_locations",
+        "args": {
+          "entity_id": "per:yamamoto"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [
+      {
+        "id": "per:yamamoto",
+        "name": "Isoroku Yamamoto",
+        "typed": "Admiral Yamamoto",
+        "matched_label": "Yamamoto",
+        "match": "fuzzy",
+        "score": 90,
+        "quality": "clear",
+        "model_rewritten_query": false
+      }
+    ],
+    "interpretation": [
+      "'Admiral Yamamoto' read as Isoroku Yamamoto (fuzzy)"
+    ],
+    "confidence": {
+      "level": "high",
+      "basis": {
+        "max_edge_count": 3,
+        "n_source_pages": 5,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "locations connected to Isoroku Yamamoto",
+        "total": 5,
+        "on_map": 5,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

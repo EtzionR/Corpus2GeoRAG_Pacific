@@ -1,0 +1,187 @@
+{
+  "question": "Where did the Battle of Midway happen?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "The Battle of Midway (4-7 June 1942) was fought at **Midway Atoll** (28.21, -177.37), including Sand Island and Eastern Island.",
+    "answer_ids": [
+      "loc:midway_atoll",
+      "loc:sand_island",
+      "loc:eastern_island"
+    ],
+    "context_ids": [
+      "event:battle_of_midway"
+    ],
+    "entity_ids": [
+      "loc:midway_atoll",
+      "loc:sand_island",
+      "loc:eastern_island",
+      "event:battle_of_midway"
+    ],
+    "sources": [
+      "Battle of Midway",
+      "Midway Atoll"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Midway_Atoll",
+        "page": "Midway Atoll"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Midway",
+        "page": "Battle of Midway"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Sand_Island_(Midway_Atoll)",
+        "page": "Sand Island (Midway Atoll)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Eastern_Island",
+        "page": "Eastern Island"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.37,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:midway_atoll",
+            "name": "Midway Atoll",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.36,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:sand_island",
+            "name": "Sand Island",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.33,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:eastern_island",
+            "name": "Eastern Island",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      -177.37,
+      28.21,
+      -177.33,
+      28.21
+    ],
+    "center": {
+      "lat": 28.21,
+      "lon": -177.35
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Midway"
+        }
+      },
+      {
+        "name": "get_locations",
+        "args": {
+          "entity_id": "event:battle_of_midway"
+        }
+      },
+      {
+        "name": "search_source_text",
+        "args": {
+          "query": "Battle of Midway atoll",
+          "entity_ids": [
+            "event:battle_of_midway",
+            "loc:midway_atoll"
+          ]
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [
+      {
+        "id": "loc:midway_atoll",
+        "name": "Midway Atoll",
+        "typed": "Battle of Midway",
+        "matched_label": "Midway",
+        "match": "fuzzy",
+        "score": 90,
+        "quality": "uncertain",
+        "model_rewritten_query": false
+      },
+      {
+        "id": "event:battle_of_midway",
+        "name": "Battle of Midway",
+        "typed": "Battle of Midway",
+        "matched_label": "Battle of Midway",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false
+      }
+    ],
+    "interpretation": [
+      "'Battle of Midway' read as Midway Atoll (fuzzy)"
+    ],
+    "confidence": {
+      "level": "low",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 2,
+        "n_providers": 1,
+        "uncertain_match_used": true
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [
+      "uncertain_match_used",
+      "low_confidence"
+    ],
+    "error": null
+  }
+}

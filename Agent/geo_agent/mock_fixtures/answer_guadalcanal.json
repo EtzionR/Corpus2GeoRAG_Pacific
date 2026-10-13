@@ -1,0 +1,162 @@
+{
+  "question": "Who attacked Guadalcanal in 1942?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "In 1942 the **United States Marine Corps** attacked Guadalcanal, landing on 7 August 1942 (Guadalcanal campaign, to 9 February 1943). The **Imperial Japanese Army** attacked Henderson Field on Guadalcanal from 12 September to 26 October 1942.",
+    "answer_ids": [
+      "org:usmc",
+      "org:ija"
+    ],
+    "context_ids": [
+      "loc:guadalcanal",
+      "loc:henderson_field"
+    ],
+    "entity_ids": [
+      "org:usmc",
+      "org:ija",
+      "loc:guadalcanal",
+      "loc:henderson_field"
+    ],
+    "sources": [
+      "Guadalcanal campaign"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign",
+        "page": "Guadalcanal campaign"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/United_States_Marine_Corps",
+        "page": "United States Marine Corps"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Imperial_Japanese_Army",
+        "page": "Imperial Japanese Army"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  159.6,
+                  -9.2
+                ],
+                [
+                  160.9,
+                  -9.2
+                ],
+                [
+                  160.9,
+                  -10.0
+                ],
+                [
+                  159.6,
+                  -10.0
+                ],
+                [
+                  159.6,
+                  -9.2
+                ]
+              ]
+            ]
+          },
+          "properties": {
+            "id": "loc:guadalcanal",
+            "name": "Guadalcanal",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "org:usmc",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              160.05,
+              -9.43
+            ]
+          },
+          "properties": {
+            "id": "loc:henderson_field",
+            "name": "Henderson Field",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "org:usmc",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      159.6,
+      -10.0,
+      160.9,
+      -9.2
+    ],
+    "center": {
+      "lat": -9.6,
+      "lon": 160.25
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Guadalcanal"
+        }
+      },
+      {
+        "name": "find_relations",
+        "args": {
+          "target_id": "loc:guadalcanal",
+          "relation_type": "ATTACKED",
+          "year": 1942
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [
+      {
+        "id": "loc:guadalcanal",
+        "name": "Guadalcanal",
+        "typed": "Guadalcanal",
+        "matched_label": "Guadalcanal",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false
+      }
+    ],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 5,
+        "n_source_pages": 1,
+        "n_providers": 1,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

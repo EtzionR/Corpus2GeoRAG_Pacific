@@ -1,0 +1,46 @@
+{
+  "question": "Who won the Battle of Guam?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?",
+    "answer_ids": [],
+    "context_ids": [],
+    "entity_ids": [],
+    "sources": [],
+    "source_refs": [],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": []
+    },
+    "bbox": null,
+    "center": null,
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Guam"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "confidence": {
+      "level": "low",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 0,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

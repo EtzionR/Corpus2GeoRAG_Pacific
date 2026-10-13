@@ -10,6 +10,7 @@ dependencies = [
     "langchain-mcp-adapters>=0.1",
     "pydantic>=2",
     "shapely>=2",
+    "numpy>=1.24",  # imported directly (vectorized name search and spatial prefilter); already required by shapely
     "rapidfuzz>=3",
     "rank-bm25>=0.2",
     "python-dotenv>=1",

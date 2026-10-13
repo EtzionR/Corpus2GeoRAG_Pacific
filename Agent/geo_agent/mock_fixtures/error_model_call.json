@@ -1,0 +1,43 @@
+{
+  "question": "Simulate an error",
+  "after": null,
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "",
+    "answer_ids": [],
+    "context_ids": [],
+    "entity_ids": [],
+    "sources": [],
+    "source_refs": [],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": []
+    },
+    "bbox": null,
+    "center": null,
+    "tool_calls": [],
+    "run_id": "",
+    "warnings": [],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "result_sets": [],
+    "dropped_sets": [],
+    "confidence": {
+      "level": "low",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 0,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "error": {
+      "type": "ModelDeadlineExceeded",
+      "message": "model call exceeded 90s deadline 2 times",
+      "stage": "model_call"
+    }
+  }
+}

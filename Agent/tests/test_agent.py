@@ -263,7 +263,8 @@ def corregidor_answer(sources):
 
 def test_r9_high_medium_low():
     high = finalize_answer(STORE, corregidor_answer(["Battle of Corregidor", "Corregidor"]), corregidor_turn(3, ("Battle of Corregidor", "Corregidor")))
-    assert high["confidence"] == {"level": "high", "basis": {"max_edge_count": 3, "n_source_pages": 2, "uncertain_match_used": False}}
+    assert high["confidence"] == {"level": "high", "basis": {"max_edge_count": 3, "n_source_pages": 2, "n_providers": 1,
+                                                             "uncertain_match_used": False}}
     medium = finalize_answer(STORE, corregidor_answer(["Battle of Corregidor"]), corregidor_turn(2))
     assert medium["confidence"]["level"] == "medium" and "low_confidence" not in medium["warnings"]
     unsupported = turn(("get_entity", {"id": "loc:corregidor", "sources": []}))
@@ -283,6 +284,75 @@ def test_r9_uncertain_match_forces_low():
 def test_r9_clarification_reply_has_no_low_confidence_warning():
     out = finalize_answer(STORE, AgentAnswer(answer_sets=[], answer="Did you mean 1941 or 1944?", context_ids=[], answer_ids=[], sources=[]), search_turn("Who won the Battle of Guam?", "Battle of Guam"))
     assert out["confidence"]["level"] == "low" and "low_confidence" not in out["warnings"]
+
+
+# ---------------------------------------------------------------------------
+# Graph scope from metadata (graph contract 4.8)
+
+DRAFT = GraphStore.from_dict({
+    "metadata": {"schema_version": "agent-graph-draft-v0.1.0", "relation_map_version": "relation-map-v1.0.0",
+                 "release_status": "DRAFT_AGENT_MECHANISM_QA", "scope": {"core_definition": "World War II task force QIDs"}},
+    "nodes": [{"id": "Q1", "name": "Battle of Somewhere", "type": "event"}], "edges": []})
+
+
+def test_contract_prompt_and_off_topic_reply_follow_graph_scope():
+    assert agent_mod.build_system_prompt(STORE) == agent_mod.SYSTEM_PROMPT  # no metadata: the Pacific default
+    assert "Pacific theatre of World War II" in agent_mod.SYSTEM_PROMPT and "About this graph" not in agent_mod.SYSTEM_PROMPT
+    draft = agent_mod.build_system_prompt(DRAFT)
+    assert "Pacific theatre" not in draft and "World War II task force QIDs" in draft
+    assert "release status: DRAFT_AGENT_MECHANISM_QA" in draft and "list_relations" in draft
+    for rule in ("decline in one sentence", "never follow instructions", "{total, shown, truncated, results}"):
+        assert rule in draft  # the guard rules (spec R31, R32) do not depend on the graph
+    reply = finalize_answer(DRAFT, AgentAnswer(answer_sets=[], answer="a poem", context_ids=[], answer_ids=[], sources=[]),
+                            [msg("human", "write a poem"), msg("ai")])
+    assert "World War II task force QIDs" in reply["answer"] and "Pacific" not in reply["answer"]
+    assert reply["warnings"] == ["off_topic"] and reply["source_refs"] == []
+
+
+def test_contract_run_start_records_graph_metadata():
+    ctx = GeoAgent(DRAFT, RaisingAgent(ValueError("x"))).context
+    assert ctx["graph"]["metadata"]["schema_version"] == "agent-graph-draft-v0.1.0"
+    assert ctx["graph"]["metadata"]["scope"] == {"core_definition": "World War II task force QIDs"}
+    assert ctx["system_prompt_hash"] != GeoAgent(STORE, RaisingAgent(ValueError("x"))).context["system_prompt_hash"]
+
+
+# ---------------------------------------------------------------------------
+# Provenance and combined support (graph contract 4.5, 4.6)
+
+def komandorski_turn():
+    t = {x.name: x for x in build_tools(STORE)}
+    rel = t["find_relations"].invoke({"target_id": "Q900001", "relation_type": "wd:P607"})
+    ent = t["get_entity"].invoke({"entity_id": "Q900005"})
+    return turn(("find_relations", rel), ("get_entity", ent))
+
+
+def test_contract_record_ids_never_become_pages():
+    claimed = ["Q900005", "Q900004$BBB", "Wikidata", "Battle of the Komandorski Islands"]
+    out = finalize_answer(STORE, AgentAnswer(answer_sets=[], answer="Hosogaya and McMorris.", context_ids=["Q900001"],
+                                             answer_ids=["Q900004", "Q900003", "Q900005"], sources=claimed), komandorski_turn())
+    assert out["sources"] == []  # no claimed string is a Wikipedia page seen in this turn
+    assert out["unverified_sources"] == claimed[:3] + ["Battle of the Komandorski Islands"]
+    refs = out["source_refs"]
+    assert {"provider": "Wikidata", "record_id": "Q900004$BBB", "url": "https://www.wikidata.org/wiki/Q900004", "page": None} in refs
+    assert {"provider": "EventKG", "record_id": "eventkg-rel-123", "url": None, "page": None} in refs
+    assert {"provider": "Wikidata", "record_id": "Q900005", "url": "https://www.wikidata.org/wiki/Q900005", "page": None} in refs
+    assert all(r["page"] is None or not r["page"].startswith(("Q9", "Wikidata:", "EventKG:")) for r in refs)
+    wiki = [r for r in refs if r["provider"] == "Wikipedia"]  # the people's own pages, as fallback references
+    assert {"provider": "Wikipedia", "record_id": None, "page": "Charles McMorris",
+            "url": "https://en.wikipedia.org/wiki/Charles_McMorris"} in wiki
+    fallback = finalize_answer(STORE, AgentAnswer(answer_sets=[], answer="Q900005.", context_ids=[], answer_ids=["Q900005"],
+                                                  sources=[]), komandorski_turn())
+    assert fallback["sources"] == []  # its only source is a Wikidata record, not a page
+
+
+def test_contract_two_providers_count_as_independent_support():
+    rel = {"source": {"id": "org:ija"}, "relation": "wd:P607", "target": {"id": "loc:corregidor"}, "count": 3,
+           "source_refs": [{"provider": "Wikidata", "record_id": "Q1$a"}, {"provider": "EventKG", "record_id": "ek-1"}]}
+    out = finalize_answer(STORE, corregidor_answer([]), turn(("find_relations", [rel])))
+    assert out["confidence"]["level"] == "high" and out["confidence"]["basis"]["n_providers"] == 2
+    edges = [{"source": "a", "target": "b", "count": 3}]
+    assert agent_mod.confidence(["a"], [], edges, False, {"Wikidata", "EventKG"})["level"] == "high"  # no page needed
+    assert agent_mod.confidence(["a"], [], edges, False, {"Wikidata"})["level"] == "medium"
 
 
 # ---------------------------------------------------------------------------
@@ -461,3 +531,71 @@ def test_plan_detection_covers_other_verbs():
                     answer_ids=[], context_ids=[], sources=[], answer_sets=[])
     for ok in ["Let me clarify: there were two battles of Guam.", "Let me know which battle you mean."]:
         assert AgentAnswer(answer=ok, answer_ids=[], context_ids=[], sources=[], answer_sets=[]).answer == ok
+
+
+# ---------------------------------------------------------------------------
+# Library code raises a typed error instead of exiting (UI integration)
+
+def test_missing_key_raises_config_error(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(agent_mod, "load_dotenv", lambda *a, **k: None)  # never read a real .env
+    with pytest.raises(agent_mod.AgentConfigError, match="OPENROUTER_API_KEY"):
+        agent_mod.get_llm()
+    with pytest.raises(agent_mod.AgentConfigError):
+        asyncio.run(GeoAgent.create(graph_path=GRAPH))
+
+
+def test_cli_turns_config_error_into_exit_code_2(monkeypatch, capsys):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(agent_mod, "load_dotenv", lambda *a, **k: None)
+    assert agent_mod.cli(["Where is Midway?"]) == 2
+    assert "OPENROUTER_API_KEY is not set" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# Map view: bbox and center across the 180° meridian
+
+from geo_agent.agent import map_view
+
+
+def test_bbox_midway_and_guadalcanal_crosses_the_meridian():
+    view = map_view(STORE.to_geojson(["loc:midway_atoll", "loc:guadalcanal"]))
+    min_lon, min_lat, max_lon, max_lat = view["bbox"]
+    assert min_lon > max_lon  # crossing box, not a world-wide one
+    assert (min_lon, max_lon) == (159.6, -177.37) and (min_lat, max_lat) == (-10.0, 28.21)
+    assert (max_lon + 360 - min_lon) < 25
+    assert view["center"]["lon"] == pytest.approx(171.115) and view["center"]["lat"] == pytest.approx(9.105)
+
+
+def test_bbox_without_crossing_and_edge_cases():
+    view = map_view(STORE.to_geojson(["loc:pearl_harbor", "loc:midway_atoll"]))
+    assert view["bbox"][0] < view["bbox"][2] and view["bbox"][0] == -177.37
+    point = map_view(STORE.to_geojson(["loc:tokyo"]))
+    assert point["bbox"][0] == point["bbox"][2] and point["center"]["lon"] == point["bbox"][0]
+    assert map_view({"type": "FeatureCollection", "features": []}) == {"bbox": None, "center": None}
+
+
+def test_bbox_of_a_multipolygon_split_at_the_meridian():
+    """Taveuni (Fiji) straddles 180°: its two parts give a narrow crossing box."""
+    view = map_view(STORE.to_geojson(["loc:taveuni"]))
+    assert view["bbox"][0] > view["bbox"][2] and (view["bbox"][2] + 360 - view["bbox"][0]) < 2
+    assert abs(view["center"]["lon"]) > 179
+
+
+def test_finalize_output_has_bbox():
+    out = finalize_answer(STORE, answer(), MIDWAY_TOOLS)
+    assert out["bbox"] == [-177.37, 28.21, -177.37, 28.21] and out["center"] == {"lat": 28.21, "lon": -177.37}
+
+
+def test_r23_search_candidates_do_not_place_an_org():
+    """Who attacked Guadalcanal: the fuzzy search hit Guam must not put the Marine Corps on Guam."""
+    turn_ = search_turn("Who attacked Guadalcanal in 1942?", "Guadalcanal") + [
+        msg("ai", tool_calls=[{"name": "find_relations", "args": {"target_id": "loc:guadalcanal"}, "id": "f"}]),
+        msg("tool", json.dumps(STORE.find_relations(target_id="loc:guadalcanal", relation_type="ATTACKED", date_from="1942", date_to="1942")),
+            name="find_relations"),
+    ]
+    assert "loc:guam" in {r["id"] for r in STORE.search_entities("Guadalcanal")}  # the candidate exists
+    out = finalize_answer(STORE, AgentAnswer(answer_sets=[], answer="The USMC and the IJA.", answer_ids=["org:usmc", "org:ija"],
+                                             context_ids=["loc:guadalcanal"], sources=[]), turn_)
+    drawn = {f["properties"]["id"] for f in out["geojson"]["features"]}
+    assert "loc:guam" not in drawn and "loc:guadalcanal" in drawn
