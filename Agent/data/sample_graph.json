@@ -1697,6 +1697,149 @@
     "test_case": "prompt_injection"
    },
    "embedding": null
+  },
+  {
+   "id": "Q900001",
+   "name": "Battle of the Komandorski Islands",
+   "type": "event",
+   "aliases": [
+    "Komandorski Islands battle"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     168.0,
+     53.3
+    ]
+   },
+   "sources": [
+    {
+     "page": "Battle of the Komandorski Islands",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_the_Komandorski_Islands"
+    }
+   ],
+   "text": "The Battle of the Komandorski Islands was a naval battle fought on 27 March 1943 south of the Komandorski Islands, between United States Navy and Imperial Japanese Navy forces trying to reach the Japanese garrisons in the Aleutians.",
+   "attributes": {
+    "wikidata_id": "Q900001",
+    "point_date_candidates": [
+     "1943-03-27"
+    ]
+   },
+   "embedding": null
+  },
+  {
+   "id": "Q900002",
+   "name": "Komandorski Islands",
+   "type": "other",
+   "aliases": [
+    "Commander Islands"
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     166.5,
+     55.0
+    ]
+   },
+   "sources": [
+    {
+     "page": "Commander Islands",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Commander_Islands"
+    }
+   ],
+   "text": "island group in the Bering Sea",
+   "attributes": {
+    "wikidata_id": "Q900002",
+    "classification_status": "UNRESOLVED"
+   },
+   "embedding": null
+  },
+  {
+   "id": "Q900003",
+   "name": "Charles McMorris",
+   "type": "person",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Charles McMorris",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Charles_McMorris"
+    }
+   ],
+   "text": "United States Navy admiral (1890-1954)",
+   "attributes": {
+    "wikidata_id": "Q900003"
+   },
+   "embedding": null
+  },
+  {
+   "id": "Q900004",
+   "name": "Boshiro Hosogaya",
+   "type": "person",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Boshir\u014d Hosogaya",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Boshir\u014d_Hosogaya"
+    }
+   ],
+   "text": "Imperial Japanese Navy admiral",
+   "attributes": {
+    "wikidata_id": "Q900004"
+   },
+   "embedding": null
+  },
+  {
+   "id": "Q900005",
+   "name": "Q900005",
+   "type": "other",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Q900005",
+     "paragraph": null,
+     "url": "https://www.wikidata.org/wiki/Q900005"
+    }
+   ],
+   "text": "",
+   "attributes": {
+    "wikidata_id": "Q900005",
+    "classification_status": "UNRESOLVED",
+    "metadata_status": "QID_FALLBACK"
+   },
+   "embedding": null
+  },
+  {
+   "id": "Q900006",
+   "name": "USS Salt Lake City",
+   "type": "other",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -119.5,
+     33.0
+    ]
+   },
+   "sources": [
+    {
+     "page": "USS Salt Lake City (CA-25)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/USS_Salt_Lake_City_(CA-25)"
+    }
+   ],
+   "text": "Pensacola-class heavy cruiser",
+   "attributes": {
+    "wikidata_id": "Q900006",
+    "classification_status": "UNRESOLVED"
+   },
+   "embedding": null
   }
  ],
  "edges": [
@@ -3425,6 +3568,299 @@
     }
    ],
    "embedding": null
+  },
+  {
+   "id": "obs-k1",
+   "source": "Q900003",
+   "target": "Q900001",
+   "type": "wd:P607",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Wikidata:{\"reference_hashes\": [], \"statement_id\": \"Q900003$AAA\"}"
+    }
+   ],
+   "attributes": {
+    "relation_label": "participated in conflict",
+    "relation_family": "CONFLICT_AFFILIATION",
+    "point_date": "1943-03-27",
+    "selected_source": "Wikidata",
+    "source_predicate": "wd:P607",
+    "source_record_id": "Q900003$AAA",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  },
+  {
+   "id": "obs-k2",
+   "source": "Q900004",
+   "target": "Q900001",
+   "type": "wd:P607",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "provider": "Wikidata",
+     "record_id": "Q900004$BBB",
+     "url": "https://www.wikidata.org/wiki/Q900004"
+    }
+   ],
+   "attributes": {
+    "relation_label": "participated in conflict",
+    "relation_family": "CONFLICT_AFFILIATION",
+    "point_date": "1943-03-27",
+    "selected_source": "Wikidata",
+    "source_predicate": "wd:P607",
+    "source_record_id": "Q900004$BBB",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   },
+   "point_date": "1943-03-27",
+   "relation_family": "CONFLICT_AFFILIATION"
+  },
+  {
+   "id": "obs-k3",
+   "source": "Q900004",
+   "target": "Q900001",
+   "type": "wd:P607",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "EventKG:relations_events_base/part_00001.nq.gz:7"
+    }
+   ],
+   "attributes": {
+    "relation_label": "participated in conflict",
+    "relation_family": "CONFLICT_AFFILIATION",
+    "point_date": "1943-03-27",
+    "selected_source": "EventKG",
+    "source_predicate": "wd:P607",
+    "source_record_id": "eventkg-rel-123",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  },
+  {
+   "id": "obs-k4",
+   "source": "Q900001",
+   "target": "Q900002",
+   "type": "wd:P276",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Wikidata:{\"reference_hashes\": [], \"statement_id\": \"Q900001$CCC\"}"
+    }
+   ],
+   "attributes": {
+    "relation_label": "location",
+    "relation_family": "SPATIAL",
+    "point_date": null,
+    "selected_source": "Wikidata",
+    "source_predicate": "wd:P276",
+    "source_record_id": "Q900001$CCC",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  },
+  {
+   "id": "obs-k5",
+   "source": "Q900001",
+   "target": "Q900003",
+   "type": "http://dbpedia.org/ontology/commander",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "EventKG:relations_events_base/part_00002.nq.gz:3"
+    }
+   ],
+   "attributes": {
+    "relation_label": "commander",
+    "relation_family": "PARTICIPATION_ROLE",
+    "point_date": null,
+    "selected_source": "EventKG",
+    "source_predicate": "http://dbpedia.org/ontology/commander",
+    "source_record_id": "eventkg-rel-456",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  },
+  {
+   "id": "obs-k6",
+   "source": "Q900003",
+   "target": "Q900005",
+   "type": "wd:P166",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Wikidata:{\"reference_hashes\": [], \"statement_id\": \"Q900003$DDD\"}"
+    }
+   ],
+   "attributes": {
+    "relation_label": "award received",
+    "relation_family": "AWARD_RECOGNITION",
+    "point_date": "1943",
+    "selected_source": "Wikidata",
+    "source_predicate": "wd:P166",
+    "source_record_id": "Q900003$DDD",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  },
+  {
+   "id": "obs-k7",
+   "source": "Q900006",
+   "target": "Q900001",
+   "type": "wd:P607",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Wikidata:{\"reference_hashes\": [], \"statement_id\": \"Q900006$EEE\"}"
+    }
+   ],
+   "attributes": {
+    "relation_label": "participated in conflict",
+    "relation_family": "CONFLICT_AFFILIATION",
+    "point_date": null,
+    "selected_source": "Wikidata",
+    "source_predicate": "wd:P607",
+    "source_record_id": "Q900006$EEE",
+    "review_status": "ACCEPTED",
+    "relation_map_version": "relation-map-v1.0.0"
+   }
+  }
+ ],
+ "relation_catalog": [
+  {
+   "id": "wd:P607",
+   "labels": [
+    "participated in conflict"
+   ],
+   "level1_families": [
+    "CONFLICT_AFFILIATION"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "Wikidata",
+     "predicate": "wd:P607",
+     "direction": "same"
+    },
+    {
+     "source": "EventKG",
+     "predicate": "http://dbpedia.org/ontology/battle",
+     "direction": "same"
+    }
+   ]
+  },
+  {
+   "id": "wd:P241",
+   "labels": [
+    "military branch"
+   ],
+   "level1_families": [
+    "CONFLICT_AFFILIATION"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "Wikidata",
+     "predicate": "wd:P241",
+     "direction": "same"
+    }
+   ]
+  },
+  {
+   "id": "wd:P276",
+   "labels": [
+    "location"
+   ],
+   "level1_families": [
+    "SPATIAL"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "Wikidata",
+     "predicate": "wd:P276",
+     "direction": "same"
+    }
+   ]
+  },
+  {
+   "id": "wd:P19",
+   "labels": [
+    "place of birth"
+   ],
+   "level1_families": [
+    "SPATIAL"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "Wikidata",
+     "predicate": "wd:P19",
+     "direction": "same"
+    }
+   ]
+  },
+  {
+   "id": "http://dbpedia.org/ontology/commander",
+   "labels": [
+    "commander"
+   ],
+   "level1_families": [
+    "PARTICIPATION_ROLE"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "EventKG",
+     "predicate": "http://dbpedia.org/ontology/commander",
+     "direction": "same"
+    }
+   ]
+  },
+  {
+   "id": "wd:P166",
+   "labels": [
+    "award received"
+   ],
+   "level1_families": [
+    "AWARD_RECOGNITION"
+   ],
+   "review_statuses": [
+    "ACCEPTED"
+   ],
+   "source_predicates": [
+    {
+     "source": "Wikidata",
+     "predicate": "wd:P166",
+     "direction": "same"
+    }
+   ]
   }
  ]
 }

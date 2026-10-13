@@ -11,3 +11,6 @@ DATA.json
 DATA_Pacific.json
 entities.csv
 Project_*.pdf
+
+# Agent worktrees (parallel workstreams)
+.claude/worktrees/

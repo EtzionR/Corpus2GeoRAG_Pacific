@@ -1,0 +1,105 @@
+{
+  "question": "the 1944 one",
+  "after": "clarification_guam",
+  "reply": {
+    "schema_version": "1.2",
+    "answer": "The United States won the Battle of Guam (21 July - 10 August 1944): it was the American recapture of Guam, and the **United States Marine Corps** captured the island on 10 August 1944.",
+    "answer_ids": [
+      "org:usmc"
+    ],
+    "context_ids": [
+      "event:battle_of_guam_1944",
+      "loc:guam"
+    ],
+    "entity_ids": [
+      "org:usmc",
+      "event:battle_of_guam_1944",
+      "loc:guam"
+    ],
+    "sources": [
+      "Battle of Guam (1944)"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)",
+        "page": "Battle of Guam (1944)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/United_States_Marine_Corps",
+        "page": "United States Marine Corps"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              144.79,
+              13.44
+            ]
+          },
+          "properties": {
+            "id": "loc:guam",
+            "name": "Guam",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "org:usmc",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      144.79,
+      13.44,
+      144.79,
+      13.44
+    ],
+    "center": {
+      "lat": 13.44,
+      "lon": 144.79
+    },
+    "tool_calls": [
+      {
+        "name": "get_entity",
+        "args": {
+          "entity_id": "event:battle_of_guam_1944"
+        }
+      },
+      {
+        "name": "find_relations",
+        "args": {
+          "target_id": "loc:guam",
+          "relation_type": "CAPTURED",
+          "year": 1944
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 2,
+        "n_source_pages": 1,
+        "n_providers": 1,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

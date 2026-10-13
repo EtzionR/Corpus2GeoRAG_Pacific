@@ -55,8 +55,35 @@ QUERY_TOOLS = {
     "entities_in_bbox", "what_happened_at", "search_source_text",
 }
 
-# Closed set of failure stages (spec R14).
-FAILURE_STAGES = ("model_call", "tool_call", "step_limit", "structured_output", "post_processing", "unknown")
+# Closed set of failure stages (spec R14). `timeout`, `cancelled` and `busy` come from
+# AgentRunner: the run was stopped from outside, or never started because the thread was busy.
+FAILURE_STAGES = ("model_call", "tool_call", "step_limit", "structured_output", "post_processing", "unknown",
+                  "timeout", "cancelled", "busy")
+
+
+# Short, user-facing labels for progress events (AgentRunner `on_progress`), e.g. for st.status.
+PROGRESS_LABELS = {
+    "model": "Thinking",
+    "graph_schema": "Reading the graph's vocabulary",
+    "search_entities": "Looking up names in the graph",
+    "get_entity": "Reading an entity",
+    "get_neighbors": "Following connections",
+    "find_relations": "Querying relations",
+    "get_locations": "Finding locations",
+    "entities_near": "Searching nearby places",
+    "entities_in_bbox": "Searching the map area",
+    "what_happened_at": "Looking up events at the place",
+    "search_source_text": "Searching the source text",
+    "to_geojson": "Building map features",
+    "connected_locations": "Collecting connected places",
+    "find_entities": "Collecting matching entities",
+    "shared_connections": "Comparing connections",
+    "entities_mentioning": "Searching text mentions",
+}
+
+
+def progress_label(name: str) -> str:
+    return PROGRESS_LABELS.get(name, f"Running {name}")
 
 
 def env_int(name: str, default: int) -> int:
@@ -74,6 +101,15 @@ def env_on(name: str, default: bool) -> bool:
 def short_hash(data: str | bytes) -> str:
     """First 12 hex characters of the SHA-256 digest."""
     return hashlib.sha256(data.encode() if isinstance(data, str) else data).hexdigest()[:12]
+
+
+def file_hash(path: str | Path) -> str:
+    """short_hash of a file's bytes, read in chunks (the draft graph is ~485 MB)."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()[:12]
 
 
 def _text(content: Any) -> str:
@@ -116,6 +152,21 @@ def result_status(text: str) -> str:
 # ---------------------------------------------------------------- writer
 
 
+def default_log_dir() -> Path:
+    """Where trace files go: GEO_AGENT_LOG_DIR, else `logs/` in the project root.
+
+    The default is absolute, so a caller with another working directory (the Streamlit
+    app in `App/`) still writes to the agent's `logs/`. When the package is installed
+    without its project folder (no pyproject.toml next to it), it is ~/.geo_agent/logs.
+    """
+    if os.getenv("GEO_AGENT_LOG_DIR"):
+        return Path(os.environ["GEO_AGENT_LOG_DIR"])
+    root = Path(__file__).resolve().parent.parent
+    if (root / "pyproject.toml").exists():
+        return root / "logs"
+    return Path.home() / ".geo_agent" / "logs"
+
+
 class TraceWriter:
     """Appends events as JSON lines to the daily trace file. Never raises."""
 
@@ -127,7 +178,7 @@ class TraceWriter:
 
     @classmethod
     def from_env(cls) -> "TraceWriter":
-        return cls(os.getenv("GEO_AGENT_LOG_DIR", "logs"), env_on("GEO_AGENT_TRACE", True))
+        return cls(default_log_dir(), env_on("GEO_AGENT_TRACE", True))
 
     def path_for(self, ts: str) -> Path:
         return self.log_dir / f"trace-{ts[:10]}.jsonl"
@@ -156,9 +207,10 @@ class RunTrace(BaseCallbackHandler):
 
     run_inline = True  # keep events in execution order in async runs
 
-    def __init__(self, run_id: str, writer: TraceWriter | None = None):
+    def __init__(self, run_id: str, writer: TraceWriter | None = None, on_progress: Any = None):
         self.run_id = run_id
         self.writer = writer
+        self.on_progress = on_progress  # optional callable(dict): short step events for a UI
         self.text_chars = env_int("GEO_AGENT_TRACE_TEXT_CHARS", 2000)
         self.full_results = env_on("GEO_AGENT_TRACE_FULL", False)
         self.events: list[dict[str, Any]] = []
@@ -180,7 +232,25 @@ class RunTrace(BaseCallbackHandler):
         if self.writer is not None:
             self.writer.write(ev)
         self._log(ev)
+        if event == "run_start":
+            self.progress("run_start", label="Starting")
+        elif event == "run_end":
+            self.progress("run_end", label="Done", outcome=fields.get("outcome"))
         return ev
+
+    def progress(self, event: str, **fields: Any) -> None:
+        """Send a short step event to `on_progress`. Its errors are logged and never break the run.
+
+        Events: run_start, model_start, model_end (tools_requested), tool_start, tool_end
+        (status), tool_error, run_end (outcome). Each has run_id, step, label and ts.
+        """
+        if self.on_progress is None:
+            return
+        try:
+            self.on_progress({"event": event, "run_id": self.run_id, "step": self.step, "ts": time.time(), **fields})
+        except Exception as exc:
+            log.warning("progress callback failed (%s: %s); disabled for this run", type(exc).__name__, exc)
+            self.on_progress = None
 
     def _log(self, ev: dict[str, Any]) -> None:
         """One readable console line per event (spec R16)."""
@@ -211,9 +281,11 @@ class RunTrace(BaseCallbackHandler):
 
     def on_chat_model_start(self, serialized: Any, messages: Any, *, run_id: UUID, **kwargs: Any) -> None:
         self._model_t0[run_id] = time.perf_counter()
+        self.progress("model_start", label=progress_label("model"))
 
     def on_llm_start(self, serialized: Any, prompts: Any, *, run_id: UUID, **kwargs: Any) -> None:
         self._model_t0[run_id] = time.perf_counter()
+        self.progress("model_start", label=progress_label("model"))
 
     def on_llm_end(self, response: Any, *, run_id: UUID, **kwargs: Any) -> None:
         t0 = self._model_t0.pop(run_id, None)
@@ -234,6 +306,8 @@ class RunTrace(BaseCallbackHandler):
             text=_text(getattr(msg, "content", "") or getattr(gen, "text", ""))[: self.text_chars],
             reasoning=reasoning[: self.text_chars] if reasoning else None,
         )
+        requested = [c["name"] for c in getattr(msg, "tool_calls", None) or []]
+        self.progress("model_end", label=progress_label("model"), tools_requested=requested)
 
     def on_llm_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
         self._model_t0.pop(run_id, None)
@@ -242,6 +316,7 @@ class RunTrace(BaseCallbackHandler):
     def on_tool_start(self, serialized: Any, input_str: str, *, run_id: UUID, inputs: dict[str, Any] | None = None, **kwargs: Any) -> None:
         name = (serialized or {}).get("name") or kwargs.get("name") or "unknown"
         self._tools[run_id] = (name, inputs if inputs is not None else input_str, time.perf_counter())
+        self.progress("tool_start", name=name, label=progress_label(name))
 
     def on_tool_end(self, output: Any, *, run_id: UUID, **kwargs: Any) -> None:
         name, args, t0 = self._tools.pop(run_id, (kwargs.get("name") or "unknown", None, time.perf_counter()))
@@ -257,6 +332,7 @@ class RunTrace(BaseCallbackHandler):
             result_sha256=hashlib.sha256(text.encode()).hexdigest(),
             result_preview=text if self.full_results else text[:1000],
         )
+        self.progress("tool_end", name=name, label=progress_label(name), status=result_status(text))
 
     def on_tool_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
         name, args, _ = self._tools.pop(run_id, (kwargs.get("name") or "unknown", None, 0.0))
@@ -270,6 +346,7 @@ class RunTrace(BaseCallbackHandler):
             message=str(error),
             traceback="".join(traceback.format_exception(type(error), error, error.__traceback__)),
         )
+        self.progress("tool_error", name=name, label=progress_label(name))
 
 
 # ------------------------------------------------- pure trace analysis
