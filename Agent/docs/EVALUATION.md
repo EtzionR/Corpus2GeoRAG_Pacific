@@ -1,6 +1,6 @@
 # How the agent is evaluated
 
-**Author:** Michael · **Date:** 2026-10-13 · **Model evaluated:** `z-ai/glm-5.2` through OpenRouter · **Graph:** the sample graph (`data/sample_graph.json`)
+**Author:** Michael · **Date:** 2026-10-13 · **Model evaluated:** `z-ai/glm-5.2` through OpenRouter · **Graphs:** the sample graph (`data/sample_graph.json`), and the graph team's draft (`wwii_agent_graph_draft_v0.1.0.json`)
 
 ## Why we evaluate this way
 An agent like this fails in ways unit tests don't see. The model picks the wrong entity, answers from general knowledge instead of the graph, loops, or puts a defender where an attacker belongs. So there are two layers:
@@ -88,7 +88,9 @@ Scoring is deterministic, so it's cheap and repeatable, and a failure can be tra
 | Set questions, before the set tools | 24 runs | 20 | median 17.7k tokens; worst case 97k tokens, 44 tool calls |
 | Set questions, after | 24 runs | 24 | set F1 0.95; worst case 37k tokens, 7 tool calls |
 | Adversarial (after the scope guard) | 12 runs | 12 | no leaks; injected instruction never followed |
-| **Current, all categories** (after graph contract v1 + UI interface) | **56** | **55** | correct resolution 94%, wrong entity accepted 0%, unnecessary asks 0% |
+| Current, all categories (after graph contract v1 + UI interface) | 56 | 55 | correct resolution 94%, wrong entity accepted 0%, unnecessary asks 0% |
+| **Current, after the ctx-1 scoring fix** (rescored, no new run) | **56** | **56** | |
+| **Same agent, on the graph team's draft** | **56** | **9** (8 strict) | most failures are data gaps; see below |
 
 ## What the eval found (and how it changed the agent)
 - **Hub errors** (Yamamoto got every IJN place) led to the connection rules and the set tools.
@@ -107,17 +109,47 @@ Scoring is deterministic, so it's cheap and repeatable, and a failure can be tra
 Each fix was applied to every stored report before comparing again.
 
 ## Limits
-- **Small graph.** The eval runs on the 75-node sample graph, so the results show the agent's logic, not its quality on the team's 146k-node graph, whose data gaps (unnamed places, missing geometry) dominate there. A gold set for the full graph is the next step once the data issues are fixed.
+- **The gold set was written for the 75-node sample graph.** On the draft it measures the data more than the agent (see "On the graph team's draft" below). A real-graph gold set, with the same questions and expected answers written against the draft, is the next step once the data issues are fixed.
 - **One model.** Results hold for `z-ai/glm-5.2`; a different model needs its own baseline.
 - **Scoring by phrases.** "Says not in the graph" and "refused" are recognised by phrase patterns. They were widened twice after misses and can still miss new wording.
-- **Two judgment cases** still fail on a strict reading of the gold set. Both need a decision on what the right answer is:
-  - **ctx-1, "What happened in the Battle of Midway in 1944?"** The agent correctly says the battle was in 1942, but lists the battle under context instead of answer.
-  - **amb-2, "Who commanded the US forces in the Battle of Guam?"** The gold expects a clarification question ("which battle?"), but the graph has no commander for either battle, so "the graph doesn't say" is arguably the better reply.
+- **One judgment case:** amb-2, "Who commanded the US forces in the Battle of Guam?" The gold expects a clarification question ("which battle?"). But neither graph has a commander for either battle, so "the graph doesn't say" is arguably the better reply. This is a data gap for the graph team, not a scoring question. (ctx-1, the other judgment case, now checks that the agent flags the false premise, its `context_mismatch` warning, whichever list the battle lands on.)
 - **Confidence thresholds aren't calibrated yet.** `high` / `medium` / `low` are starting values; show them as labels, never as probabilities.
+
+## On the graph team's draft (2026-10-13)
+**How:**
+- The same 56 questions, the same agent and model, run on the 465 MB draft.
+- Each expected entity in the gold set was translated to its draft QID: by exact name, by year (the two Battles of Guam), or as the unlabeled place a matched battle points to. A few were checked by hand against the draft's edges.
+- Four hand matches accept a node that differs from what the question names: a combined "atomic bombings" event, a mistyped USAAF, "Hickam Air Force Base", "leapfrogging". The **strict** score counts these as gaps; the **lenient** score accepts them.
+
+**Result:** 9 of 56 pass (8 strict). Read with the failures:
+
+| Cause | Questions | Whose |
+|---|---|---|
+| The place has no name or coordinates in the draft, or is absent. The answer text names it correctly but can't return it. | 14 | data |
+| The "who" is recorded only at unit level (1st Marine Division, not the US Marine Corps), or not at all (Midway) | 8 | data |
+| Set questions: expected places missing or unnamed; the map draws battles at their own coordinates instead of the island | 12 | data, partly the agent (below) |
+| Right answer, but the draft holds more correct entities than the gold allows | 5 | gold set |
+| Written as "not in the graph" (Stalingrad, Leyte Gulf, Paris), which the broader draft covers | 3 | gold set |
+| Tied to a test node only the sample graph has (the planted instruction on Nauru) | 2 | gold set |
+| Step limit on "who attacked Midway"; "which Battle of Guam?" answered for both battles instead of asking | 3 | agent |
+
+**Agent findings to act on:**
+- **Person sets are too broad.** Yamamoto gets 36 places, 30 of them through "participated in conflict" into a campaign and then every battle in it. The hub rule stops only at more than 50 sub-events, and campaigns have fewer.
+- **"Where are the US and Japan both connected"** includes 50 North African places, through a shared "North African campaign". It's a data link, but the set tool should also not accept a whole campaign as shared evidence without checking it.
+- **"Major battles in the Pacific War"** made 37 tool calls, 30 of them name searches. The answer was reasonable, but it's slow and expensive.
+- **The step limit** was hit once, on a question whose relation the draft doesn't have.
+
+**Security on the draft:**
+- The four refusal questions pass.
+- Nauru's real records hold no planted instruction, and the agent stated anyway that it won't follow instructions found in source text.
+
+The data findings are listed for the graph team in `GRAPH_TEAM.md`, with an acceptance list of the entities the questions need.
 
 ## Running it
 ```bash
 uv run python evals/run_eval.py                                 # all 56 questions (paid)
 uv run python evals/run_eval.py --ids ex-who-1,amb-1 --repeat 3 # a subset, three times each
 uv run python evals/run_eval.py --rescore evals/baseline.json   # rescore a saved report, no model calls
+uv run python evals/build_real_id_map.py /path/to/graph.json    # map gold ids to another graph's ids
+GRAPH_PATH=/path/to/graph.json uv run python evals/run_eval.py --id-map evals/real_graph_id_map.json [--strict-map]
 ```

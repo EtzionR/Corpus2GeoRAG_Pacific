@@ -6,6 +6,7 @@
 - **Every decision in your request is approved and implemented** in the agent, with the geometry rule you recommended (option 1). See "Decisions".
 - **Your acceptance checks pass: 10 of 10** against the draft. The draft loads with no dropped nodes or edges in about 20 s (146,318 nodes, 700,890 edges, about 3 GB of memory). Every tool call takes under 0.6 s.
 - **The contract works, but the data still blocks basic questions.** The places people ask about most exist only as unlabeled QIDs without coordinates, so name search finds the wrong thing: "Guadalcanal" finds the ship *USS Guadalcanal*, "Midway Atoll" finds Butaritari Atoll Airport, and "Tokyo" finds "Axis Powers". Fixing names and geometry of key places is the most valuable next step (P1 below).
+- **We ran the agent's full evaluation on the draft: 9 of 56 questions pass,** against 56 of 56 on our sample graph. Most failures come from the data, not the agent. The answer text is usually right, but the place it names has no name or coordinates in the draft, or the "who" is only recorded at unit level. The **acceptance list** below names the entities to fix first.
 - **Nothing here needs a format change.** Everything below is export or enrichment work within contract v1.
 
 ## Decisions (your section 7)
@@ -36,6 +37,43 @@ Also done: one edge per source assertion (assertions with the same subject, obje
 These are never followed: AFFILIATION_STATUS, AWARD_RECOGNITION, EDUCATION_EMPLOYMENT, FAMILY_PERSONAL, CREATION_AUTHORSHIP, OWNERSHIP_CONTROL, CAUSAL, TEMPORAL_SUCCESSION, FORMATION_DISSOLUTION, and UNRESOLVED (except the participation relations above). An event with more than 50 sub-events, reached through participation, adds nothing: World War II has 1,710 parts and the Pacific War 580, and taking part in the war mustn't connect a person to every battle.
 
 **If a relation should play one of these roles, or must never be followed, tell us.** The table is one place in the code.
+
+## What the agent's evaluation found on the draft
+We ran all 56 questions of the agent's evaluation (see `EVALUATION.md`) against the draft. Each expected entity was matched to its draft QID by name, by year, or through the battle's location relation; a few were checked by hand.
+
+- **9 of 56 pass** (8 when a combined or mistyped node doesn't count as a match).
+- **In most failed answers the text is right** (e.g. "the Battle of Iwo Jima took place on Iwo Jima, at 24.78, 141.32"), but the place itself can't be returned: it has no name or coordinates. So the agent falls back on the battle's own coordinate.
+
+Why the 47 others fail:
+
+| Cause | Questions | What it means for the graph |
+|---|---|---|
+| The place exists only as an unlabeled QID without coordinates, or not at all | 14 | P1: the acceptance list below |
+| The "who" is only recorded at unit level: the 1st Marine Division, not the US Marine Corps; no attacker at all for Midway | 8 | P8 |
+| Set questions: expected places are missing, or drawn at the battle's coordinate instead of the island | 12 | P1, P2, P4 |
+| The answer is right, but the draft holds more correct entities than the sample graph did | 5 | none (our scoring) |
+| The question was written as "not in the graph" (Stalingrad, Leyte Gulf, Paris), but your broader graph has it | 3 | none: good coverage |
+| Tied to a test node that exists only in our sample graph | 2 | none |
+| Agent behaviour (one run hit the step limit; two "which Battle of Guam?" questions were answered for both battles instead of asking) | 3 | none: on our side |
+
+### Acceptance list: entities the questions need
+A good export makes each of these findable by its common name, with the right type and coordinates. Today's state in the draft:
+
+| Entity | Draft today | Needed |
+|---|---|---|
+| Guadalcanal (Q192767), Guam (Q16635), Midway Atoll (Q47863), Tokyo (Q1490), Tarawa (Q831455), Coral Sea (Q82931), Chongqing (Q11725), Bataan (Q13739), Savo Island (Q1059040) | present, but named by QID, typed `other`, no coordinates | label, aliases, type `location`, `wd:P625` coordinates |
+| Iwo Jima (Q21813724) | named, typed `other`, no coordinates | type `location`, coordinates |
+| Kiska, Tinian, Nagasaki (city), Darwin, Port Moresby, Tulagi, Truk Lagoon, Taveuni, Buna, Solomon Islands, Nauru, Los Alamos | not in the draft as places (only as events, e.g. "Battle of Tinian") | add the place nodes, linked from their battles by `wd:P276` |
+| Sand Island, Eastern Island (Midway) | absent | optional: add them, or keep Midway Atoll only |
+| Q48809 (Oak Ridge) | the Manhattan Project's only location | add Los Alamos and Hanford (`wd:P276` / `wd:P159`) |
+| Q328121 | the Doolittle Raid's place, a district, not Tokyo | link the raid to Tokyo (Q1490) and the other bombed cities |
+| United States Army Air Forces (Q741723) | typed `event` | type `org` |
+| Imperial Japanese Air Force (Q702107), Naval Air Service (Q1568476) | typed `event` | type `org` |
+| Hickam Field (Q1617253) | typed `org`, named only "Hickam Air Force Base" | type `location`, alias "Hickam Field" |
+| Island hopping (Q646500) | named "leapfrogging", typed `location` | alias "island hopping"; a strategy, not a place (type `other` or `event`) |
+| Atomic bombings (Q488) | one event for both cities | fine as is, but link it to both Hiroshima and Nagasaki as places |
+| Battle of Guam ×2 (Q699897, Q696900) | same name; Q699897 has dates but no coordinates; Q696900 has coordinates but only a point date; neither has a commander | distinguishing labels or aliases ("First/Second Battle of Guam"), full dates and coordinates on both, commanders (`wd:P4791` / dbpedia `commander`) |
+| US Marine Corps, Imperial Japanese Army, Imperial Japanese Navy, US Navy | typed `other`; not linked to the battles they fought | type `org`; see P8 |
 
 ## What needs to be done, by priority
 Counts are from the agent's `graph_schema()` coverage on the draft (2026-10-13).
@@ -76,6 +114,31 @@ Counts are from the agent's `graph_schema()` coverage on the draft (2026-10-13).
 - **`attributes.country` on orgs and people** ("Japan", "United States"), needed for "where are the US and Japan both connected".
 - **Optional:** `attributes.importance` on events, to rank "major" battles.
 
+### P8: who fought whom (blocks "who attacked X" questions)
+- **The draft records battles at unit level:** the 1st Marine Division at Guadalcanal, bomb squadrons in the Doolittle Raid. A question like "who attacked Guadalcanal" expects the service or country (the US Marine Corps, the Imperial Japanese Army).
+- **The link from a unit up to its service is often missing,** so the agent can't climb from the division to the Marine Corps.
+- **Some battles have no attacker at all.** The Battle of Midway has no Imperial Japanese Navy link, and the agent ran out of steps searching for one.
+- **Ask:**
+  - add `wd:P361` / `wd:P749` "part of" from units up to their service and country
+  - add participants (`wd:P710`) and commanders (`wd:P4791`, dbpedia `commander`) on major battles
+  - mark the side where the source has it (e.g. an edge attribute `side: attacker | defender`)
+- **Also check:** the draft links some US or Japanese org to the North African campaign, so "where are the US and Japan both connected" returns 50 North African places. Please check which `wd:P607` / `wd:P710` edges cause this.
+
+### P9: nicknames and same-name ships
+Users name things by nickname: "Big E", "Mighty Mo", "Bull Halsey", "the Slot", "Cactus Air Force".
+
+**In the draft today:**
+- Only 12.6% of nodes have aliases.
+- Some nicknames work, because they are plain aliases ("Mighty Mo" finds USS Missouri).
+- Others exist only inside quoted full names, e.g. `Holland McTyeire "Howlin' Mad" Smith` (219 such aliases).
+- Halsey has no "Bull" alias, so "Bull Halsey" finds the Tu-4 bomber, whose alias is "Bull".
+- 271 groups of ships share a name (551 nodes), and few carry a hull number.
+
+**Ask:**
+- **Nicknames:** export Wikidata `skos:altLabel` and `wd:P1449` (nickname) and DBpedia `nickname`. If you can, give each alias a kind (`alias`, `nickname`, `hull_number`, `codename`) and its provider, as an optional `alias_details: [{label, kind, provider, record_id}]` next to `aliases`. The agent will read both.
+- **Ships:** add hull numbers (`wd:P879`) and commissioning and decommissioning dates (`wd:P729` / `wd:P730`), so "Enterprise in 1942" can be told apart from a later Enterprise. Never merge same-name ships into one node.
+- **Places known by a nickname:** add New Georgia Sound ("the Slot") and Ironbottom Sound with coordinates, and the codename "Cactus" on Guadalcanal.
+
 ### Fine as is
 - **74,111 duplicate assertions:** combined at query time, so they don't distort answers.
 - **7,096 non-location nodes with geometry** (2,033 events, 897 orgs, 4,160 other, 6 people): allowed under option 1. Please confirm they describe the node itself (e.g. a battle site), not a related place.
@@ -96,6 +159,6 @@ for q in ['Guadalcanal', 'Midway Atoll', 'Tokyo', 'Iwo Jima']:
 " /path/to/your_graph.json
 ```
 
-A good export makes the coverage counts above drop, and makes each of those four searches return the place itself, with coordinates. To try questions end to end you need an OpenRouter key in `.env`: `GRAPH_PATH=/path/to/your_graph.json uv run geo-agent "Where did the Battle of Midway happen?"`.
+A good export makes the coverage counts above drop, and makes each of those four searches return the place itself, with coordinates. The acceptance list above is the full set of entities to check. To try questions end to end you need an OpenRouter key in `.env`: `GRAPH_PATH=/path/to/your_graph.json uv run geo-agent "Where did the Battle of Midway happen?"`.
 
 The full input schema is in `Agent/README.md`, section "Input schema".
