@@ -3,6 +3,8 @@ Used by crawl_corpus.ipynb; tested by tests/test_scope_rules.py. Vocabulary: CON
 Pure functions over a page record (see task_fetch in the notebook), its Wikidata claims and class ancestors."""
 import re
 
+import mwparserfromhell
+
 from evidence import sentences
 
 BATTLE_TAGS = {"Battle", "Campaign", "Operation"}
@@ -155,6 +157,84 @@ def battle_scope(p, claims):
     if "involving the United States" in cats and "involving Japan" in cats:
         signals.append("categories")
     return ("in", "US+Japan via " + ", ".join(signals)) if signals else ("no participants", "no US+Japan participants found")
+
+
+COMBATANT_PARAM = re.compile(r"^combatant(\d)")
+US_SIDE = re.compile(r"United States|\bUSA\b|\bU\.S\.|\bUS\b|\bAmerican\b|USAAF|\bUSN\b|\bUSMC\b")
+JP_SIDE = re.compile(r"Japan")
+ABDA = re.compile(r"American[- ]British[- ]Dutch[- ]Australian|\bABDA\w*", re.I)  # a joint command, not US forces
+# A side's entry in a supporting role only: "(air support)", "Limited arms support:", "American volunteers"…
+SUPPORT = re.compile(r"support|advis|volunteer|\bclaims?\b|limited|lend|suppl(y|ies)|logistic|\baid\b", re.I)
+ENTRY_BREAK = re.compile(r"(?=\{\{\s*flag)|<br\s*/?>|\n|\*")
+
+
+def battle_sides(wikitext):
+    """How the infobox's combatant fields line up the US and Japan.
+    -> "opposed" (on opposite sides, both as main combatants) | "support" (opposite sides, one only in a supporting
+    role) | "not opposed" (combatants listed, but not the US against Japan) | "unlisted" (no combatant fields)."""
+    lead = wikitext.split("\n==", 1)[0]
+    sides = {}
+    for tpl in mwparserfromhell.parse(lead).filter_templates(recursive=False):
+        if str(tpl.name).strip().lower().startswith("infobox"):
+            for param in tpl.params:
+                if m := COMBATANT_PARAM.match(str(param.name).strip()):
+                    sides.setdefault(m.group(1), []).append(str(param.value))
+            break
+    if not any(v.strip() for vals in sides.values() for v in vals):
+        return "unlisted"
+
+    def presence(rx, text):
+        """"main" if an entry names the force outside a supporting role, "support" if only in one, else None."""
+        found, in_support = None, False
+        for piece in ENTRY_BREAK.split(ABDA.sub("", text)):
+            if "----" in piece:  # a divider starts a new group of entries
+                in_support = False
+                piece = piece.split("----")[-1]
+            names = rx.search(piece)
+            supporting = in_support or bool(SUPPORT.search(piece))
+            if not names and SUPPORT.search(piece):  # a heading such as "'''Air support:'''"
+                in_support = True
+            if names:
+                if not supporting:
+                    return "main"
+                found = "support"
+        return found
+
+    texts = {k: " ".join(v) for k, v in sides.items()}
+    best = None
+    for us_side, us_text in texts.items():
+        for jp_side, jp_text in texts.items():
+            if us_side == jp_side:
+                continue
+            us, jp = presence(US_SIDE, us_text), presence(JP_SIDE, jp_text)
+            if us == jp == "main":
+                return "opposed"
+            if us and jp:
+                best = "support"
+    return best or "not opposed"
+
+
+def battle_grade(p, claims, sides):
+    """Classification of a battle that the discovery check (battle_scope) let in, now reading its combatant fields.
+    -> (grade, reason); grade in {"in", "peripheral", "disagree", "out"}.
+    peripheral: the US or Japan took part only in a supporting role; stays in the Corpus, but like an Umbrella
+    conflict it can never be an Article's only anchor. disagree: the combatant fields say no, Wikidata or the
+    categories say yes; left for e5 and review."""
+    p710 = set(claims.get(p["qid"], {}).get("P710", [])) if p["qid"] else set()
+    wikidata = bool(p710 & US_QIDS and p710 & JAPAN_QIDS)
+    cats = " ".join(p["categories"])
+    categories = "involving the United States" in cats and "involving Japan" in cats
+    if sides == "opposed":
+        return "in", "US vs Japan in the combatant fields"
+    if sides == "support":
+        return "peripheral", "US or Japan only in a supporting role (combatant fields)"
+    if sides == "not opposed":
+        if wikidata or categories:
+            return "disagree", ("combatant fields list no US vs Japan, but "
+                                + " and ".join(s for s, ok in (("Wikidata P710", wikidata), ("categories", categories)) if ok)
+                                + " do")
+        return "out", "combatant fields list no US vs Japan"
+    return "in", "no combatant fields; " + battle_scope(p, claims)[1]
 
 
 def participants_known(p, claims):

@@ -1,5 +1,6 @@
 """Unit tests for Processing/scope_rules.py on small hand-written page records."""
-from scope_rules import allied_only, anchor_scope, battle_scope, tag_page, without_namesake
+from scope_rules import (allied_only, anchor_scope, battle_grade, battle_scope, battle_sides, tag_page,
+                         without_namesake)
 
 BATTLES = {"Battle of Midway": "Q1", "Battle of Okinawa": "Q2", "Pacific War": "Q3"}
 BY_QID = {q: t for t, q in BATTLES.items()}
@@ -69,3 +70,46 @@ def test_namesake_section_removed():
     text = "Intro.\n== Namesake ==\nHe died at [[Battle of Midway]].\n== Service history ==\nAtlantic convoys.\n"
     own = without_namesake(text)
     assert "Midway" not in own and "Atlantic convoys" in own
+
+
+def infobox(combatant1, combatant2, extra=""):
+    return f"{{{{Infobox military conflict\n| combatant1 = {combatant1}\n| combatant2 = {combatant2}\n{extra}}}}}\nText.\n== History ==\n"
+
+
+def test_sides_opposed():
+    assert battle_sides(infobox("{{flag|United States|1912}}", "{{flag|Empire of Japan}}")) == "opposed"
+
+
+def test_sides_us_only_in_air_support():
+    """Japanese invasion of Burma: China with "United States (air support)"."""
+    text = infobox("{{ubl|{{flag|China}}|{{flag|United States|1912}} (air support)}}", "{{flagcountry|Empire of Japan}}")
+    assert battle_sides(text) == "support"
+
+
+def test_sides_support_heading():
+    """Jesselton revolt / coup in Indochina: a "Limited arms support:" or "Air support:" heading above the US flag."""
+    text = infobox("{{flag|Kinabalu Guerrillas}} ---- '''Limited arms support:''' {{flagdeco|United States|1912}} [[USAFIP]]",
+                   "{{flag|Empire of Japan}}")
+    assert battle_sides(text) == "support"
+    text = infobox("{{flag|Khmer Issarak}} ---- '''Air support:'''<br>{{flag|United States|1912}}", "{{flag|Empire of Japan}}")
+    assert battle_sides(text) == "support"
+
+
+def test_sides_casualty_claims_and_abda_are_not_us_forces():
+    """Changde: "American and British claims" sits in the casualties; Malaya: the ABDA Command is not US forces."""
+    text = infobox("{{flag|China}}", "{{flag|Empire of Japan}}", "| casualties2 = American and British claims: 40,000\n")
+    assert battle_sides(text) == "not opposed"
+    text = infobox("{{flag|United Kingdom}} [[American-British-Dutch-Australian Command|ABDA Command]]", "{{flag|Empire of Japan}}")
+    assert battle_sides(text) == "not opposed"
+
+
+def test_sides_unlisted():
+    assert battle_sides("{{Infobox military operation\n| target = Kure\n}}\nText.") == "unlisted"
+
+
+def test_grade_disagreement_goes_to_review():
+    p = page("Battle of the Green Islands", categories=["Category:Battles of World War II involving the United States",
+                                                       "Category:Battles of World War II involving Japan"])
+    assert battle_grade(p, {}, "not opposed")[0] == "disagree"
+    assert battle_grade(page("Malayan campaign"), {}, "not opposed")[0] == "out"
+    assert battle_grade(page("Battle of West Hunan"), {}, "support")[0] == "peripheral"

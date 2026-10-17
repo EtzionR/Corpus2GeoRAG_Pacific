@@ -11,13 +11,17 @@ The rule functions are in [`scope_rules.py`](scope_rules.py) (tests: `tests/test
    (Rule 2). Countries and metropolises go **out** (`too_broad`). Everything else goes to `anchor_scope` (Rule 3).
 3. **Rule 2, `battle_scope`:** a battle dated outside 1941–45 is **out**. A battle is **in** when any one source
    shows both the US and Japan took part: the infobox text, Wikidata P710 (`US_QIDS` / `JAPAN_QIDS`), or the
-   categories. Battles that pass form the reference list (`pipe.battles`). A battle whose participants are
-   listed (a flag template in the infobox, or Wikidata P710) but are not both the US and Japan is **out**
-   (`participants_known`). A battle with no listed participants, or a cancelled or proposed operation, falls
+   categories. Battles that pass this broad check drive discovery (`pipe.battles`). Classification then reads the
+   infobox combatant fields side by side (`battle_sides`, `battle_grade`): US against Japan as main combatants is
+   **in**; one of them only in a supporting role ("air support") is a **Peripheral battle**, in the Corpus but
+   never an Article's only anchor; no US against Japan is **out**, or **gray** when Wikidata P710 or the categories
+   say otherwise (`sources disagree`). Battles that are not out form the reference list. A battle whose
+   participants are listed (a flag template in the infobox, or Wikidata P710) but are not both the US and Japan is
+   **out** (`participants_known`). A battle with no listed participants, or a cancelled or proposed operation, falls
    through to Rule 3.
 4. **Rule 3, `anchor_scope`:** the Article's ties to reference battles come from Wikidata (`ANCHOR_PROPS`; for a
    Person, P793 is only a weak tie), from battle-named categories, and from wikilinks.
-   - **In** if a Wikidata or category tie is to a battle that is not an Umbrella conflict.
+   - **In** if a Wikidata or category tie is to a battle that is not an Umbrella conflict or Peripheral battle.
    - **In** if there are 2 or more ties (`MIN_BATTLE_LINKS`) and at least one is not an Umbrella conflict.
    - **Gray** if there are other ties, or if the Article is anchored but has no Tag.
    - **Out** if there are no ties.

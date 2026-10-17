@@ -43,21 +43,25 @@ The Tags are: **Person**, **Battle**, **Campaign** (a group of Battles), **Opera
 An Article found during discovery that has not yet been tagged or scope-checked.
 
 **In-scope Battle**:
-An Article tagged Battle, Campaign or Operation whose participants include both the United States and Japan; the anchor every other Tag is scope-checked against.
+An Article tagged Battle, Campaign or Operation in which the United States and Japan fought each other: its infobox combatant fields put them on opposite sides as main combatants (or, when it has no combatant fields, its infobox, Wikidata participants or categories name both); the anchor every other Tag is scope-checked against.
 _Avoid_: Core battle, key event
 
 **Anchored**:
-Said of an Article that is tied to In-scope Battles strongly enough to be in scope on its own: its Wikidata conflict, participant-in or significant-event claims name one (significant event does not count for a Person), it sits in a Category named after one, or it links to at least two (at most one of them an Umbrella conflict).
+Said of an Article that is tied to In-scope Battles strongly enough to be in scope on its own: its Wikidata conflict, participant-in or significant-event claims name one (significant event does not count for a Person), it sits in a Category named after one, or it links to at least two (at most one of them an Umbrella conflict or Peripheral battle).
 
 **Umbrella conflict**:
 An In-scope Battle so broad (Pacific War, Second Sino-Japanese War, Burma campaign, …) that a tie to it says nothing about US–Japan engagement; it is in the Corpus itself but can never be an Article's only anchor.
 _Avoid_: Theatre, war (as anchor)
 
+**Peripheral battle**:
+An In-scope Battle in which the US or Japan took part only in a supporting role ("air support", "limited arms support" in its combatant fields), such as the Battle of West Hunan; it is in the Corpus itself but, like an Umbrella conflict, can never be an Article's only anchor.
+_Avoid_: Minor battle
+
 **Gray zone**:
-Articles the rules cannot decide: tied only through an Umbrella conflict, linked to exactly one In-scope Battle, or Anchored but untagged. Their fate is decided by Relevance; those Relevance cannot call are decided by Override, except that an Article tied only through Umbrella conflicts is left out.
+Articles the rules cannot decide: tied only through an Umbrella conflict or Peripheral battle, linked to exactly one In-scope Battle, Anchored but untagged, or a battle whose combatant fields deny a US–Japan fight that Wikidata or its categories assert. Their fate is decided by Relevance; those Relevance cannot call are decided by Override, except that an Article tied only through Umbrella conflicts is left out.
 
 **Relevance**:
-How much closer an Article's text is to known in-scope Articles than to known out-of-scope ones (e5 embedding nearest neighbours); decides the Gray zone and is recorded for every Article.
+How much closer an Article's war-related sentences are to a plain-English description of the scope than to one of what is out of scope (e5 embeddings, `scope.yaml`); decides the Gray zone and is recorded for every Article.
 _Avoid_: Similarity score, confidence
 
 **Override**:
