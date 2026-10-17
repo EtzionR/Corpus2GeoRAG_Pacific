@@ -8,14 +8,14 @@
 
 | | |
 |---|---|
-| **Articles delivered** | **5,193** (100 MB), out of 14,665 examined |
-| **Wrong articles in the Corpus** | **~5.6%** (95% 2.4–9.3%), down from ~9.2% before the 2026-10-17 changes · *provisional: Claude's draft labels until a person verifies the evaluation set* |
-| **Recall** | ~71% of relevant articles that were found are included; ~76% of relevant articles from independent Wikipedia lists are found at all · *provisional, same caveat* |
+| **Articles delivered** | **5,695** (104 MB), out of 14,665 examined |
+| **Wrong articles in the Corpus** | **~8.0%** (95% 4.5–12.2%), down from ~12.3% before the 2026-10-17 changes · *provisional: labels by a second Claude session (the first session's drafts give 5.1%, down from 9.2%); no person has verified the evaluation set yet* |
+| **Recall** | ~76% of relevant articles that were found are included; ~71% of relevant articles from independent Wikipedia lists are found at all · *provisional, same caveat* |
 | **Quality check** | 55 / 55 hand-picked must-have articles are included |
 | **Accuracy on unclear cases** | ~93% when the AI check is confident (50 of 54 hand-labelled articles it never saw) |
-| **Hand decisions** | 1,178 unclear articles reviewed one by one (603 kept, 575 dropped); every reason is in `reports/review_log.tsv` |
+| **Hand decisions** | 1,832 articles decided one by one (1,103 kept, 729 dropped): 1,178 in the 2026-10-12 review and 654 recovery candidates decided by a Claude session on 2026-10-17 (500 kept, 154 dropped; *not yet checked by a person*); every reason is in `reports/review_log.tsv` |
 | **Run time** | ~5 min from scratch · ~20 s when re-run (everything is cached) |
-| **Waiting on people** | **325** evaluation labels to verify (app → Evaluation) · **663** recovery candidates and **7** disputed battles to decide (app → Review) |
+| **Waiting on people** | **325** evaluation labels to verify (two Claude label sets agree on 90%; app → Evaluation) · **106** recovery candidates (10 of them evaluation titles, which may never become overrides) and **7** disputed battles to decide (app → Review) · a spot check of the 654 Claude recovery decisions |
 
 How these numbers are measured: [`reports/precision_round1.md`](reports/precision_round1.md) and
 `python Processing/evaluate.py`.
@@ -29,24 +29,24 @@ flowchart LR
     RULES{"<b>3 · Rules</b><br/>Clearly about<br/>US–Japan fighting?"}
     KEY{"<b>3b · Second key</b><br/>Do e5 and kNN<br/>both object?"}
     AI{"<b>4 · AI check</b><br/>Reads the article's<br/>war-related sentences"}
-    HUMAN{{"<b>5 · Human review</b><br/><i>1,178 decided · 670 waiting</i>"}}
+    HUMAN{{"<b>5 · Human review</b><br/><i>1,832 decided · 113 waiting</i>"}}
     IN["✅ <b>Included</b>"]
     OUT["❌ <b>Left out</b>"]
-    DELIVER[("<b>Deliverable</b><br/>corpus.json<br/><i>5,193 articles</i>")]
+    DELIVER[("<b>Deliverable</b><br/>corpus.json<br/><i>5,695 articles</i>")]
 
     FIND --> COLLECT --> RULES
     RULES -- "Yes · 4,088" --> KEY
     RULES -- "No · 7,812" --> KEY
-    KEY -- "No objection · 3,931" --> IN
-    KEY -- "Both say unrelated · 157" --> OUT
-    KEY -- "No objection · 7,149" --> OUT
-    KEY -- "Both say related · 663" --> HUMAN
+    KEY -- "No objection · 3,933" --> IN
+    KEY -- "Both say unrelated · 155" --> OUT
+    KEY -- "No objection · 7,052" --> OUT
+    KEY -- "Both say related · 760" --> HUMAN
     RULES -- "Unsure · 2,765" --> AI
     AI -- "Confident yes · 659" --> IN
     AI -- "Confident no · 961" --> OUT
     AI -- "Too close to call · 1,145" --> HUMAN
-    HUMAN -- "Keep · 603" --> IN
-    HUMAN -- "Drop · 575" --> OUT
+    HUMAN -- "Keep · 1,103" --> IN
+    HUMAN -- "Drop · 729" --> OUT
     IN --> DELIVER
 
     classDef step fill:#e7f1ff,stroke:#0b5ed7,color:#052c65
@@ -59,9 +59,12 @@ flowchart LR
     class OUT bad
 ```
 
-*Counts are from the run of 2026-10-17. "Drop · 575" includes 89 rule-excluded articles a reviewer confirmed. Of the
-1,145 too close to call, 49 tied only to an umbrella war are dropped without review and 7 disputed battles wait,
-like the 663 recovery candidates, until someone decides.*
+*Counts are from the re-run of 2026-10-17 after the recovery review. "Both say related · 760" is the 654 recovery
+candidates decided by a Claude session (500 kept, 154 dropped) plus 106 that still wait; "Drop · 729" also includes 89
+rule-excluded articles a reviewer confirmed. Of the 1,145 too close to call, 49 tied only to an umbrella war are
+dropped without review and 7 disputed battles wait, like the 106 recovery candidates, until someone decides. Overrides
+are also kNN neighbours, so the recovery decisions shifted kNN scores: 98 new recovery candidates appeared (mostly
+Japanese ships) and the second-key veto swapped 19 articles out and 21 back in (see `reports/precision_round1.md`).*
 
 **In plain words**
 
@@ -79,7 +82,8 @@ like the 663 recovery candidates, until someone decides.*
 4. **AI check:** for articles the rules cannot settle, an AI language model (e5) reads the war-related sentences and
    scores how strongly the article is about US–Japan fighting rather than China, Burma, Europe or civilian life.
 5. **Human review:** articles the AI cannot call either way are decided by a person. The first 1,216 were
-   decided on 2026-10-12: 603 kept (mostly US Navy ships, Marines and Pacific airfields), the rest dropped.
+   decided on 2026-10-12: 603 kept (mostly US Navy ships, Marines and Pacific airfields), the rest dropped. The
+   654 recovery candidates of 2026-10-17 were decided by a Claude session (500 kept, 154 dropped), not yet by a person.
    Articles tied only to a whole war (an "umbrella", see step 3) are dropped automatically instead of waiting
    for review.
 
@@ -187,8 +191,8 @@ A reviewer can still bring one back with an override.
 | Task | How often | Effort | Why it matters |
 |---|---|---|---|
 | Review new "too close to call" articles | After a re-run finds new articles | Usually a handful | The first full pass (1,216 articles) is done |
-| Verify the evaluation labels | Once, then when the set grows | ~1–2 h for 325 | Until then every quality number is Claude grading Claude |
-| Decide recovery candidates | After a re-run | 663 now, sorted by kNN | Each shows the past decisions it resembles, so similar ones go fast |
+| Verify the evaluation labels | Once, then when the set grows | ~1–2 h for 325; start with the 32 where the two Claude sessions disagree | Until then every quality number is Claude grading Claude |
+| Decide recovery candidates | After a re-run | 106 now, sorted by kNN; spot-check the 654 decided by Claude | Each shows the past decisions it resembles, so similar ones go fast |
 | Check noisy topic categories | After big changes | Minutes | Keeps the search focused |
 | Label a sample of unclear articles | Rarely | ~80 articles | Keeps the AI check honest and measurable |
 | Confirm the must-have list | Rarely | Minutes | Guarantees key articles are never lost |

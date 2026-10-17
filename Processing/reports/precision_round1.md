@@ -114,3 +114,86 @@ ships.
    keep only articles that pass the rules.
 4. Then the remaining ideas from the review: per-type e5 descriptions and section-level passages, each tested the
    same way.
+
+## Round 1 follow-up (2026-10-17): second labels, recovery decided
+
+*⚠️ Every label and decision in this section is by **Claude sessions, not a person**. A second Claude session
+labelled the evaluation set blind to the first session's drafts, then decided the recovery candidates.*
+
+### Second, blind labels for the evaluation set
+
+The 325 titles in `config/eval_set.yaml` now carry labels from a second Claude session that saw neither the drafts in
+`reports/eval_log.tsv` nor any pipeline score (reasons: `reports/eval_log_claude2.tsv`). `evaluate.py` reads them as
+filled labels; its first line now says "labelled in eval_set.yaml" instead of "verified by a person".
+
+**Agreement with the drafts:** 293 of 325 exact (**90%**); 310 of 325 (**95%**) agree on correct vs wrong (keep and
+marginal both count as correct). Of the 32 disagreements, 17 are keep vs marginal and do not move any number. The 15
+that do:
+
+| Pattern | Titles (second session / drafts) |
+|---|---|
+| Second session stricter: no US–Japan combat in the article | *Japanese submarine Yu 17*, *Yu 3003*, *Ha-210*, *Cha-203*, *Hidemi Kon*, *Fusaki Tsutsumi* (Kurils, vs Soviets), *Thirty-Seventh Army (Japan)* (Borneo, vs Australians), *Aleutian Islands WWII National Monument* (memorial) — wrong / marginal |
+| Second session stricter: reached the Pacific only at the end | *USS Gantner*, *USS Habersham* — wrong / marginal |
+| Factual disagreement | *USS Altair*: the article says she left Pearl Harbor for Bermuda in late 1941 and reached Pearl again only after the surrender (wrong / keep; the draft's "at Pearl Harbor during the attack" looks mistaken). *USS YP-422*: lost on a reef near Nouméa on her way to the Solomons (wrong / keep; the second session's excerpt missed that paragraph — the draft is probably right) |
+| Second session more lenient | *Hanaoka mine* (POW camp holding Americans), *Momo-class destroyer* (one sunk by US aircraft), *United States Army Air Forces* — marginal / wrong |
+
+Five of these sit in the precision sections, where each title stands for many Corpus Articles, so the second labels
+give a clearly higher wrong rate than the drafts (below). The disagreements are the first place a person should look.
+
+### Results with the second labels (task 2, before the recovery decisions)
+
+| Run | Corpus | Wrong in the Corpus | ≈ wrong | Classification recall | Discovery recall |
+|---|---|---|---|---|---|
+| Baseline | 5,422 | 12.3% (7.7–17.2%) | 667 | 72.2% (65.8–79.8%) | 70.8% (34 / 48) |
+| Step 4 | 5,350 | 10.6% (6.2–15.3%) | 566 | 72.2% | 70.8% |
+| Step 5 | 5,193 | 8.9% (4.9–13.4%) | 460 | 71.7% (65.0–79.2%) | 70.8% |
+
+Paired comparison baseline → step 5: 6 wrong removed, 1 correct removed (the same titles as with the drafts);
+step 4 → step 5: 3 wrong removed, 1 correct removed. The drafts gave 9.2% → 7.4% → 5.6%: the direction and the paired
+evidence hold, the level is about 3 points higher with the second labels.
+
+### Recovery candidates decided
+
+Of the 663 candidates, the 9 that are evaluation titles were left undecided (they may never become overrides). The
+other **654** were decided by reading each article, mostly the ships' service histories: **500 included, 154
+excluded**, added to `config/overrides.yaml` with one-line reasons in `reports/review_log.tsv` (prefix `recovery:`).
+
+- **Included:** ships and craft that served in the US–Japan fighting (submarines on war patrol, transports and LSTs at
+  Iwo Jima and Okinawa, Asiatic Fleet ships of 1941–42, Japanese ships sunk by US forces), plus — as *marginal*, which
+  counts as correct — support ships that reached forward Pacific bases (Marshalls, Marianas, Carolines, Philippines,
+  Okinawa) before the surrender without combat.
+- **Excluded:** reached the Pacific only after 15 August 1945 or served only postwar (about 70), stubs with no
+  wartime detail (about 35), and the rest (about 45): Atlantic, Mediterranean or Normandy only, Japanese ships
+  completed too late to fight, Japan vs Australia only, and Japanese weapons whose articles show no use against US
+  forces.
+- The dev sample estimated the candidates at 83% right; here 76% were included. The difference is mostly the stub
+  and post-surrender ships, which a rule could drop automatically next time (their articles name no Pacific place
+  before August 1945).
+
+**Re-run** (`run_notebook.py`, 25 s): **5,695** Articles in the Corpus (+521, −19), gold recall **55 / 55**,
+`pytest tests`: 23 passed.
+
+**Side effect to review.** Overrides are kNN neighbours, so 654 new ones moved kNN scores elsewhere:
+
+- **98 new recovery candidates** appeared (106 in all, 10 of them evaluation titles), mostly Japanese ships.
+- **The second-key veto changed for 40 articles.** 19 newly vetoed, including some that look correct (*27th Infantry
+  Division (United States)*, *Philippine Division*, *Hideki Tojo*, *Samuel B. Griffith*); 21 back in, mostly ones
+  that look wrong (*Korea under Japanese rule*, *National Revolutionary Army*, *Arthur Percival*). The gold set stayed
+  whole. A fix to consider: freeze the kNN neighbour set used by the veto, or keep recovery overrides out of it.
+
+### Final numbers (second labels; same weights for both runs)
+
+`evaluate.py --compare Data/interim/runs/step5` and `--compare Data/interim/runs/baseline`, after the recovery
+re-run. The weights changed because the 654 new overrides left the sampling pools (`eval_sample.already_used`), so
+classification recall is not comparable with the table above; compare within this table.
+
+| Run | Corpus | Wrong in the Corpus | ≈ wrong | Classification recall | Discovery recall |
+|---|---|---|---|---|---|
+| Baseline | 5,422 | 12.3% (7.7–17.2%) | 667 | 74.6% (68.4–81.7%) | 70.8% (34 / 48) |
+| Step 5 | 5,193 | 8.9% (4.9–13.4%) | 460 | 74.0% (67.7–81.1%) | 70.8% |
+| **Now** | **5,695** | **8.0% (4.5–12.2%)** | **458** | **76.0% (69.9–82.6%)** | 70.8% |
+
+With the first session's drafts the same runs give 9.2% → 5.6% → **5.1%** wrong and 73.6% → 73.1% → 75.1% recall.
+No sampled evaluation title changed between step 5 and now (none can: they are never overrides), so the gain comes
+from the 500 recovered Articles, which `evaluate.py` counts as correct because they are overrides. That is only as
+good as the Claude decisions behind them; a person's spot check of them would make it real.
