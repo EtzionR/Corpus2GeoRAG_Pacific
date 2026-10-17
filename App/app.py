@@ -20,7 +20,9 @@ ROOT = Path(__file__).resolve().parent.parent
 INTERIM = ROOT / "Data" / "interim"
 CONFIG = ROOT / "Processing" / "config"
 OVERRIDES_PATH = CONFIG / "overrides.yaml"
+AUDIT_PATH = CONFIG / "corpus_audit.yaml"
 CORPUS_PATH = ROOT / "Data" / "corpus.json"
+AUDIT_LABELS = ["keep", "marginal", "wrong"]
 
 st.set_page_config(page_title="Pacific War Corpus", page_icon="⚓", layout="wide")
 
@@ -83,6 +85,16 @@ def save_overrides(include, exclude):
     OVERRIDES_PATH.write_text("\n".join(header) + "\n" + body)
 
 
+def load_audit():
+    """{stratum: {title: label or None}} from corpus_audit.yaml (drawn by Processing/audit_sample.py)."""
+    return (yaml.safe_load(AUDIT_PATH.read_text()) or {}) if AUDIT_PATH.exists() else {}
+
+
+def save_audit(audit):
+    header = [l for l in AUDIT_PATH.read_text().splitlines() if l.startswith("#")]
+    AUDIT_PATH.write_text("\n".join(header) + "\n" + yaml.safe_dump(audit, allow_unicode=True, sort_keys=False))
+
+
 def gold_titles():
     gold = yaml.safe_load((CONFIG / "gold_set.yaml").read_text())
     return {t: tag for tag, titles in gold.items() for t in titles}
@@ -126,7 +138,8 @@ with st.sidebar:
     st.divider()
     st.caption("Docs: `Processing/PIPELINE.md` · `CONTEXT.md` · `Processing/reports/knn_experiment.md`")
 
-overview_tab, review_tab, explore_tab, experiments_tab = st.tabs(["📊 Overview", "⏳ Review", "🔎 Explore", "🧪 Experiments"])
+overview_tab, review_tab, audit_tab, explore_tab, experiments_tab = st.tabs(
+    ["📊 Overview", "⏳ Review", "🧾 Audit", "🔎 Explore", "🧪 Experiments"])
 
 
 # ---------- overview ----------
@@ -272,6 +285,56 @@ with review_tab:
         save_overrides(include, exclude)
         st.success(f"Saved: {len(include)} include · {len(exclude)} exclude. Re-run the pipeline to apply.")
         st.rerun()
+
+
+# ---------- audit ----------
+with audit_tab:
+    st.subheader("Corpus audit")
+    st.caption("A random sample of Articles already **in** the Corpus, let in by the rules or the AI check. Label each "
+               "one; the labels estimate how much of the Corpus is wrong or marginal and test any filter once. "
+               "**keep**: about US–Japan fighting in WWII · **marginal**: tied to it only in passing · "
+               "**wrong**: not about US–Japan fighting. Saved to `config/corpus_audit.yaml`.")
+    audit = load_audit()
+    if not audit:
+        st.info("No sample yet. Run `python Processing/audit_sample.py`.")
+    else:
+        sample = pd.DataFrame([{"stratum": s, "title": t, "label": l or ""} for s, d in audit.items() for t, l in d.items()])
+        sample = sample.merge(rows[["title", "wikipedia", "primary_tag", "reason", "relevance", "in_scope"]], on="title", how="left")
+        done = int((sample["label"] != "").sum())
+        st.progress(done / len(sample), text=f"{done} of {len(sample)} labelled")
+        if done:  # share of each label, weighted by how many Corpus Articles each stratum stands for
+            size = rows[rows["in_scope"]]["decided_by"].value_counts()
+            est = []
+            for label in AUDIT_LABELS:
+                share = sum(size.get(s, 0) * (g["label"] == label).sum() / max((g["label"] != "").sum(), 1)
+                            for s, g in sample.groupby("stratum")) / sum(size.get(s, 0) for s in audit)
+                est.append({"label": label, "share": share, "articles": round(share * sum(size.get(s, 0) for s in audit))})
+            cols = st.columns(3)
+            for c, e in zip(cols, est):
+                c.metric(f"{e['label']} (estimate)", f"{e['share']:.0%}", f"≈ {e['articles']:,} Articles", delta_color="off",
+                         help="Projected to the rules + AI-check part of the Corpus. Rough until most of the sample is labelled.")
+        sample["lead"] = sample["title"].map(lambda t: page_record(t).get("lead_text", "")[:300])
+        only_open = st.toggle("Hide labelled", value=False)
+        view = sample[sample["label"] == ""] if only_open else sample
+        edited = st.data_editor(
+            view[["label", "title", "wikipedia", "primary_tag", "stratum", "reason", "lead"]],
+            column_config={
+                "label": st.column_config.SelectboxColumn("Your call", options=[""] + AUDIT_LABELS, width="small"),
+                "title": st.column_config.TextColumn("Article", disabled=True, width="medium"),
+                "wikipedia": st.column_config.LinkColumn("Link", display_text="open ↗", width="small"),
+                "primary_tag": st.column_config.TextColumn("Tag", disabled=True, width="small"),
+                "stratum": st.column_config.TextColumn("Let in by", disabled=True, width="small"),
+                "reason": st.column_config.TextColumn("Why it is in", disabled=True),
+                "lead": st.column_config.TextColumn("Opening text", disabled=True, width="large"),
+            },
+            hide_index=True, width="stretch", height=560, key=f"audit-{only_open}-{done}")
+        if st.button("💾 Save labels", type="primary", key="save-audit"):
+            stratum_of = dict(zip(sample["title"], sample["stratum"]))
+            for _, r in edited.iterrows():
+                audit[stratum_of[r["title"]]][r["title"]] = r["label"] or None
+            save_audit(audit)
+            st.success("Saved.")
+            st.rerun()
 
 
 # ---------- explore ----------

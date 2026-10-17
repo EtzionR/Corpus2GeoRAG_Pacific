@@ -1,0 +1,159 @@
+# Corpus audit: a random sample of Articles already in the Corpus, labelled by hand in the app's Audit tab.
+# Measures how much of the Corpus is wrong or marginal, and tests any filter (e5, Laya) on Articles the
+# rules let in. Never used to tune a method: only to test it once.
+#   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
+#   marginal: tied to it, but only in passing (e.g. a short Pacific posting in a long career elsewhere)
+#   wrong:    not about US–Japan fighting
+# Drawn by Processing/audit_sample.py (seed 0) from the pipeline output of 2026-10-12 18:00.
+rules:
+  11th Division (National Revolutionary Army): null
+  2/3rd Pioneer Battalion (Australia): null
+  2/8th Commando Squadron (Australia): null
+  2nd Marine Regiment: null
+  4th Carrier Division: null
+  801st Medical Air Evacuation Squadron: null
+  9th Division (Imperial Japanese Army): null
+  Addo Bonetti: null
+  Air raids on Penang: null
+  Allan Sutter: null
+  Battle of Binalonan: null
+  Battle of Blackett Strait: null
+  Battle of Cape Gloucester: null
+  Battle of Leuwiliang: null
+  Battle of Pinwe: null
+  Battle of Point Judith: null
+  Battle of Wawa Dam: null
+  Battle of West Hunan: null
+  Battle of the Santa Cruz Islands: null
+  Bombing of Rabaul (1942): null
+  Bombing of Toyokawa in World War II: null
+  Bombing of Wewak: null
+  Bombing of Yahata: null
+  British declaration of war on Japan: null
+  Burma Road: null
+  Carrier-based aircraft: null
+  Charles B. McVay III: null
+  Code Girls: null
+  Don Isidro: null
+  Donald K. Ross: null
+  Douglas A-20 Havoc: null
+  Earl F. Ziemke: null
+  Elmo M. Haney: null
+  End of World War II in Asia: null
+  First Bombardment of Midway: null
+  Ganap Party: null
+  Geno Morosi: null
+  Gerard Bruggink: null
+  Guadalcanal American Memorial: null
+  Gunichi Mikawa: null
+  HMS Exeter (68): null
+  I-400-class submarine: null
+  Japanese air raids on Australia: null
+  Japanese battleship Fusō: null
+  Japanese cruiser Agano: null
+  Japanese cruiser Haguro: null
+  Japanese cruiser Katori: null
+  Japanese cruiser Kumano: null
+  Japanese destroyer Mutsuki: null
+  Japanese destroyer Oboro (1930): null
+  Japanese minelayer Okinoshima: null
+  Japanese occupation of the Gilbert Islands: null
+  Japanese oiler Irō: null
+  Japanese submarine I-14: null
+  Japanese submarine I-166: null
+  Jesselton revolt: null
+  John Chafee: null
+  John R. Hodge: null
+  John Thach: null
+  Johnny Stompanato: null
+  Katsuya Susaki: null
+  Kō-hyōteki-class submarine: null
+  Landing at Aitape: null
+  Landing at Lae: null
+  Louis H. Wilson Jr.: null
+  Makapili: null
+  Malahang Mission Station, Lae: null
+  Masutaro Nakai: null
+  Mitsuru Ushijima: null
+  Nagano Prefecture: null
+  Nakajima B5N: null
+  No. 9 Operational Group RAAF: null
+  Norman Scott (admiral): null
+  Operation Kikusui I: null
+  Pat Maloney Sr.: null
+  Patrol torpedo boat PT-30: null
+  Penghu air raids: null
+  Project Hula: null
+  Queen's Royal Regiment (West Surrey): null
+  Ray C. Hunt: null
+  Richard Antrim: null
+  Richard C. Mangrum: null
+  Richard G. Weede: null
+  Robert B. Carney Jr.: null
+  Samuel R. Shaw: null
+  Sentani International Airport: null
+  Seymour W. Terry: null
+  Sun Li-jen: null
+  Tadamichi Kuribayashi: null
+  Torokina Airfield: null
+  Tosa-class battleship: null
+  US Naval Base Australia: null
+  US Naval Base Carolines: null
+  USS Bang: null
+  USS Boston (CA-69): null
+  USS Dickens: null
+  USS Dufilho: null
+  USS Gambier Bay: null
+  USS Hughes: null
+  USS LST-1035: null
+  USS LST-31: null
+  USS LST-467: null
+  USS LST-549: null
+  USS Newcomb: null
+  USS Paul Hamilton (DD-590): null
+  USS Paul Jones (DD-230): null
+  USS Pecos (AO-6): null
+  USS S-34: null
+  USS Sabine (AO-25): null
+  USS Shangri-La: null
+  USS Stringham (DD-83): null
+  USS Swearer: null
+  USS William C. Miller: null
+  USS Zeus (ARB-4): null
+  Ursula Graham Bower: null
+  William E. Riley: null
+  William Frederick Harris: null
+  William O. Eareckson: null
+  Ysmael R. Villegas: null
+  Émile Lemonnier: null
+e5:
+  Battle of Guadalcanal order of battle: null
+  Consolidated B-32 Dominator: null
+  Hatsuo Hidaka: null
+  Iwo Jima-class amphibious assault ship: null
+  Japanese Special Attack Units: null
+  Japanese destroyer Sumire (1944): null
+  Japanese gunboat Nankai: null
+  Japanese torpedo boat Hiyodori: null
+  Kelat (ship): null
+  Kugisho B3Y: null
+  MS Awazisan Maru: null
+  Makoto Ogawa (pilot): null
+  Muroto-class collier: null
+  Patrol torpedo boat PT-41: null
+  Sinkyo Maru: null
+  USS Balduck: null
+  USS Dauphin: null
+  USS Doherty: null
+  USS Frybarger: null
+  USS Hobby: null
+  USS John P. Gray: null
+  USS LST-925: null
+  USS LST-939: null
+  USS LST-959: null
+  USS Mason (DE-529): null
+  USS Pope (DD-225): null
+  USS S-29: null
+  USS Slater: null
+  USS Tolland: null
+  USS Wren: null
