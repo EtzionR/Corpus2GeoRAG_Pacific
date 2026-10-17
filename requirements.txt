@@ -11,3 +11,4 @@ numpy
 streamlit
 altair
 pandas
+pytest

@@ -1,7 +1,7 @@
 # How the rules are implemented
 
-The code is in `Processing/crawl_corpus.ipynb`. The rule functions are in the "Tagging and scope rules" cell, and
-`classify(p)` applies them. Terms are defined in [`../CONTEXT.md`](../CONTEXT.md); the overview is in
+The rule functions are in [`scope_rules.py`](scope_rules.py) (tests: `tests/test_scope_rules.py`), and
+`classify(p)` in `Processing/crawl_corpus.ipynb` applies them. Terms are defined in [`../CONTEXT.md`](../CONTEXT.md); the overview is in
 [`PIPELINE.md`](PIPELINE.md).
 
 1. **Tag:** `tag_page` takes the first non-Media Tag from four sources, in order: the infobox (`INFOBOX_TAGS`),
@@ -33,5 +33,5 @@ The code is in `Processing/crawl_corpus.ipynb`. The rule functions are in the "T
 
 **Config:** `config/scope.yaml` (Umbrella conflicts, e5 queries) · `config/categories.yaml` (seeds, Blocked
 categories) · `config/overrides.yaml` · `config/gray_labels.yaml` (threshold labels; holdout titles are never used
-to set thresholds) · constants in the notebook (`TAG_ROOTS`, `US_QIDS`, `TOO_BROAD_ROOTS`, `ANCHOR_PROPS`,
-`MIN_BATTLE_LINKS`).
+to set thresholds) · constants in `scope_rules.py` (`TAG_ROOTS`, `US_QIDS`, `TOO_BROAD_ROOTS`, `ANCHOR_PROPS`) · `MIN_BATTLE_LINKS`
+in the notebook.
