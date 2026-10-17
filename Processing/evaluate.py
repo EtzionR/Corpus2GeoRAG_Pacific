@@ -66,7 +66,7 @@ def measure(run, sample, w, n_override_in):
         if correct:
             rel += w[section]
             rel_in += w[section] * inside
-    total += n_override_in  # Overrides were decided by a person: correct by definition
+    total += n_override_in  # Original review Overrides are correct by definition
     rel += n_override_in
     rel_in += n_override_in
     return {"wrong_rate": wrong / total if total else float("nan"), "classification_recall": rel_in / rel if rel else float("nan")}
@@ -88,6 +88,12 @@ def evaluate(run_dir, lab, w):
     run = eval_sample.rows(run_dir)
     n_override_in = sum(1 for r in run.values() if r["in_scope"] and r["decided_by"] == "override")
     sample = [(t, s, l) for t, (s, l) in lab.items()]
+    n_recovery = sum(bool(run.get(t, {}).get("in_scope")) for t in eval_sample.recovery_includes())
+    n_labelled = sum(s == "precision_recovery" for _, s, _ in sample)
+    w = dict(w)
+    if n_labelled:
+        w["precision_recovery"] = n_recovery / n_labelled
+        n_override_in -= n_recovery
     point = measure(run, sample, w, n_override_in)
     by_section = collections.defaultdict(list)
     for item in sample:
@@ -106,7 +112,8 @@ def evaluate(run_dir, lab, w):
             "classification_recall_ci": interval(boot["classification_recall"]),
             "discovery": disc,
             "review_band": sum(r["decided_by"] == "review" for r in run.values()),
-            "recovery_candidates": sum(r["decided_by"] == "recovery" for r in run.values())}
+            "recovery_candidates": sum(r["decided_by"] == "recovery" for r in run.values()),
+            "recovery_includes": n_recovery, "recovery_labelled": n_labelled}
 
 
 def flips(old_dir, new_dir, lab):
@@ -127,6 +134,11 @@ def show(res):
     d = res["discovery"]
     print(f"{res['run']}: {res['corpus']:,} Articles in the Corpus · review band {res['review_band']:,} · "
           f"recovery candidates {res['recovery_candidates']:,}")
+    print(f"  recovery include-Overrides: {res['recovery_includes']} in this run, "
+          f"{res['recovery_labelled']} labelled in precision_recovery")
+    if not res["recovery_labelled"]:
+        print("  WARNING: precision_recovery has no labels yet; recovery Overrides still count as correct by definition. "
+              "The wrong rate is optimistic.")
     print(f"  wrong in the Corpus      {res['wrong_rate']:6.1%}  (95% {lo:.1%}–{hi:.1%}) ≈ {res['wrong_articles']:,} Articles")
     print(f"  classification recall    {res['classification_recall']:6.1%}  (95% {rlo:.1%}–{rhi:.1%})")
     if d["relevant"]:

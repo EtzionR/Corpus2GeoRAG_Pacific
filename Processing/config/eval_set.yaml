@@ -1,5 +1,7 @@
+# precision_recovery: 40 of 500 recovery include-Overrides, seed 3, drawn by
+# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.
 # Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
-# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
+# neighbour; only precision_recovery may measure Overrides). Labels can be set in the app's Evaluation tab; drafts are in
 # reports/eval_log.tsv, so the agreement between the two is measured too.
 #   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
 #   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
@@ -337,3 +339,44 @@ discovery_recall:
   Virgil K. Meroney: wrong
   Wayne Morris: marginal
   William H. Wilbur: wrong
+precision_recovery:
+  HMAS Mallina: null
+  Ha-101-class submarine: null
+  Japanese submarine Ro-45: null
+  Japanese survey ship Hakuyo Maru: null
+  Tamahoko Maru: null
+  USCGC McLane: null
+  USS Achilles (ARL-41): null
+  USS Ammonusuc: null
+  USS Bandera: null
+  USS Barnstable: null
+  USS Beaverhead: null
+  USS Bridge (AF-1): null
+  USS Enceladus: null
+  USS Fleming (DE-32): null
+  USS Freestone: null
+  USS Holland (AS-3): null
+  USS Hydrographer (AGS-2): null
+  USS Jerauld: null
+  USS LST-16: null
+  USS LST-767: null
+  USS LST-794: null
+  USS LST-826: null
+  USS LST-828: null
+  USS Lagarto: null
+  USS Las Vegas Victory: null
+  USS Lesuth: null
+  USS Leyte (ARG-8): null
+  USS Mallard (AMCU-30): null
+  USS McCracken: null
+  USS Megrez: null
+  USS Oahu (ARG-5): null
+  USS Pelias: null
+  USS Polana: null
+  USS Rockbridge: null
+  USS Shaula: null
+  USS Steelhead: null
+  USS Suisun: null
+  USS Toro: null
+  USS Trego: null
+  USS Tuscana: null

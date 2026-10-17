@@ -1,11 +1,15 @@
 """Draws the evaluation set into config/eval_set.yaml (labelled by a person in the app's Evaluation tab).
     python Processing/eval_sample.py
 Measures the pipeline and is never used to tune it: no title here may become a calibration label, kNN neighbour or
-Override (tests/test_corpus_output.py checks this). Three sections, each with a fixed seed:
+Override, except precision_recovery which measures recovery Overrides (tests/test_corpus_output.py checks this).
+Sections, each with a fixed seed:
   precision              Articles in the Corpus, by how they got in (rules / e5): how many are wrong?
   classification_recall  Articles left out although tied to an In-scope Battle or close to the e5 cut-off: missed?
   discovery_recall       Articles linked from Wikipedia list pages the crawl never starts from: found at all?
+  precision_recovery     Recovery include-Overrides: --recovery appends 40 unlabelled titles (seed 3) without
+                         changing existing sections or labels; refuses to redraw an existing section.
 Refuses to overwrite a set that has labels. Needs network for discovery_recall (a few Wikipedia API calls)."""
+import argparse
 import json
 import random
 import sys
@@ -14,6 +18,8 @@ from pathlib import Path
 
 import requests
 import yaml
+
+from knn_neighbours import recovery_overrides
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = ROOT / "Processing" / "config"
@@ -35,7 +41,7 @@ USER_AGENT = "Corpus2GeoRAG_Pacific/0.2 (https://github.com/NivGreenstein/Corpus
 
 HEADER = """\
 # Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
-# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
+# neighbour; only precision_recovery may measure Overrides). Labels can be set in the app's Evaluation tab; drafts are in
 # reports/eval_log.tsv, so the agreement between the two is measured too.
 #   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
 #   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
@@ -66,6 +72,27 @@ def already_used():
     used |= {t for titles in load("gold_set.yaml").values() for t in titles}
     used |= {t for section in load("corpus_audit.yaml").values() if isinstance(section, dict) for t in section}
     return used
+
+
+def recovery_includes():
+    overrides = yaml.safe_load((CONFIG / "overrides.yaml").read_text()) or {}
+    return recovery_overrides() & set(overrides.get("include") or [])
+
+
+def append_recovery():
+    """Append only precision_recovery (40 of the recovery include-Overrides, seed 3), preserving the labelled set."""
+    text = EVAL_PATH.read_text()
+    sections = yaml.safe_load(text) or {}
+    if "precision_recovery" in sections:
+        raise SystemExit("precision_recovery already exists; not redrawing it.")
+    population = sorted(recovery_includes())
+    picked = sorted(random.Random(3).sample(population, 40))
+    header = (f"# precision_recovery: 40 of {len(population)} recovery include-Overrides, seed 3, drawn by\n"
+              "# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.\n")
+    EVAL_PATH.write_text(header + text.rstrip() + "\n"
+                         + yaml.safe_dump({"precision_recovery": {t: None for t in picked}},
+                                          allow_unicode=True, sort_keys=False))
+    print(f"precision_recovery: 40 of {len(population)}; existing sections preserved")
 
 
 def pools(data, thresholds):
@@ -114,6 +141,12 @@ def canonical(session, titles):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--recovery", action="store_true", help="append only the recovery precision sample")
+    args = ap.parse_args()
+    if args.recovery:
+        append_recovery()
+        return
     if EVAL_PATH.exists():
         old = yaml.safe_load(EVAL_PATH.read_text()) or {}
         if any(v for section in old.values() if isinstance(section, dict) for v in section.values()):

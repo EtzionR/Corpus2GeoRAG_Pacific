@@ -41,14 +41,18 @@ def test_every_override_matches_a_discovered_article(rows):
 
 
 def test_eval_set_never_used_for_tuning():
-    """The evaluation set only measures: never a calibration label, kNN neighbour or Override."""
-    eval_titles = {t for section in load("eval_set.yaml").values() if isinstance(section, dict) for t in section}
+    """Evaluation titles never tune; precision_recovery alone may measure Overrides."""
+    sections = load("eval_set.yaml")
+    eval_titles = {t for section in sections.values() if isinstance(section, dict) for t in section}
     if not eval_titles:
         pytest.skip("no eval_set.yaml yet")
     gray = load("gray_labels.yaml")
     overrides = load("overrides.yaml")
     seeds = load("knn_seeds.yaml")
     used = (set(gray.get("calibration") or {}) | set(gray.get("holdout") or {})
-            | set(overrides.get("include") or []) | set(overrides.get("exclude") or [])
             | set(seeds.get("unrelated", {}).get("close") or []) | set(seeds.get("related", {}).get("extra") or []))
+    used |= {t for titles in load("knn_neighbours.yaml").values() for t in titles}
     assert not eval_titles & used, sorted(eval_titles & used)[:10]
+    ordinary = {t for s, titles in sections.items() if s != "precision_recovery" for t in titles}
+    overrides = set(overrides.get("include") or []) | set(overrides.get("exclude") or [])
+    assert not ordinary & overrides, sorted(ordinary & overrides)[:10]
