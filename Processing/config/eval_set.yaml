@@ -7,332 +7,333 @@
 # precision_*: random Corpus Articles by how they got in · classification_recall: left out but tied or close to the
 # e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
 # Drawn by Processing/eval_sample.py (seed 1) from the pipeline output of 2026-10-17 22:07.
+# Labels: second, independent Claude session on 2026-10-17, blind to the drafts in reports/eval_log.tsv — not yet verified by a person.
 precision_rules:
-  135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: null
-  18th Brigade (Australia): null
-  2/9th Armoured Regiment (Australia): null
-  201st Fighter Squadron: null
-  26th Battalion (Australia): null
-  2nd Marine Aircraft Wing: null
-  2nd Marine Logistics Group: null
-  33rd Division (Imperial Japanese Army): null
-  45 cm naval rocket: null
-  Aleutian Islands World War II National Monument: null
-  Battle for Cebu City: null
-  Battle of Corregidor (1945): null
-  Battle of Enogai: null
-  Battle of Tinian: null
-  Battle of Wickham Anchorage: null
-  Bombing of Kuala Lumpur: null
-  Daihatsu-class landing craft: null
-  Du Yuming: null
-  Ed Bearss: null
-  Flying Tigers: null
-  Frank Fujita: null
-  Franklin Sousley: null
-  Frederick T. Weber: null
-  George O. Van Orden: null
-  George Wesley Griner Jr.: null
-  Girua Airport: null
-  HMS Engadine (1911): null
-  Harry B. Liversedge: null
-  Henry T. Elrod: null
-  Iba Airfield: null
-  Interim Committee: null
-  J. Lawton Collins: null
-  James L. Bradley: null
-  Japanese cruiser Atago: null
-  Japanese destroyer Fumizuki (1926): null
-  Japanese destroyer Naganami: null
-  Japanese landing craft carrier Shinshū Maru: null
-  Japanese submarine I-158: null
-  Japanese submarine I-17: null
-  Japanese submarine I-53 (1925): null
-  Japanese submarine I-8: null
-  Japanese submarine tender Komahashi: null
-  John E. Wilkes: null
-  John H. Hoover: null
-  John W. Antonelli: null
-  Kaneyoshi Muto: null
-  Keisuke Matsuo: null
-  Kiyohide Shima: null
-  Korechika Anami: null
-  Lend-Lease Sherman tanks: null
-  List of territories acquired by the Empire of Japan: null
-  MS Sea Witch: null
-  Marine Air, West Coast: null
-  Matanikau Offensive: null
-  Mateo M. Capinpin: null
-  Melvin Maas: null
-  Merwin H. Silverthorn: null
-  Mitchell Paige: null
-  Mohammad Ali Dimaporo: null
-  Niigata (city): null
-  Ondonga Airfield: null
-  Operation PX: null
-  Osamu Kudō: null
-  Paramarines: null
-  Piva Airfield: null
-  Richard E. Fleming: null
-  Richard L. Conolly: null
-  Ro-100-class submarine: null
-  Ryuichi Itaya: null
-  Savo Island order of battle: null
-  Si Rat Malai: null
-  Special Naval Landing Forces: null
-  Stanley S. Hughes: null
-  Takeo Takagi: null
-  Tassafaronga Point: null
-  Tetsuzō Iwamoto: null
-  Thirty-Seventh Army (Japan): null
-  Tsubame-class minelayer: null
-  US Naval Base Solomons: null
-  USS Altair (AD-11): null
-  USS Barrow: null
-  USS Bolivar: null
-  USS Brock: null
-  USS Burke: null
-  USS Clemson (DD-186): null
-  USS Coronado (PF-38): null
-  USS Cowell (DD-547): null
-  USS Flusser (DD-368): null
-  USS Franklin (CV-13): null
-  USS Gamble: null
-  USS Guest: null
-  USS Hoel (DD-533): null
-  USS Joseph E. Connolly: null
-  USS LST-205: null
-  USS LST-446: null
-  USS LST-448: null
-  USS Leonard Wood: null
-  USS Mackinac (AVP-13): null
-  USS Marias: null
-  USS Mobile (CL-63): null
-  USS Monrovia: null
-  USS New York (BB-34): null
-  USS Palisade: null
-  USS Sailfish (SS-192): null
-  USS San Felipe: null
-  USS San Francisco (CA-38): null
-  USS Sumter (APA-52): null
-  USS Talladega: null
-  USS Tisdale (DE-33): null
-  USS Walter C. Wann: null
-  USS William C. Cole: null
-  USS Zaurak: null
-  United States Army Forces in the Far East: null
-  W-7-class minesweeper: null
-  Walter Short: null
-  Wei Lihuang: null
-  William A. Glassford: null
-  William J. Whaling: null
-  Yoshimi Minami: null
-  Yukio Araki: null
+  135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: wrong
+  18th Brigade (Australia): marginal
+  2/9th Armoured Regiment (Australia): wrong
+  201st Fighter Squadron: keep
+  26th Battalion (Australia): wrong
+  2nd Marine Aircraft Wing: keep
+  2nd Marine Logistics Group: marginal
+  33rd Division (Imperial Japanese Army): wrong
+  45 cm naval rocket: keep
+  Aleutian Islands World War II National Monument: wrong
+  Battle for Cebu City: keep
+  Battle of Corregidor (1945): keep
+  Battle of Enogai: keep
+  Battle of Tinian: keep
+  Battle of Wickham Anchorage: keep
+  Bombing of Kuala Lumpur: keep
+  Daihatsu-class landing craft: keep
+  Du Yuming: wrong
+  Ed Bearss: marginal
+  Flying Tigers: keep
+  Frank Fujita: keep
+  Franklin Sousley: keep
+  Frederick T. Weber: keep
+  George O. Van Orden: keep
+  George Wesley Griner Jr.: keep
+  Girua Airport: keep
+  HMS Engadine (1911): marginal
+  Harry B. Liversedge: keep
+  Henry T. Elrod: keep
+  Iba Airfield: keep
+  Interim Committee: marginal
+  J. Lawton Collins: keep
+  James L. Bradley: keep
+  Japanese cruiser Atago: keep
+  Japanese destroyer Fumizuki (1926): keep
+  Japanese destroyer Naganami: keep
+  Japanese landing craft carrier Shinshū Maru: keep
+  Japanese submarine I-158: marginal
+  Japanese submarine I-17: keep
+  Japanese submarine I-53 (1925): wrong
+  Japanese submarine I-8: keep
+  Japanese submarine tender Komahashi: marginal
+  John E. Wilkes: keep
+  John H. Hoover: keep
+  John W. Antonelli: keep
+  Kaneyoshi Muto: keep
+  Keisuke Matsuo: marginal
+  Kiyohide Shima: keep
+  Korechika Anami: keep
+  Lend-Lease Sherman tanks: wrong
+  List of territories acquired by the Empire of Japan: wrong
+  MS Sea Witch: keep
+  Marine Air, West Coast: marginal
+  Matanikau Offensive: keep
+  Mateo M. Capinpin: keep
+  Melvin Maas: marginal
+  Merwin H. Silverthorn: keep
+  Mitchell Paige: keep
+  Mohammad Ali Dimaporo: marginal
+  Niigata (city): wrong
+  Ondonga Airfield: keep
+  Operation PX: marginal
+  Osamu Kudō: marginal
+  Paramarines: keep
+  Piva Airfield: keep
+  Richard E. Fleming: keep
+  Richard L. Conolly: keep
+  Ro-100-class submarine: keep
+  Ryuichi Itaya: keep
+  Savo Island order of battle: keep
+  Si Rat Malai: wrong
+  Special Naval Landing Forces: keep
+  Stanley S. Hughes: keep
+  Takeo Takagi: keep
+  Tassafaronga Point: keep
+  Tetsuzō Iwamoto: keep
+  Thirty-Seventh Army (Japan): wrong
+  Tsubame-class minelayer: keep
+  US Naval Base Solomons: keep
+  USS Altair (AD-11): wrong
+  USS Barrow: keep
+  USS Bolivar: keep
+  USS Brock: marginal
+  USS Burke: marginal
+  USS Clemson (DD-186): keep
+  USS Coronado (PF-38): keep
+  USS Cowell (DD-547): keep
+  USS Flusser (DD-368): keep
+  USS Franklin (CV-13): keep
+  USS Gamble: keep
+  USS Guest: keep
+  USS Hoel (DD-533): keep
+  USS Joseph E. Connolly: keep
+  USS LST-205: keep
+  USS LST-446: keep
+  USS LST-448: keep
+  USS Leonard Wood: keep
+  USS Mackinac (AVP-13): keep
+  USS Marias: keep
+  USS Mobile (CL-63): keep
+  USS Monrovia: keep
+  USS New York (BB-34): keep
+  USS Palisade: wrong
+  USS Sailfish (SS-192): keep
+  USS San Felipe: keep
+  USS San Francisco (CA-38): keep
+  USS Sumter (APA-52): keep
+  USS Talladega: keep
+  USS Tisdale (DE-33): keep
+  USS Walter C. Wann: keep
+  USS William C. Cole: keep
+  USS Zaurak: keep
+  United States Army Forces in the Far East: keep
+  W-7-class minesweeper: keep
+  Walter Short: keep
+  Wei Lihuang: wrong
+  William A. Glassford: keep
+  William J. Whaling: keep
+  Yoshimi Minami: keep
+  Yukio Araki: keep
 precision_e5:
-  Aikoku Maru (1940): null
-  Carney Airfield: null
-  Fusaki Tsutsumi: null
-  Japanese destroyer Momi (1944): null
-  Japanese gunboat Futami: null
-  Kanichi Kashimura: null
-  Koli Airfield: null
-  Landing at Saidor order of battle: null
-  Pete Stout: null
-  SS Yoshida Maru: null
-  Shojiro Hayashi: null
-  USS Conklin: null
-  USS Facility: null
-  USS Gantner: null
-  USS Haas: null
-  USS Hansford: null
-  USS John Q. Roberts: null
-  USS Jordan: null
-  USS LSM(R)-193: null
-  USS Lark (AM-21): null
-  USS Okaloosa: null
-  USS Purdy: null
-  USS Robert F. Keller: null
-  USS S-26: null
-  USS San Carlos: null
-  USS Searaven: null
-  USS Stack: null
-  USS Tench: null
-  USS YP-422: null
-  USS Yokes: null
+  Aikoku Maru (1940): keep
+  Carney Airfield: keep
+  Fusaki Tsutsumi: wrong
+  Japanese destroyer Momi (1944): keep
+  Japanese gunboat Futami: wrong
+  Kanichi Kashimura: keep
+  Koli Airfield: keep
+  Landing at Saidor order of battle: keep
+  Pete Stout: marginal
+  SS Yoshida Maru: keep
+  Shojiro Hayashi: wrong
+  USS Conklin: keep
+  USS Facility: keep
+  USS Gantner: wrong
+  USS Haas: keep
+  USS Hansford: keep
+  USS John Q. Roberts: marginal
+  USS Jordan: wrong
+  USS LSM(R)-193: keep
+  USS Lark (AM-21): keep
+  USS Okaloosa: keep
+  USS Purdy: keep
+  USS Robert F. Keller: keep
+  USS S-26: wrong
+  USS San Carlos: keep
+  USS Searaven: keep
+  USS Stack: keep
+  USS Tench: keep
+  USS YP-422: wrong
+  USS Yokes: keep
 classification_recall:
-  122 mm gun M1931/37 (A-19): null
-  193rd Mechanized Infantry Brigade: null
-  28th Battalion (Australia): null
-  32nd Indian Infantry Brigade: null
-  63rd Infantry Regiment (PA): null
-  763 Naval Air Squadron: null
-  842 Naval Air Squadron: null
-  BRP Sultan Kudarat: null
-  Blackburn Dart: null
-  Blanton Winship: null
-  Charles L. Scott (U.S. Army general): null
-  Comfort-class hospital ship: null
-  Edmund L. Coombs: null
-  Eugene Reybold: null
-  Gangut-class battleship: null
-  Hanaoka mine: null
-  Hidemi Kon: null
-  Hikoroku Arimoto: null
-  Imperial Guard (Japan): null
-  Ishimoto Shinroku: null
-  JS Kurihama: null
-  Japanese invasion money: null
-  Japanese submarine Ha-210: null
-  John M. Devine: null
-  Kutsumi Tsuneo: null
-  Leven Cooper Allen: null
-  Levi Oakes: null
-  Loyal Regiment (North Lancashire): null
-  Luis de Florez: null
-  MV Herstein: null
-  Masamoto Nasu: null
-  Motoo Furushō: null
-  Naval Base Abemama: null
-  Operation Opossum: null
-  Petropavlovsk-class battleship: null
-  Raymond Park (West) Air Raid Shelter: null
-  Russian cruiser Bayan (1900): null
-  SMS Babenberg: null
-  SS Iron Crown: null
-  SS Santa Paula (1916): null
-  Slamet Rijadi: null
-  Type 4 Ka-Tsu: null
-  Type 92 torpedo: null
-  USNS Milford: null
-  USS Breckinridge: null
-  USS Bronx: null
-  USS Caddo Parish: null
-  USS Callisto: null
-  USS Conflict (AM-85): null
-  USS Cythera (PY-31): null
-  USS Dennis J. Buckley (DD-808): null
-  USS Favorite: null
-  USS George E. Davis: null
-  USS Habersham: null
-  USS Hinsdale: null
-  USS Kansas (BB-21): null
-  USS LST-222: null
-  USS LST-314: null
-  USS LST-766: null
-  USS LST-884: null
-  USS LST-903: null
-  USS La Moure County (LST-883): null
-  USS Ludlow (DD-438): null
-  USS Mendocino: null
-  USS Ohio (BB-12): null
-  USS Pilgrim II: null
-  USS Raeo: null
-  USS Restorer: null
-  USS Scania (AKA-40): null
-  USS Sea Fox: null
-  USS St. Regis River: null
-  USS Tuluran: null
-  USS Waterman: null
-  USS Whippoorwill (AM-35): null
-  Warren Gulley: null
+  122 mm gun M1931/37 (A-19): wrong
+  193rd Mechanized Infantry Brigade: wrong
+  28th Battalion (Australia): wrong
+  32nd Indian Infantry Brigade: wrong
+  63rd Infantry Regiment (PA): keep
+  763 Naval Air Squadron: wrong
+  842 Naval Air Squadron: wrong
+  BRP Sultan Kudarat: wrong
+  Blackburn Dart: wrong
+  Blanton Winship: wrong
+  Charles L. Scott (U.S. Army general): wrong
+  Comfort-class hospital ship: keep
+  Edmund L. Coombs: marginal
+  Eugene Reybold: wrong
+  Gangut-class battleship: wrong
+  Hanaoka mine: marginal
+  Hidemi Kon: wrong
+  Hikoroku Arimoto: wrong
+  Imperial Guard (Japan): wrong
+  Ishimoto Shinroku: wrong
+  JS Kurihama: wrong
+  Japanese invasion money: wrong
+  Japanese submarine Ha-210: wrong
+  John M. Devine: wrong
+  Kutsumi Tsuneo: wrong
+  Leven Cooper Allen: wrong
+  Levi Oakes: keep
+  Loyal Regiment (North Lancashire): wrong
+  Luis de Florez: wrong
+  MV Herstein: wrong
+  Masamoto Nasu: wrong
+  Motoo Furushō: wrong
+  Naval Base Abemama: keep
+  Operation Opossum: wrong
+  Petropavlovsk-class battleship: wrong
+  Raymond Park (West) Air Raid Shelter: wrong
+  Russian cruiser Bayan (1900): wrong
+  SMS Babenberg: wrong
+  SS Iron Crown: wrong
+  SS Santa Paula (1916): marginal
+  Slamet Rijadi: wrong
+  Type 4 Ka-Tsu: marginal
+  Type 92 torpedo: keep
+  USNS Milford: wrong
+  USS Breckinridge: wrong
+  USS Bronx: wrong
+  USS Caddo Parish: wrong
+  USS Callisto: wrong
+  USS Conflict (AM-85): keep
+  USS Cythera (PY-31): wrong
+  USS Dennis J. Buckley (DD-808): wrong
+  USS Favorite: wrong
+  USS George E. Davis: keep
+  USS Habersham: wrong
+  USS Hinsdale: keep
+  USS Kansas (BB-21): wrong
+  USS LST-222: keep
+  USS LST-314: wrong
+  USS LST-766: keep
+  USS LST-884: keep
+  USS LST-903: marginal
+  USS La Moure County (LST-883): marginal
+  USS Ludlow (DD-438): wrong
+  USS Mendocino: keep
+  USS Ohio (BB-12): wrong
+  USS Pilgrim II: wrong
+  USS Raeo: wrong
+  USS Restorer: wrong
+  USS Scania (AKA-40): wrong
+  USS Sea Fox: keep
+  USS St. Regis River: wrong
+  USS Tuluran: marginal
+  USS Waterman: keep
+  USS Whippoorwill (AM-35): keep
+  Warren Gulley: marginal
 discovery_recall:
-  Allied invasion of Sicily: null
-  Arthur J. Jackson: null
-  Battle of Driniumor River: null
-  Beryl Newman: null
-  Cannon-class destroyer escort: null
-  Captain (United States O-6): null
-  Carl J. Luksic: null
-  Carroll W. McColpin: null
-  Chesley G. Peterson: null
-  Chuck Yeager: null
-  Clayton Kelly Gross: null
-  Clinton M. Hedrick: null
-  Corsica: null
-  Distinguished Flying Cross (United Kingdom): null
-  Distinguished Service Cross (United States): null
-  Donald M. McPherson: null
-  Farragut-class destroyer (1934): null
-  Felix D. Williamson: null
-  First lieutenant: null
-  Frank L. Gailer Jr.: null
-  George Andrew Davis Jr.: null
-  Harold E. Comstock: null
-  Henry William Brown: null
-  Herschel Green: null
-  Hershel W. Williams: null
-  Invasion of Poland: null
-  James K. Okubo: null
-  Japanese aircraft carrier Jun'yō: null
-  Japanese cruiser Tone (1937): null
-  Japanese destroyer Hasu: null
-  Japanese destroyer Hatsushimo (1933): null
-  Japanese destroyer Karukaya: null
-  Japanese destroyer Kawakaze (1936): null
-  Japanese destroyer Kaya (1944): null
-  Japanese destroyer Kiku (1920): null
-  Japanese destroyer Natsugumo (1937): null
-  Japanese destroyer Sagiri: null
-  Japanese destroyer Tade: null
-  Japanese destroyer Warabi: null
-  Japanese escort ship CD-202: null
-  Japanese minelayer Sarushima: null
-  Japanese submarine Ro-66: null
-  Japanese submarine Ro-67: null
-  Japanese submarine Yu 17: null
-  Japanese submarine Yu 3003: null
-  Japanese submarine chaser Cha-13: null
-  Japanese submarine chaser Cha-156: null
-  Japanese submarine chaser Cha-203: null
-  John L. Wirth: null
-  Kamikaze-class destroyer (1905): null
-  Killed in action: null
-  Lawn, Newfoundland and Labrador: null
-  Lieutenant commander: null
-  Lieutenant commander (United States): null
-  Lingayen Gulf: null
-  Loren D. Everton: null
-  M1 Garand: null
-  M1917 Browning machine gun: null
-  Magdalena Bay: null
-  Maynard Harrison Smith: null
-  Midget submarine: null
-  Missing in action: null
-  Momo-class destroyer: null
-  Morotai Island Regency: null
-  Mortar (weapon): null
-  Mutsuki-class destroyer: null
-  Norfolk Island: null
-  Norman E. Olson: null
-  Pappy Boyington: null
-  Papua New Guinea: null
-  Patrol boat: null
-  Patrol torpedo boat PT-34: null
-  Ray Crawford (racing driver): null
-  Ray E. Eubanks: null
-  Raymond L. Knight: null
-  Richard G. Candelaria: null
-  Robert A. Owens: null
-  Robert Craig (Medal of Honor): null
-  Robert D. Maxwell: null
-  Robert J. Rankin: null
-  Robert R. Scott: null
-  Swede Vejtasa: null
-  Target ship: null
-  USCGC Bedloe: null
-  USS Barton (DD-599): null
-  USS Colhoun (DD-85): null
-  USS Helena (CL-50): null
-  USS Hutchins: null
-  USS Mahan (DD-364): null
-  USS Pickerel (SS-177): null
-  USS Porter (DD-356): null
-  USS Solar: null
-  USS Tanager (AM-5): null
-  USS Vandalia (IX-191): null
-  USS Ward: null
-  United States Army Air Forces: null
-  United States Navy: null
-  Virgil K. Meroney: null
-  Wayne Morris: null
-  William H. Wilbur: null
+  Allied invasion of Sicily: wrong
+  Arthur J. Jackson: keep
+  Battle of Driniumor River: keep
+  Beryl Newman: wrong
+  Cannon-class destroyer escort: marginal
+  Captain (United States O-6): wrong
+  Carl J. Luksic: wrong
+  Carroll W. McColpin: wrong
+  Chesley G. Peterson: wrong
+  Chuck Yeager: wrong
+  Clayton Kelly Gross: wrong
+  Clinton M. Hedrick: wrong
+  Corsica: wrong
+  Distinguished Flying Cross (United Kingdom): wrong
+  Distinguished Service Cross (United States): wrong
+  Donald M. McPherson: keep
+  Farragut-class destroyer (1934): keep
+  Felix D. Williamson: wrong
+  First lieutenant: wrong
+  Frank L. Gailer Jr.: wrong
+  George Andrew Davis Jr.: keep
+  Harold E. Comstock: wrong
+  Henry William Brown: wrong
+  Herschel Green: wrong
+  Hershel W. Williams: keep
+  Invasion of Poland: wrong
+  James K. Okubo: wrong
+  Japanese aircraft carrier Jun'yō: keep
+  Japanese cruiser Tone (1937): keep
+  Japanese destroyer Hasu: marginal
+  Japanese destroyer Hatsushimo (1933): keep
+  Japanese destroyer Karukaya: keep
+  Japanese destroyer Kawakaze (1936): keep
+  Japanese destroyer Kaya (1944): keep
+  Japanese destroyer Kiku (1920): keep
+  Japanese destroyer Natsugumo (1937): keep
+  Japanese destroyer Sagiri: wrong
+  Japanese destroyer Tade: keep
+  Japanese destroyer Warabi: wrong
+  Japanese escort ship CD-202: wrong
+  Japanese minelayer Sarushima: keep
+  Japanese submarine Ro-66: keep
+  Japanese submarine Ro-67: keep
+  Japanese submarine Yu 17: wrong
+  Japanese submarine Yu 3003: wrong
+  Japanese submarine chaser Cha-13: keep
+  Japanese submarine chaser Cha-156: keep
+  Japanese submarine chaser Cha-203: wrong
+  John L. Wirth: keep
+  Kamikaze-class destroyer (1905): wrong
+  Killed in action: wrong
+  Lawn, Newfoundland and Labrador: wrong
+  Lieutenant commander: wrong
+  Lieutenant commander (United States): wrong
+  Lingayen Gulf: keep
+  Loren D. Everton: keep
+  M1 Garand: marginal
+  M1917 Browning machine gun: marginal
+  Magdalena Bay: wrong
+  Maynard Harrison Smith: wrong
+  Midget submarine: wrong
+  Missing in action: wrong
+  Momo-class destroyer: marginal
+  Morotai Island Regency: marginal
+  Mortar (weapon): wrong
+  Mutsuki-class destroyer: keep
+  Norfolk Island: wrong
+  Norman E. Olson: wrong
+  Pappy Boyington: keep
+  Papua New Guinea: wrong
+  Patrol boat: wrong
+  Patrol torpedo boat PT-34: keep
+  Ray Crawford (racing driver): wrong
+  Ray E. Eubanks: keep
+  Raymond L. Knight: wrong
+  Richard G. Candelaria: wrong
+  Robert A. Owens: keep
+  Robert Craig (Medal of Honor): wrong
+  Robert D. Maxwell: wrong
+  Robert J. Rankin: wrong
+  Robert R. Scott: keep
+  Swede Vejtasa: keep
+  Target ship: wrong
+  USCGC Bedloe: wrong
+  USS Barton (DD-599): keep
+  USS Colhoun (DD-85): keep
+  USS Helena (CL-50): keep
+  USS Hutchins: keep
+  USS Mahan (DD-364): keep
+  USS Pickerel (SS-177): keep
+  USS Porter (DD-356): keep
+  USS Solar: wrong
+  USS Tanager (AM-5): keep
+  USS Vandalia (IX-191): marginal
+  USS Ward: keep
+  United States Army Air Forces: marginal
+  United States Navy: wrong
+  Virgil K. Meroney: wrong
+  Wayne Morris: marginal
+  William H. Wilbur: wrong

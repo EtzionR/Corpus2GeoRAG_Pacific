@@ -141,8 +141,8 @@ def main():
     ap.add_argument("--drafts", action="store_true", help="use Claude's draft where no person has labelled yet")
     args = ap.parse_args()
     lab, agreement = labels(args.drafts)
-    print(f"labels: {agreement['verified']} of {agreement['total']} verified by a person"
-          + (f", {agreement['agree_with_drafts'] / agreement['verified']:.0%} agree with Claude's drafts" if agreement["verified"] else "")
+    print(f"labels: {agreement['verified']} of {agreement['total']} labelled in eval_set.yaml"
+          + (f", {agreement['agree_with_drafts'] / agreement['verified']:.0%} agree with the drafts in eval_log.tsv" if agreement["verified"] else "")
           + ("; the rest are Claude's drafts (provisional)" if args.drafts and agreement["verified"] < agreement["total"] else ""))
     if not lab:
         raise SystemExit("no labels yet: verify them in the app's Evaluation tab, or pass --drafts")
