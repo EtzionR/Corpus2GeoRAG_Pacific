@@ -11,7 +11,9 @@ The code is in `Processing/crawl_corpus.ipynb`. The rule functions are in the "T
    (Rule 2). Countries and metropolises go **out** (`too_broad`). Everything else goes to `anchor_scope` (Rule 3).
 3. **Rule 2, `battle_scope`:** a battle dated outside 1941–45 is **out**. A battle is **in** when any one source
    shows both the US and Japan took part: the infobox text, Wikidata P710 (`US_QIDS` / `JAPAN_QIDS`), or the
-   categories. Battles that pass form the reference list (`pipe.battles`). A battle with no participants falls
+   categories. Battles that pass form the reference list (`pipe.battles`). A battle whose participants are
+   listed (a flag template in the infobox, or Wikidata P710) but are not both the US and Japan is **out**
+   (`participants_known`). A battle with no listed participants, or a cancelled or proposed operation, falls
    through to Rule 3.
 4. **Rule 3, `anchor_scope`:** the Article's ties to reference battles come from Wikidata (`ANCHOR_PROPS`; for a
    Person, P793 is only a weak tie), from battle-named categories, and from wikilinks.
@@ -19,6 +21,10 @@ The code is in `Processing/crawl_corpus.ipynb`. The rule functions are in the "T
    - **In** if there are 2 or more ties (`MIN_BATTLE_LINKS`) and at least one is not an Umbrella conflict.
    - **Gray** if there are other ties, or if the Article is anchored but has no Tag.
    - **Out** if there are no ties.
+   - **Out**, whatever the ties, if the Article belongs to a non-US Allied force by its categories (Australian,
+     British, Indian, Chinese, Dutch…), is not US or Japanese itself, and never mentions the US (`allied_only`).
+   - **Out** if it is a Ship whose ties come only from links in its Namesake section and whose own history never
+     mentions the Pacific war (`without_namesake`, `PACIFIC`).
 5. **Decide** (the "Decide" cell):
    1. Overrides win.
    2. Gray Articles are scored by e5 against `ACCEPT_AT` / `REJECT_BELOW`.
