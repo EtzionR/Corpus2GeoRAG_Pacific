@@ -46,10 +46,10 @@ HEADER = """\
 """
 
 
-def rows():
+def rows(run_dir=INTERIM):
     out = {}
     for name in ("tagged", "excluded", "untagged"):
-        for line in (INTERIM / f"{name}.jsonl").open():
+        for line in (run_dir / f"{name}.jsonl").open():
             r = json.loads(line)
             out[r["title"]] = r
     return out
@@ -66,6 +66,16 @@ def already_used():
     used |= {t for titles in load("gold_set.yaml").values() for t in titles}
     used |= {t for section in load("corpus_audit.yaml").values() if isinstance(section, dict) for t in section}
     return used
+
+
+def pools(data, thresholds):
+    """The population each sampled section is drawn from: {section: [titles]} (before removing used titles)."""
+    out = {f"precision_{s}": [t for t, r in data.items() if r["in_scope"] and r["decided_by"] == s] for s in PRECISION}
+    out["classification_recall"] = [
+        t for t, r in data.items() if not r["in_scope"] and r["decided_by"] != "override" and r["primary_tag"] != "Media"
+        and (r.get("anchor_grade") not in (None, "none")
+             or (r["relevance"] is not None and r["relevance"] >= thresholds["reject_below"]))]
+    return out
 
 
 def wp(session, **params):
@@ -120,13 +130,10 @@ def main():
         sample[name] = {t: None for t in picked}
         print(f"{name}: {len(picked)} of {len(pool):,}")
 
+    population = pools(data, thresholds)
     for stratum, n in PRECISION.items():
-        draw(f"precision_{stratum}", (t for t, r in data.items() if r["in_scope"] and r["decided_by"] == stratum), n)
-    near = (t for t, r in data.items() if not r["in_scope"] and r["decided_by"] != "override"
-            and r["primary_tag"] != "Media"
-            and (r.get("anchor_grade") not in (None, "none")
-                 or (r["relevance"] is not None and r["relevance"] >= thresholds["reject_below"])))
-    draw("classification_recall", near, CLASSIFICATION_RECALL)
+        draw(f"precision_{stratum}", population[f"precision_{stratum}"], n)
+    draw("classification_recall", population["classification_recall"], CLASSIFICATION_RECALL)
 
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
