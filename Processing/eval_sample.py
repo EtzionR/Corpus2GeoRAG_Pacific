@@ -1,0 +1,157 @@
+"""Draws the evaluation set into config/eval_set.yaml (labelled by a person in the app's Evaluation tab).
+    python Processing/eval_sample.py
+Measures the pipeline and is never used to tune it: no title here may become a calibration label, kNN neighbour or
+Override (tests/test_corpus_output.py checks this). Three sections, each with a fixed seed:
+  precision              Articles in the Corpus, by how they got in (rules / e5): how many are wrong?
+  classification_recall  Articles left out although tied to an In-scope Battle or close to the e5 cut-off: missed?
+  discovery_recall       Articles linked from Wikipedia list pages the crawl never starts from: found at all?
+Refuses to overwrite a set that has labels. Needs network for discovery_recall (a few Wikipedia API calls)."""
+import json
+import random
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import requests
+import yaml
+
+ROOT = Path(__file__).resolve().parent.parent
+CONFIG = ROOT / "Processing" / "config"
+INTERIM = ROOT / "Data" / "interim"
+EVAL_PATH = CONFIG / "eval_set.yaml"
+SOURCES_PATH = ROOT / "Processing" / "reports" / "eval_sources.tsv"
+SEED = 1  # corpus_audit.yaml used seed 0
+PRECISION = {"rules": 120, "e5": 30}
+CLASSIFICATION_RECALL = 75
+# Lists of people, ships and aircrews on both sides; not crawl seeds (the crawl starts from categories only).
+DISCOVERY_LISTS = {
+    "List of Medal of Honor recipients for World War II": 25,
+    "List of United States Navy losses in World War II": 25,
+    "List of Japanese Navy ships and war vessels in World War II": 25,
+    "List of World War II aces from the United States": 25,
+}
+WP_API = "https://en.wikipedia.org/w/api.php"
+USER_AGENT = "Corpus2GeoRAG_Pacific/0.2 (https://github.com/NivGreenstein/Corpus2GeoRAG_Pacific)"
+
+HEADER = """\
+# Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
+# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
+# reports/eval_log.tsv, so the agreement between the two is measured too.
+#   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
+#   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
+#   wrong:    not about US–Japan fighting
+# precision_*: random Corpus Articles by how they got in · classification_recall: left out but tied or close to the
+# e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
+# Drawn by Processing/eval_sample.py (seed {seed}) from the pipeline output of {stamp}.
+"""
+
+
+def rows():
+    out = {}
+    for name in ("tagged", "excluded", "untagged"):
+        for line in (INTERIM / f"{name}.jsonl").open():
+            r = json.loads(line)
+            out[r["title"]] = r
+    return out
+
+
+def already_used():
+    """Titles a person or a method has already seen: they cannot measure anything fresh."""
+    def load(name):
+        return yaml.safe_load((CONFIG / name).read_text()) or {}
+    gray, overrides, seeds = load("gray_labels.yaml"), load("overrides.yaml"), load("knn_seeds.yaml")
+    used = set(gray.get("calibration") or {}) | set(gray.get("holdout") or {})
+    used |= set(overrides.get("include") or []) | set(overrides.get("exclude") or [])
+    used |= set(seeds["unrelated"].get("close") or []) | set(seeds["related"].get("extra") or [])
+    used |= {t for titles in load("gold_set.yaml").values() for t in titles}
+    used |= {t for section in load("corpus_audit.yaml").values() if isinstance(section, dict) for t in section}
+    return used
+
+
+def wp(session, **params):
+    """All pages of a continued MediaWiki query."""
+    base = {"action": "query", "format": "json", "formatversion": 2, **params}
+    cont = {}
+    while True:
+        data = session.get(WP_API, params={**base, **cont}, timeout=60).json()
+        yield data.get("query", {})
+        if "continue" not in data:
+            return
+        cont = data["continue"]
+
+
+def list_links(session, page):
+    return sorted({l["title"] for q in wp(session, titles=page, prop="links", pllimit="max", plnamespace=0)
+                   for p in q.get("pages", []) for l in p.get("links", [])})
+
+
+def canonical(session, titles):
+    """{requested title: canonical Article title}, without missing pages and disambiguation pages."""
+    out = {}
+    for i in range(0, len(titles), 50):
+        aliases, ok = {}, set()
+        for q in wp(session, titles="|".join(titles[i:i + 50]), redirects=1, prop="pageprops", ppprop="disambiguation"):
+            for r in q.get("normalized", []) + q.get("redirects", []):
+                aliases[r["from"]] = r["to"]
+            ok |= {p["title"] for p in q.get("pages", []) if not p.get("missing") and "disambiguation" not in p.get("pageprops", {})}
+        for t in titles[i:i + 50]:
+            c = t
+            while c in aliases:
+                c = aliases[c]
+            if c in ok:
+                out[t] = c
+    return out
+
+
+def main():
+    if EVAL_PATH.exists():
+        old = yaml.safe_load(EVAL_PATH.read_text()) or {}
+        if any(v for section in old.values() if isinstance(section, dict) for v in section.values()):
+            sys.exit(f"{EVAL_PATH.name} already has labels; not overwriting it.")
+    data, used = rows(), already_used()
+    thresholds = json.loads((INTERIM / "thresholds.json").read_text())
+    rng = random.Random(SEED)
+    sample, taken = {}, set(used)
+
+    def draw(name, pool, n):
+        pool = sorted(set(pool) - taken)
+        picked = sorted(rng.sample(pool, min(n, len(pool))))
+        taken.update(picked)
+        sample[name] = {t: None for t in picked}
+        print(f"{name}: {len(picked)} of {len(pool):,}")
+
+    for stratum, n in PRECISION.items():
+        draw(f"precision_{stratum}", (t for t, r in data.items() if r["in_scope"] and r["decided_by"] == stratum), n)
+    near = (t for t, r in data.items() if not r["in_scope"] and r["decided_by"] != "override"
+            and r["primary_tag"] != "Media"
+            and (r.get("anchor_grade") not in (None, "none")
+                 or (r["relevance"] is not None and r["relevance"] >= thresholds["reject_below"])))
+    draw("classification_recall", near, CLASSIFICATION_RECALL)
+
+    session = requests.Session()
+    session.headers["User-Agent"] = USER_AGENT
+    sources, discovery = [], {}
+    for page, n in DISCOVERY_LISTS.items():
+        links = [t for t in list_links(session, page) if not t.startswith("List of")]
+        rng.shuffle(links)
+        canon = canonical(session, links[:n * 3])
+        picked = []
+        for t in links[:n * 3]:
+            c = canon.get(t)
+            if c and c not in taken and c not in discovery and len(picked) < n:
+                picked.append(c)
+                discovery[c] = None
+                sources.append((c, page))
+        taken.update(picked)
+        print(f"discovery_recall: {len(picked)} from {page} ({len(links):,} links)")
+    sample["discovery_recall"] = dict(sorted(discovery.items()))
+
+    stamp = datetime.fromtimestamp((INTERIM / "tagged.jsonl").stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    EVAL_PATH.write_text(HEADER.format(seed=SEED, stamp=stamp)
+                         + yaml.safe_dump(sample, allow_unicode=True, sort_keys=False))
+    SOURCES_PATH.write_text("title\tlist\n" + "".join(f"{t}\t{p}\n" for t, p in sorted(sources)))
+    print(f"wrote {EVAL_PATH} and {SOURCES_PATH}")
+
+
+if __name__ == "__main__":
+    main()

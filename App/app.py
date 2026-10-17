@@ -21,6 +21,8 @@ INTERIM = ROOT / "Data" / "interim"
 CONFIG = ROOT / "Processing" / "config"
 OVERRIDES_PATH = CONFIG / "overrides.yaml"
 AUDIT_PATH = CONFIG / "corpus_audit.yaml"
+EVAL_PATH = CONFIG / "eval_set.yaml"
+EVAL_DRAFTS_PATH = ROOT / "Processing" / "reports" / "eval_log.tsv"
 CORPUS_PATH = ROOT / "Data" / "corpus.json"
 AUDIT_LABELS = ["keep", "marginal", "wrong"]
 
@@ -95,6 +97,23 @@ def save_audit(audit):
     AUDIT_PATH.write_text("\n".join(header) + "\n" + yaml.safe_dump(audit, allow_unicode=True, sort_keys=False))
 
 
+def load_eval():
+    """{section: {title: label or None}} from eval_set.yaml (drawn by Processing/eval_sample.py)."""
+    return (yaml.safe_load(EVAL_PATH.read_text()) or {}) if EVAL_PATH.exists() else {}
+
+
+def save_eval(sections):
+    header = [l for l in EVAL_PATH.read_text().splitlines() if l.startswith("#")]
+    EVAL_PATH.write_text("\n".join(header) + "\n" + yaml.safe_dump(sections, allow_unicode=True, sort_keys=False))
+
+
+def eval_drafts():
+    """Claude's draft label and reason per title (reports/eval_log.tsv)."""
+    if not EVAL_DRAFTS_PATH.exists():
+        return pd.DataFrame(columns=["title", "draft", "why"])
+    return pd.read_csv(EVAL_DRAFTS_PATH, sep="\t", keep_default_na=False)[["title", "draft", "why"]]
+
+
 def gold_titles():
     gold = yaml.safe_load((CONFIG / "gold_set.yaml").read_text())
     return {t: tag for tag, titles in gold.items() for t in titles}
@@ -138,8 +157,8 @@ with st.sidebar:
     st.divider()
     st.caption("Docs: `Processing/PIPELINE.md` · `CONTEXT.md` · `Processing/reports/knn_experiment.md`")
 
-overview_tab, review_tab, audit_tab, explore_tab, experiments_tab = st.tabs(
-    ["📊 Overview", "⏳ Review", "🧾 Audit", "🔎 Explore", "🧪 Experiments"])
+overview_tab, review_tab, eval_tab, audit_tab, explore_tab, experiments_tab = st.tabs(
+    ["📊 Overview", "⏳ Review", "📏 Evaluation", "🧾 Audit", "🔎 Explore", "🧪 Experiments"])
 
 
 # ---------- overview ----------
@@ -333,6 +352,59 @@ with audit_tab:
             for _, r in edited.iterrows():
                 audit[stratum_of[r["title"]]][r["title"]] = r["label"] or None
             save_audit(audit)
+            st.success("Saved.")
+            st.rerun()
+
+
+# ---------- evaluation ----------
+with eval_tab:
+    st.subheader("Evaluation set")
+    st.caption("Measures the pipeline and never tunes it. Claude drafted a label for every Article; set **your** call "
+               "for each one (the draft is only a hint). **keep**: about US–Japan fighting in WWII · **marginal**: tied "
+               "to it only in passing (counts as correct) · **wrong**: not about US–Japan fighting. Sections: "
+               "*precision_* Articles in the Corpus · *classification_recall* left out but tied or close to the cut-off · "
+               "*discovery_recall* linked from Wikipedia list pages. Saved to `config/eval_set.yaml`; then run "
+               "`python Processing/evaluate.py`.")
+    sections = load_eval()
+    if not sections:
+        st.info("No evaluation set yet. Run `python Processing/eval_sample.py`.")
+    else:
+        sample = pd.DataFrame([{"section": s, "title": t, "label": l or ""} for s, d in sections.items() for t, l in d.items()])
+        sample = sample.merge(eval_drafts(), on="title", how="left").merge(
+            rows[["title", "primary_tag", "in_scope", "decided_by", "reason"]], on="title", how="left")
+        sample["wikipedia"] = "https://en.wikipedia.org/wiki/" + sample["title"].map(lambda t: quote(t.replace(" ", "_")))
+        sample["pipeline"] = sample.apply(lambda r: "not discovered" if pd.isna(r["in_scope"]) else
+                                          f"{'in' if r['in_scope'] else 'out'} ({r['decided_by']})", axis=1)
+        done = int((sample["label"] != "").sum())
+        agree = int(((sample["label"] != "") & (sample["label"] == sample["draft"])).sum())
+        c1, c2 = st.columns(2)
+        c1.progress(done / len(sample), text=f"{done} of {len(sample)} verified")
+        c2.metric("Agreement with Claude's drafts", f"{agree / done:.0%}" if done else "–", f"{done - agree} flipped",
+                  delta_color="off", help="How far Claude's labels can be trusted when no person checks them.")
+        f1, f2 = st.columns([2, 1])
+        section = f1.selectbox("Section", ["all"] + list(sections), key="eval-section")
+        only_open = f2.toggle("Hide verified", value=False, key="eval-open")
+        view = sample if section == "all" else sample[sample["section"] == section]
+        view = view[view["label"] == ""] if only_open else view
+        view = view.assign(lead=view["title"].map(lambda t: page_record(t).get("lead_text", "")[:300]))
+        edited = st.data_editor(
+            view[["label", "draft", "why", "title", "wikipedia", "section", "pipeline", "lead"]],
+            column_config={
+                "label": st.column_config.SelectboxColumn("Your call", options=[""] + AUDIT_LABELS, width="small"),
+                "draft": st.column_config.TextColumn("Claude", disabled=True, width="small"),
+                "why": st.column_config.TextColumn("Claude's reason", disabled=True, width="medium"),
+                "title": st.column_config.TextColumn("Article", disabled=True, width="medium"),
+                "wikipedia": st.column_config.LinkColumn("Link", display_text="open ↗", width="small"),
+                "section": st.column_config.TextColumn("Section", disabled=True, width="small"),
+                "pipeline": st.column_config.TextColumn("Pipeline", disabled=True, width="small"),
+                "lead": st.column_config.TextColumn("Opening text", disabled=True, width="large"),
+            },
+            hide_index=True, width="stretch", height=560, key=f"eval-{section}-{only_open}-{done}")
+        if st.button("💾 Save labels", type="primary", key="save-eval"):
+            section_of = dict(zip(sample["title"], sample["section"]))
+            for _, r in edited.iterrows():
+                sections[section_of[r["title"]]][r["title"]] = r["label"] or None
+            save_eval(sections)
             st.success("Saved.")
             st.rerun()
 

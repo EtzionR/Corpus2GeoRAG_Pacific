@@ -1,0 +1,338 @@
+# Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
+# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
+# reports/eval_log.tsv, so the agreement between the two is measured too.
+#   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
+#   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
+#   wrong:    not about US–Japan fighting
+# precision_*: random Corpus Articles by how they got in · classification_recall: left out but tied or close to the
+# e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
+# Drawn by Processing/eval_sample.py (seed 1) from the pipeline output of 2026-10-17 22:07.
+precision_rules:
+  135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: null
+  18th Brigade (Australia): null
+  2/9th Armoured Regiment (Australia): null
+  201st Fighter Squadron: null
+  26th Battalion (Australia): null
+  2nd Marine Aircraft Wing: null
+  2nd Marine Logistics Group: null
+  33rd Division (Imperial Japanese Army): null
+  45 cm naval rocket: null
+  Aleutian Islands World War II National Monument: null
+  Battle for Cebu City: null
+  Battle of Corregidor (1945): null
+  Battle of Enogai: null
+  Battle of Tinian: null
+  Battle of Wickham Anchorage: null
+  Bombing of Kuala Lumpur: null
+  Daihatsu-class landing craft: null
+  Du Yuming: null
+  Ed Bearss: null
+  Flying Tigers: null
+  Frank Fujita: null
+  Franklin Sousley: null
+  Frederick T. Weber: null
+  George O. Van Orden: null
+  George Wesley Griner Jr.: null
+  Girua Airport: null
+  HMS Engadine (1911): null
+  Harry B. Liversedge: null
+  Henry T. Elrod: null
+  Iba Airfield: null
+  Interim Committee: null
+  J. Lawton Collins: null
+  James L. Bradley: null
+  Japanese cruiser Atago: null
+  Japanese destroyer Fumizuki (1926): null
+  Japanese destroyer Naganami: null
+  Japanese landing craft carrier Shinshū Maru: null
+  Japanese submarine I-158: null
+  Japanese submarine I-17: null
+  Japanese submarine I-53 (1925): null
+  Japanese submarine I-8: null
+  Japanese submarine tender Komahashi: null
+  John E. Wilkes: null
+  John H. Hoover: null
+  John W. Antonelli: null
+  Kaneyoshi Muto: null
+  Keisuke Matsuo: null
+  Kiyohide Shima: null
+  Korechika Anami: null
+  Lend-Lease Sherman tanks: null
+  List of territories acquired by the Empire of Japan: null
+  MS Sea Witch: null
+  Marine Air, West Coast: null
+  Matanikau Offensive: null
+  Mateo M. Capinpin: null
+  Melvin Maas: null
+  Merwin H. Silverthorn: null
+  Mitchell Paige: null
+  Mohammad Ali Dimaporo: null
+  Niigata (city): null
+  Ondonga Airfield: null
+  Operation PX: null
+  Osamu Kudō: null
+  Paramarines: null
+  Piva Airfield: null
+  Richard E. Fleming: null
+  Richard L. Conolly: null
+  Ro-100-class submarine: null
+  Ryuichi Itaya: null
+  Savo Island order of battle: null
+  Si Rat Malai: null
+  Special Naval Landing Forces: null
+  Stanley S. Hughes: null
+  Takeo Takagi: null
+  Tassafaronga Point: null
+  Tetsuzō Iwamoto: null
+  Thirty-Seventh Army (Japan): null
+  Tsubame-class minelayer: null
+  US Naval Base Solomons: null
+  USS Altair (AD-11): null
+  USS Barrow: null
+  USS Bolivar: null
+  USS Brock: null
+  USS Burke: null
+  USS Clemson (DD-186): null
+  USS Coronado (PF-38): null
+  USS Cowell (DD-547): null
+  USS Flusser (DD-368): null
+  USS Franklin (CV-13): null
+  USS Gamble: null
+  USS Guest: null
+  USS Hoel (DD-533): null
+  USS Joseph E. Connolly: null
+  USS LST-205: null
+  USS LST-446: null
+  USS LST-448: null
+  USS Leonard Wood: null
+  USS Mackinac (AVP-13): null
+  USS Marias: null
+  USS Mobile (CL-63): null
+  USS Monrovia: null
+  USS New York (BB-34): null
+  USS Palisade: null
+  USS Sailfish (SS-192): null
+  USS San Felipe: null
+  USS San Francisco (CA-38): null
+  USS Sumter (APA-52): null
+  USS Talladega: null
+  USS Tisdale (DE-33): null
+  USS Walter C. Wann: null
+  USS William C. Cole: null
+  USS Zaurak: null
+  United States Army Forces in the Far East: null
+  W-7-class minesweeper: null
+  Walter Short: null
+  Wei Lihuang: null
+  William A. Glassford: null
+  William J. Whaling: null
+  Yoshimi Minami: null
+  Yukio Araki: null
+precision_e5:
+  Aikoku Maru (1940): null
+  Carney Airfield: null
+  Fusaki Tsutsumi: null
+  Japanese destroyer Momi (1944): null
+  Japanese gunboat Futami: null
+  Kanichi Kashimura: null
+  Koli Airfield: null
+  Landing at Saidor order of battle: null
+  Pete Stout: null
+  SS Yoshida Maru: null
+  Shojiro Hayashi: null
+  USS Conklin: null
+  USS Facility: null
+  USS Gantner: null
+  USS Haas: null
+  USS Hansford: null
+  USS John Q. Roberts: null
+  USS Jordan: null
+  USS LSM(R)-193: null
+  USS Lark (AM-21): null
+  USS Okaloosa: null
+  USS Purdy: null
+  USS Robert F. Keller: null
+  USS S-26: null
+  USS San Carlos: null
+  USS Searaven: null
+  USS Stack: null
+  USS Tench: null
+  USS YP-422: null
+  USS Yokes: null
+classification_recall:
+  122 mm gun M1931/37 (A-19): null
+  193rd Mechanized Infantry Brigade: null
+  28th Battalion (Australia): null
+  32nd Indian Infantry Brigade: null
+  63rd Infantry Regiment (PA): null
+  763 Naval Air Squadron: null
+  842 Naval Air Squadron: null
+  BRP Sultan Kudarat: null
+  Blackburn Dart: null
+  Blanton Winship: null
+  Charles L. Scott (U.S. Army general): null
+  Comfort-class hospital ship: null
+  Edmund L. Coombs: null
+  Eugene Reybold: null
+  Gangut-class battleship: null
+  Hanaoka mine: null
+  Hidemi Kon: null
+  Hikoroku Arimoto: null
+  Imperial Guard (Japan): null
+  Ishimoto Shinroku: null
+  JS Kurihama: null
+  Japanese invasion money: null
+  Japanese submarine Ha-210: null
+  John M. Devine: null
+  Kutsumi Tsuneo: null
+  Leven Cooper Allen: null
+  Levi Oakes: null
+  Loyal Regiment (North Lancashire): null
+  Luis de Florez: null
+  MV Herstein: null
+  Masamoto Nasu: null
+  Motoo Furushō: null
+  Naval Base Abemama: null
+  Operation Opossum: null
+  Petropavlovsk-class battleship: null
+  Raymond Park (West) Air Raid Shelter: null
+  Russian cruiser Bayan (1900): null
+  SMS Babenberg: null
+  SS Iron Crown: null
+  SS Santa Paula (1916): null
+  Slamet Rijadi: null
+  Type 4 Ka-Tsu: null
+  Type 92 torpedo: null
+  USNS Milford: null
+  USS Breckinridge: null
+  USS Bronx: null
+  USS Caddo Parish: null
+  USS Callisto: null
+  USS Conflict (AM-85): null
+  USS Cythera (PY-31): null
+  USS Dennis J. Buckley (DD-808): null
+  USS Favorite: null
+  USS George E. Davis: null
+  USS Habersham: null
+  USS Hinsdale: null
+  USS Kansas (BB-21): null
+  USS LST-222: null
+  USS LST-314: null
+  USS LST-766: null
+  USS LST-884: null
+  USS LST-903: null
+  USS La Moure County (LST-883): null
+  USS Ludlow (DD-438): null
+  USS Mendocino: null
+  USS Ohio (BB-12): null
+  USS Pilgrim II: null
+  USS Raeo: null
+  USS Restorer: null
+  USS Scania (AKA-40): null
+  USS Sea Fox: null
+  USS St. Regis River: null
+  USS Tuluran: null
+  USS Waterman: null
+  USS Whippoorwill (AM-35): null
+  Warren Gulley: null
+discovery_recall:
+  Allied invasion of Sicily: null
+  Arthur J. Jackson: null
+  Battle of Driniumor River: null
+  Beryl Newman: null
+  Cannon-class destroyer escort: null
+  Captain (United States O-6): null
+  Carl J. Luksic: null
+  Carroll W. McColpin: null
+  Chesley G. Peterson: null
+  Chuck Yeager: null
+  Clayton Kelly Gross: null
+  Clinton M. Hedrick: null
+  Corsica: null
+  Distinguished Flying Cross (United Kingdom): null
+  Distinguished Service Cross (United States): null
+  Donald M. McPherson: null
+  Farragut-class destroyer (1934): null
+  Felix D. Williamson: null
+  First lieutenant: null
+  Frank L. Gailer Jr.: null
+  George Andrew Davis Jr.: null
+  Harold E. Comstock: null
+  Henry William Brown: null
+  Herschel Green: null
+  Hershel W. Williams: null
+  Invasion of Poland: null
+  James K. Okubo: null
+  Japanese aircraft carrier Jun'yō: null
+  Japanese cruiser Tone (1937): null
+  Japanese destroyer Hasu: null
+  Japanese destroyer Hatsushimo (1933): null
+  Japanese destroyer Karukaya: null
+  Japanese destroyer Kawakaze (1936): null
+  Japanese destroyer Kaya (1944): null
+  Japanese destroyer Kiku (1920): null
+  Japanese destroyer Natsugumo (1937): null
+  Japanese destroyer Sagiri: null
+  Japanese destroyer Tade: null
+  Japanese destroyer Warabi: null
+  Japanese escort ship CD-202: null
+  Japanese minelayer Sarushima: null
+  Japanese submarine Ro-66: null
+  Japanese submarine Ro-67: null
+  Japanese submarine Yu 17: null
+  Japanese submarine Yu 3003: null
+  Japanese submarine chaser Cha-13: null
+  Japanese submarine chaser Cha-156: null
+  Japanese submarine chaser Cha-203: null
+  John L. Wirth: null
+  Kamikaze-class destroyer (1905): null
+  Killed in action: null
+  Lawn, Newfoundland and Labrador: null
+  Lieutenant commander: null
+  Lieutenant commander (United States): null
+  Lingayen Gulf: null
+  Loren D. Everton: null
+  M1 Garand: null
+  M1917 Browning machine gun: null
+  Magdalena Bay: null
+  Maynard Harrison Smith: null
+  Midget submarine: null
+  Missing in action: null
+  Momo-class destroyer: null
+  Morotai Island Regency: null
+  Mortar (weapon): null
+  Mutsuki-class destroyer: null
+  Norfolk Island: null
+  Norman E. Olson: null
+  Pappy Boyington: null
+  Papua New Guinea: null
+  Patrol boat: null
+  Patrol torpedo boat PT-34: null
+  Ray Crawford (racing driver): null
+  Ray E. Eubanks: null
+  Raymond L. Knight: null
+  Richard G. Candelaria: null
+  Robert A. Owens: null
+  Robert Craig (Medal of Honor): null
+  Robert D. Maxwell: null
+  Robert J. Rankin: null
+  Robert R. Scott: null
+  Swede Vejtasa: null
+  Target ship: null
+  USCGC Bedloe: null
+  USS Barton (DD-599): null
+  USS Colhoun (DD-85): null
+  USS Helena (CL-50): null
+  USS Hutchins: null
+  USS Mahan (DD-364): null
+  USS Pickerel (SS-177): null
+  USS Porter (DD-356): null
+  USS Solar: null
+  USS Tanager (AM-5): null
+  USS Vandalia (IX-191): null
+  USS Ward: null
+  United States Army Air Forces: null
+  United States Navy: null
+  Virgil K. Meroney: null
+  Wayne Morris: null
+  William H. Wilbur: null
