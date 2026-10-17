@@ -33,7 +33,12 @@ The rule functions are in [`scope_rules.py`](scope_rules.py) (tests: `tests/test
    1. Overrides win.
    2. Gray Articles are scored by e5 against `ACCEPT_AT` / `REJECT_BELOW`.
    3. A gray Article that is too close to call and tied only through Umbrella conflicts is **out**.
-   4. Everything else keeps its rule verdict.
+   4. Everything else keeps its rule verdict, unless the **second key** objects (`second_key` in `scope.yaml`;
+      kNN from `knn.py`, neighbours = Overrides, calibration labels, Gold set, look-alikes):
+      - a non-battle Article in only through links (`anchor_grade == "links"`) goes **out** when e5 Relevance is
+        below `REJECT_BELOW` and kNN is below `veto_knn` (`decided_by = "e5+knn"`);
+      - an Article tied to no battle with e5 Relevance ≥ `ACCEPT_AT` and kNN ≥ `recovery_knn` is a **recovery
+        candidate** (`decided_by = "recovery"`, left out, listed in `recovery.csv` and the app's Review tab).
 
 **Config:** `config/scope.yaml` (Umbrella conflicts, e5 queries) · `config/categories.yaml` (seeds, Blocked
 categories) · `config/overrides.yaml` · `config/gray_labels.yaml` (threshold labels; holdout titles are never used

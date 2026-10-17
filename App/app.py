@@ -125,10 +125,14 @@ if not (INTERIM / "tagged.jsonl").exists():
 
 stamp = mtime(INTERIM / "tagged.jsonl")
 rows = load_rows(stamp)
-rows = rows.merge(load_knn(mtime(INTERIM / "knn_gray_zone.csv")), on="title", how="left")
+if "knn_score" not in rows:  # runs before kNN joined the pipeline: the experiment's scores
+    rows = rows.merge(load_knn(mtime(INTERIM / "knn_gray_zone.csv")), on="title", how="left")
+if "knn_neighbours" not in rows:
+    rows["knn_neighbours"] = [[] for _ in range(len(rows))]
 overrides = load_overrides()
-gray = rows[rows["rule_verdict"] == "gray"].copy()
-gray["decision"] = gray["decided_by"].map({"review": "review", "override": "override"}).fillna(
+# The Gray zone, plus recovery candidates: left out by the rules, but e5 and kNN both say related.
+gray = rows[(rows["rule_verdict"] == "gray") | (rows["decided_by"] == "recovery")].copy()
+gray["decision"] = gray["decided_by"].map({"review": "review", "override": "override", "recovery": "recovery"}).fillna(
     gray["in_scope"].map({True: "accept", False: "reject"}))
 
 
@@ -248,10 +252,13 @@ with overview_tab:
 # ---------- review ----------
 with review_tab:
     st.subheader("Gray zone review")
-    st.caption("Articles the rules could not settle. Mark **keep** or **drop** and save; decisions go to "
-               "`overrides.yaml`, beat every rule, and also recalibrate the AI check on the next pipeline run.")
+    st.caption("Articles the rules could not settle, and **recovery** candidates: Articles the rules tied to no battle "
+               "although e5 and kNN both say related. Mark **keep** or **drop** and save; decisions go to "
+               "`overrides.yaml`, beat every rule, and also recalibrate the AI check on the next pipeline run. "
+               "*Nearest decided* shows the past decisions an Article looks like.")
     f1, f2, f3, f4 = st.columns([2, 2, 2, 3])
-    decisions = f1.multiselect("AI decision", ["review", "accept", "reject", "override"], default=["review"])
+    decisions = f1.multiselect("AI decision", ["review", "recovery", "accept", "reject", "override"],
+                               default=["review", "recovery"])
     tag_filter = f2.multiselect("Tag", sorted(gray["primary_tag"].unique()))
     hide_done = f3.toggle("Hide already overridden", value=True)
     search = f4.text_input("Search title", placeholder="e.g. USS, Maru, Division")
@@ -269,6 +276,9 @@ with review_tab:
     band_total = int((gray["decision"] == "review").sum())
     band_done = int(gray[(gray["decision"] == "review") & gray["title"].isin(done)].shape[0])
     st.progress(band_done / max(band_total, 1), text=f"Review band: {band_done:,} of {band_total:,} decided")
+    rec_total = int((gray["decision"] == "recovery").sum())
+    rec_done = int(gray[(gray["decision"] == "recovery") & gray["title"].isin(done)].shape[0])
+    st.progress(rec_done / max(rec_total, 1), text=f"Recovery candidates: {rec_done:,} of {rec_total:,} decided")
 
     page_size = 50
     pages = max(1, -(-len(view) // page_size))
@@ -277,9 +287,11 @@ with review_tab:
     chunk["override"] = chunk["title"].map(
         lambda t: "keep" if t in overrides["include"] else "drop" if t in overrides["exclude"] else "")
     chunk["lead"] = chunk["title"].map(lambda t: page_record(t).get("lead_text", "")[:220])
+    chunk["nearest"] = chunk["knn_neighbours"].map(lambda n: " · ".join(n) if isinstance(n, list) else "")
 
     edited = st.data_editor(
-        chunk[["override", "title", "wikipedia", "primary_tag", "relevance", "knn_score", "decision", "reason", "lead"]],
+        chunk[["override", "title", "wikipedia", "primary_tag", "relevance", "knn_score", "decision", "nearest", "reason",
+               "lead"]],
         column_config={
             "override": st.column_config.SelectboxColumn("Your call", options=["", "keep", "drop"], width="small"),
             "title": st.column_config.TextColumn("Article", disabled=True, width="medium"),
@@ -288,6 +300,7 @@ with review_tab:
             "relevance": st.column_config.ProgressColumn("AI score", min_value=-0.05, max_value=0.12, format="%.3f"),
             "knn_score": st.column_config.ProgressColumn("kNN", min_value=0.0, max_value=1.0, format="%.2f"),
             "decision": st.column_config.TextColumn("AI decision", disabled=True, width="small"),
+            "nearest": st.column_config.TextColumn("Nearest decided", disabled=True, width="medium"),
             "reason": st.column_config.TextColumn("Why it is unsure", disabled=True),
             "lead": st.column_config.TextColumn("Opening text", disabled=True, width="large"),
         },

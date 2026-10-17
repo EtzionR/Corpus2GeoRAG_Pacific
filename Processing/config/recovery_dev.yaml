@@ -1,0 +1,64 @@
+# Development labels for kNN recovery (scope.yaml: second_key). 60 Articles drawn (seed 2) from those the rules
+# tied to no battle while e5 Relevance >= accept_at, outside every label, seed, Override and evaluation title.
+# Labelled by Claude on 2026-10-17 from each Article's war-related sentences, with the e5 and kNN scores hidden.
+# Used to choose recovery: review (83% right at kNN >= 0.8, under the 90% bar). Tuning data, not a test.
+HMS Keats: wrong
+Ha-101-class submarine: marginal
+Ibuki-class cruiser: wrong
+Japanese destroyer Amatsukaze (1916): wrong
+Japanese minesweeper Tama Maru No. 7: marginal
+Japanese submarine Ha-104: marginal
+Japanese submarine chaser Cha-28: keep
+List of Japanese Army military engineer vehicles of World War II: wrong
+MS Wanganella: wrong
+Masatake Okumiya: keep
+Motor torpedo boat tender: marginal
+Naval Support Facility Kamiseya: wrong
+Noboru Ishizaki: wrong
+Oka Takazumi: marginal
+Patrol torpedo boat PT-490: keep
+SS Smith Victory (1945): wrong
+Toyoaki Horiuchi: marginal
+Type A Cipher Machine: marginal
+USS Ability (PYc-28): wrong
+USS Achilles (ARL-41): keep
+USS Appanoose: keep
+USS Barnwell: marginal
+USS Cavallaro: marginal
+USS Clamp: keep
+USS Coffman: wrong
+USS Eichenberger: keep
+USS Estero (AG-134): wrong
+USS Fair: keep
+USS Felicia (PYc-35): wrong
+USS Fidelity (AM-96): wrong
+USS Gainard: marginal
+USS Glacier (AK-183): marginal
+USS Hawkbill (SS-366): keep
+USS Hocking: keep
+USS Kermit Roosevelt: wrong
+USS LSM-380: marginal
+USS LST-2: wrong
+USS LST-849: keep
+USS LST-850: keep
+USS Laramie (AO-16): wrong
+USS Leedstown (APA-56): keep
+USS Napa (AT-32): keep
+USS Octorara (IX-139): keep
+USS Orange: keep
+USS Oriole (AMCU-33): marginal
+USS PC-1217: wrong
+USS PC-1603: keep
+USS PC-817: marginal
+USS PGM-1: keep
+USS Peoria (PF-67): wrong
+USS Permit (SS-178): keep
+USS Pinola (AT-33): marginal
+USS R-11: wrong
+USS S-43: keep
+USS S-46: marginal
+USS Simon Newcomb: marginal
+USS Suffolk: keep
+USS Tirante: keep
+USS Tombigbee: keep
+USS Yucca (IX-214): wrong

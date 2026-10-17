@@ -105,7 +105,8 @@ def evaluate(run_dir, lab, w):
             "classification_recall": point["classification_recall"],
             "classification_recall_ci": interval(boot["classification_recall"]),
             "discovery": disc,
-            "review_band": sum(r["decided_by"] == "review" for r in run.values())}
+            "review_band": sum(r["decided_by"] == "review" for r in run.values()),
+            "recovery_candidates": sum(r["decided_by"] == "recovery" for r in run.values())}
 
 
 def flips(old_dir, new_dir, lab):
@@ -124,7 +125,8 @@ def show(res):
     lo, hi = res["wrong_rate_ci"]
     rlo, rhi = res["classification_recall_ci"]
     d = res["discovery"]
-    print(f"{res['run']}: {res['corpus']:,} Articles in the Corpus · review band {res['review_band']:,}")
+    print(f"{res['run']}: {res['corpus']:,} Articles in the Corpus · review band {res['review_band']:,} · "
+          f"recovery candidates {res['recovery_candidates']:,}")
     print(f"  wrong in the Corpus      {res['wrong_rate']:6.1%}  (95% {lo:.1%}–{hi:.1%}) ≈ {res['wrong_articles']:,} Articles")
     print(f"  classification recall    {res['classification_recall']:6.1%}  (95% {rlo:.1%}–{rhi:.1%})")
     if d["relevant"]:

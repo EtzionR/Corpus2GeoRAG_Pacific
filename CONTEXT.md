@@ -64,6 +64,10 @@ Articles the rules cannot decide: tied only through an Umbrella conflict or Peri
 How much closer an Article's war-related sentences are to a plain-English description of the scope than to one of what is out of scope (e5 embeddings, `scope.yaml`); decides the Gray zone and is recorded for every Article.
 _Avoid_: Similarity score, confidence
 
+**Second key**:
+e5 Relevance and kNN together overturning a rule verdict, never either alone: an Article let in only through links goes out when both say unrelated; an Article tied to no battle that both call related is a recovery candidate for review.
+_Avoid_: Ensemble, vote
+
 **Override**:
 A hand-made include or exclude decision for a specific Article that beats every rule.
 
