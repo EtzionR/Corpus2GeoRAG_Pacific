@@ -35,3 +35,41 @@ def test_recovery_overrides_have_their_own_weight(monkeypatch):
     unlabelled = evaluate.evaluate("run", {"rule": lab["rule"]}, {"precision_rules": 10})
     assert unlabelled["wrong_rate"] == 0
     assert unlabelled["recovery_labelled"] == 0
+
+
+@pytest.mark.parametrize("votes,set_label,expected", [
+    (["keep", "marginal", "wrong"], "wrong", "keep"),
+    (["wrong", "wrong", "keep"], "keep", "wrong"),
+    (["wrong", "marginal"], "marginal", "marginal"),
+    (["keep", "wrong"], "wrong", "wrong"),
+    ([None, "marginal", None], None, "marginal"),
+    ([None, None, None], None, None),
+    (["wrong", "keep"], None, None),
+])
+def test_majority(votes, set_label, expected):
+    assert evaluate.majority(votes, set_label) == expected
+
+
+def test_label_sources_and_missing_gpt(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "set.yaml"
+    path.write_text("precision_rules:\n  A: wrong\n  B: null\nprecision_recovery:\n  C: null\n")
+    drafts = tmp_path / "drafts.tsv"
+    drafts.write_text("title\tdraft\nA\tkeep\nB\tmarginal\n")
+    gpt = tmp_path / "gpt.tsv"
+    monkeypatch.setattr(evaluate.eval_sample, "EVAL_PATH", path)
+    monkeypatch.setattr(evaluate, "DRAFTS_PATH", drafts)
+    monkeypatch.setattr(evaluate, "GPT_PATH", gpt)
+    lab, agreement = evaluate.labels(source="majority")
+    assert lab == {"A": ("precision_rules", "wrong"), "B": ("precision_rules", "marginal")}
+    assert agreement["pairwise"]["set/drafts"] == {"total": 1, "agree": 0}
+    assert "gpt.tsv missing" in capsys.readouterr().out
+    assert evaluate.labels(True)[0] == lab  # legacy --drafts fills only gaps
+    assert evaluate.labels(source="drafts")[0]["A"][1] == "keep"
+    assert evaluate.labels(source="gpt")[0] == {}
+    gpt.write_text("title\tsection\tlabel\twhy\nA\tprecision_rules\tmarginal\ttest\n"
+                   "C\tprecision_recovery\twrong\ttest\n")
+    lab, agreement = evaluate.labels(source="majority")
+    assert lab["A"] == ("precision_rules", "keep")
+    assert lab["C"] == ("precision_recovery", "wrong")
+    assert agreement["majority_differs"] == 1
+    assert agreement["pairwise"]["drafts/gpt"] == {"total": 1, "agree": 1}

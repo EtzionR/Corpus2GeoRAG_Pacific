@@ -2,6 +2,7 @@
     python Processing/evaluate.py                                  # the last run (Data/interim/)
     python Processing/evaluate.py --compare Data/interim/runs/baseline
     python Processing/evaluate.py --drafts                         # fill unverified labels with Claude's drafts
+    python Processing/evaluate.py --labels majority               # correct-vs-wrong majority of available labellers
 Labels: keep and marginal count as correct, wrong as an error. Every sampled Article stands for its share of the
 population it was drawn from (eval_sample.pools on the run the set was drawn from, Data/interim/runs/baseline/), so
 the numbers describe the whole Corpus, not just the sample. Intervals are 95% bootstrap intervals over the sample.
@@ -11,6 +12,7 @@ import collections
 import csv
 import json
 import random
+from itertools import combinations
 from pathlib import Path
 
 import yaml
@@ -21,25 +23,54 @@ ROOT = Path(__file__).resolve().parent.parent
 INTERIM = ROOT / "Data" / "interim"
 BASELINE = INTERIM / "runs" / "baseline"
 DRAFTS_PATH = ROOT / "Processing" / "reports" / "eval_log.tsv"
+GPT_PATH = ROOT / "Processing" / "reports" / "eval_log_gpt.tsv"
 RESULTS_PATH = INTERIM / "eval_results.json"
 BOOTSTRAP = 2000
 
 
-def labels(use_drafts):
-    """{title: (section, label)} and the agreement between verified labels and Claude's drafts."""
+def majority(votes, set_label=None):
+    """Vote on correct vs wrong; ties use eval_set.yaml (unlabelled ties stay unlabelled)."""
+    votes = [v for v in votes if v]
+    correct = sum(v != "wrong" for v in votes)
+    if correct * 2 == len(votes):
+        return set_label
+    if correct * 2 < len(votes):
+        return "wrong"
+    return set_label if set_label and set_label != "wrong" else next(v for v in votes if v != "wrong")
+
+
+def labels(use_drafts=False, source="set"):
+    """Selected labels and pairwise correct-vs-wrong agreement; --drafts keeps its set-first fallback."""
     sections = yaml.safe_load(eval_sample.EVAL_PATH.read_text()) or {}
-    drafts = {r["title"]: r["draft"] for r in csv.DictReader(DRAFTS_PATH.open(), delimiter="\t")}
-    out, verified, agree = {}, 0, 0
+    def read(path, column):
+        if not path.exists():
+            print(f"note: {path.name} missing; skipping that labeller")
+            return {}
+        with path.open() as f:
+            return {r["title"]: r[column] for r in csv.DictReader(f, delimiter="\t")
+                    if r[column] in ("keep", "marginal", "wrong")}
+    set_labels = {t: l for titles in sections.values() for t, l in titles.items() if l}
+    drafts, gpt = read(DRAFTS_PATH, "draft"), read(GPT_PATH, "label")
+    titles = {t for titles in sections.values() for t in titles}
+    labellers = {"set": set_labels, "drafts": drafts, "gpt": gpt}
+    pairwise = {}
+    for a, b in combinations(labellers, 2):
+        both = titles & labellers[a].keys() & labellers[b].keys()
+        pairwise[f"{a}/{b}"] = {"total": len(both), "agree": sum(
+            (labellers[a][t] != "wrong") == (labellers[b][t] != "wrong") for t in both)}
+    voted = {t: majority([ls.get(t) for ls in labellers.values()], set_labels.get(t)) for t in titles}
+    differs = sum((voted[t] != "wrong") != (l != "wrong") for t, l in set_labels.items())
+    out = {}
     for section, titles in sections.items():
         for title, label in titles.items():
-            if label:
-                verified += 1
-                agree += label == drafts.get(title)
-            elif use_drafts:
+            label = voted.get(title) if source == "majority" else labellers[source].get(title)
+            if use_drafts and source == "set" and not label:
                 label = drafts.get(title)
             if label:
                 out[title] = (section, label)
-    return out, {"verified": verified, "total": sum(len(t) for t in sections.values()), "agree_with_drafts": agree}
+    return out, {"verified": len(set_labels), "total": sum(len(t) for t in sections.values()),
+                 "agree_with_drafts": sum(l == drafts.get(t) for t, l in set_labels.items()),
+                 "pairwise": pairwise, "majority_differs": differs}
 
 
 def weights():
@@ -151,15 +182,24 @@ def main():
     ap.add_argument("run", nargs="?", default=str(INTERIM))
     ap.add_argument("--compare", help="an earlier run directory (e.g. Data/interim/runs/baseline)")
     ap.add_argument("--drafts", action="store_true", help="use Claude's draft where no person has labelled yet")
+    ap.add_argument("--labels", choices=("set", "drafts", "gpt", "majority"), default="set",
+                    help="label source (drafts selects drafts alone; --drafts fills gaps in set)")
     args = ap.parse_args()
-    lab, agreement = labels(args.drafts)
+    if args.drafts and args.labels != "set":
+        ap.error("--drafts fills gaps in --labels set; choose either it or another --labels source")
+    lab, agreement = labels(args.drafts, args.labels)
     print(f"labels: {agreement['verified']} of {agreement['total']} labelled in eval_set.yaml"
           + (f", {agreement['agree_with_drafts'] / agreement['verified']:.0%} agree with the drafts in eval_log.tsv" if agreement["verified"] else "")
-          + ("; the rest are Claude's drafts (provisional)" if args.drafts and agreement["verified"] < agreement["total"] else ""))
+          + (f"; {len(lab) - agreement['verified']} filled from Claude's drafts (provisional)" if args.drafts else ""))
+    print(f"  using {args.labels}" + (" with draft fallback" if args.drafts else "") + f": {len(lab)} labels")
+    for pair, counts in agreement["pairwise"].items():
+        n, agree = counts["total"], counts["agree"]
+        print(f"  agreement {pair} (correct vs wrong): " + (f"{agree}/{n} ({agree / n:.1%})" if n else "no shared labels"))
+    print(f"  majority differs from eval_set.yaml (correct vs wrong): {agreement['majority_differs']} titles")
     if not lab:
         raise SystemExit("no labels yet: verify them in the app's Evaluation tab, or pass --drafts")
     w = weights()
-    results = {"labels": agreement, "drafts_used": args.drafts, "runs": []}
+    results = {"labels": agreement, "label_source": args.labels, "drafts_used": args.drafts, "runs": []}
     if args.compare:
         results["runs"].append(evaluate(Path(args.compare), lab, w))
         show(results["runs"][-1])
