@@ -8,12 +8,17 @@
 
 | | |
 |---|---|
-| **Articles delivered** | **5,713** (115 MB), out of 14,665 examined |
+| **Articles delivered** | **5,193** (100 MB), out of 14,665 examined |
+| **Wrong articles in the Corpus** | **~5.6%** (95% 2.4–9.3%), down from ~9.2% before the 2026-10-17 changes · *provisional: Claude's draft labels until a person verifies the evaluation set* |
+| **Recall** | ~71% of relevant articles that were found are included; ~76% of relevant articles from independent Wikipedia lists are found at all · *provisional, same caveat* |
 | **Quality check** | 55 / 55 hand-picked must-have articles are included |
 | **Accuracy on unclear cases** | ~93% when the AI check is confident (50 of 54 hand-labelled articles it never saw) |
 | **Hand decisions** | 1,178 unclear articles reviewed one by one (603 kept, 575 dropped); every reason is in `reports/review_log.tsv` |
-| **Run time** | ~5 min from scratch · ~12 s when re-run (everything is cached) |
-| **Waiting on people** | **Nothing.** All 3,088 unclear articles are decided (review completed 2026-10-12) |
+| **Run time** | ~5 min from scratch · ~20 s when re-run (everything is cached) |
+| **Waiting on people** | **325** evaluation labels to verify (app → Evaluation) · **663** recovery candidates and **7** disputed battles to decide (app → Review) |
+
+How these numbers are measured: [`reports/precision_round1.md`](reports/precision_round1.md) and
+`python Processing/evaluate.py`.
 
 ## The flow
 
@@ -22,32 +27,41 @@ flowchart LR
     FIND["<b>1 · Find</b><br/>Search Wikipedia's topic<br/>categories for the war"]
     COLLECT["<b>2 · Collect</b><br/>Download each article<br/>+ structured facts (Wikidata)<br/><i>14,665 articles</i>"]
     RULES{"<b>3 · Rules</b><br/>Clearly about<br/>US–Japan fighting?"}
+    KEY{"<b>3b · Second key</b><br/>Do e5 and kNN<br/>both object?"}
     AI{"<b>4 · AI check</b><br/>Reads the article's<br/>war-related sentences"}
-    HUMAN{{"<b>5 · Human review</b><br/>Done<br/><i>1,216 articles</i>"}}
+    HUMAN{{"<b>5 · Human review</b><br/><i>1,178 decided · 670 waiting</i>"}}
     IN["✅ <b>Included</b>"]
     OUT["❌ <b>Left out</b>"]
-    DELIVER[("<b>Deliverable</b><br/>corpus.json<br/><i>5,713 articles</i>")]
+    DELIVER[("<b>Deliverable</b><br/>corpus.json<br/><i>5,193 articles</i>")]
 
     FIND --> COLLECT --> RULES
-    RULES -- "Yes · 4,435" --> IN
-    RULES -- "No · 7,142" --> OUT
-    RULES -- "Unsure · 3,088" --> AI
-    AI -- "Confident yes · 675" --> IN
-    AI -- "Confident no · 1,197" --> OUT
-    AI -- "Too close to call · 1,216" --> HUMAN
+    RULES -- "Yes · 4,088" --> KEY
+    RULES -- "No · 7,812" --> KEY
+    KEY -- "No objection · 3,931" --> IN
+    KEY -- "Both say unrelated · 157" --> OUT
+    KEY -- "No objection · 7,149" --> OUT
+    KEY -- "Both say related · 663" --> HUMAN
+    RULES -- "Unsure · 2,765" --> AI
+    AI -- "Confident yes · 659" --> IN
+    AI -- "Confident no · 961" --> OUT
+    AI -- "Too close to call · 1,145" --> HUMAN
     HUMAN -- "Keep · 603" --> IN
-    HUMAN -- "Drop · 613" --> OUT
+    HUMAN -- "Drop · 575" --> OUT
     IN --> DELIVER
 
     classDef step fill:#e7f1ff,stroke:#0b5ed7,color:#052c65
     classDef human fill:#ffe5b4,stroke:#d9480f,color:#5c2200,stroke-width:3px
     classDef good fill:#d1e7dd,stroke:#146c43,color:#0a3622
     classDef bad fill:#f8d7da,stroke:#b02a37,color:#58151c
-    class FIND,COLLECT,RULES,AI step
+    class FIND,COLLECT,RULES,KEY,AI step
     class HUMAN human
     class IN,DELIVER good
     class OUT bad
 ```
+
+*Counts are from the run of 2026-10-17. "Drop · 575" includes 89 rule-excluded articles a reviewer confirmed. Of the
+1,145 too close to call, 49 tied only to an umbrella war are dropped without review and 7 disputed battles wait,
+like the 663 recovery candidates, until someone decides.*
 
 **In plain words**
 
@@ -56,14 +70,18 @@ flowchart LR
 2. **Collect:** download every article found, plus facts from Wikidata (who fought in which battle, and which
    people, units, ships and places Wikidata records as taking part in each battle, which also finds articles
    the categories miss).
-3. **Rules:** an article is in if it is a battle where **both** the US and Japan fought, or if it is
+3. **Rules:** an article is in if it is a battle where the US and Japan fought **each other**, or if it is
    clearly tied to such a battle (a ship that fought at Midway, a general who commanded at Okinawa).
    Films, books and anything with no tie to a US–Japan battle are left out.
+   **3b · Second key:** two AI checks may overturn the rules, but only when they agree. If an article got in only
+   through links, and both e5 and kNN (a comparison with ~1,300 articles people already decided) say it is
+   unrelated, it is left out. If the rules found no tie but both say it is related, it waits for a person.
 4. **AI check:** for articles the rules cannot settle, an AI language model (e5) reads the war-related sentences and
    scores how strongly the article is about US–Japan fighting rather than China, Burma, Europe or civilian life.
-5. **Human review:** articles the AI cannot call either way are decided by a person. All 1,216 have been
-   decided: 603 kept (mostly US Navy ships, Marines and Pacific airfields) and 613 dropped. Articles tied only to
-   a whole war (an "umbrella", see step 3) are dropped automatically instead of waiting for review.
+5. **Human review:** articles the AI cannot call either way are decided by a person. The first 1,216 were
+   decided on 2026-10-12: 603 kept (mostly US Navy ships, Marines and Pacific airfields), the rest dropped.
+   Articles tied only to a whole war (an "umbrella", see step 3) are dropped automatically instead of waiting
+   for review.
 
 ## How each step decides
 
@@ -90,7 +108,12 @@ and any one of them is enough:
 | USS Panay incident | ❌ No | US vs Japan, but 1937, before the war |
 | Operation Downfall | ➡ Rule 3 | Invasion of Japan that was cancelled, so it has no combatants; judged by its ties instead |
 
-The battles that pass, **320 of them**, become the **reference list** that every other article is measured against.
+The battles that pass, **320 of them**, are then checked once more: the fact box's combatant lists must put the US
+and Japan **on opposite sides as main combatants**. Since 2026-10-17 a mere mention no longer counts: "American and
+British claims" in a casualty note, the *American-British-Dutch-Australian Command*, or the US listed only for "air
+support". **298** pass and form the **reference list** every other article is measured against; **13** in which the
+US or Japan only supported (e.g. *Battle of West Hunan*) stay in but cannot tie another article on their own; **5** are
+out (*Malayan campaign*, *Battle of Changde*…); **4** where the fact box and Wikidata disagree go to a person.
 
 **Rule 3: Everything else is judged by its tie to the reference battles.**
 This covers people, ships, units, aircraft, weapons, places and events.
@@ -113,11 +136,11 @@ Why weak ties are not enough on their own:
   to many battles without being about the fighting, so they are always left out unless a reviewer includes them.
   Ordinary cities such as *Hiroshima* or *Rabaul* are battle sites and are judged normally.
 
-**Outcome:** 4,435 Yes · 7,142 No · 3,088 Unsure.
+**Outcome** (run of 2026-10-17): 4,088 Yes · 7,812 No · 2,765 Unsure.
 
 ### Step 4 · AI check: "Is this article really about US–Japan fighting?"
 
-For the 3,088 unsure articles, an AI language model (**e5**) reads the article's war-related sentences, meaning every
+For the 2,765 unsure articles, an AI language model (**e5**) reads the article's war-related sentences, meaning every
 sentence that names a theatre or a side (Japan, Pacific, Okinawa, China, Burma, Atlantic…). It compares them with two
 descriptions written in plain English:
 
@@ -132,9 +155,9 @@ step 5 now count as labels too (about 1,200 in total), and the cut-offs barely m
 
 | Score | Decision | Count |
 |---|---|---|
-| High: at least 90% of labelled articles at this level belonged | ✅ Include | 675 |
-| Low: at least 90% of labelled articles at this level did not belong | ❌ Leave out | 1,197 |
-| In between | ➡ Human review (step 5) | 1,216 |
+| High: at least 90% of labelled articles at this level belonged | ✅ Include | 659 |
+| Low: at least 90% of labelled articles at this level did not belong | ❌ Leave out | 961 |
+| In between | ➡ Human review (step 5) | 1,145 |
 
 The cut-offs were then tested on a **second, separate set of 68 hand-labelled articles** that played no part in
 setting them, and are never used to set them. **93%** (50 of 54) of the AI's confident decisions were correct.
@@ -164,6 +187,8 @@ A reviewer can still bring one back with an override.
 | Task | How often | Effort | Why it matters |
 |---|---|---|---|
 | Review new "too close to call" articles | After a re-run finds new articles | Usually a handful | The first full pass (1,216 articles) is done |
+| Verify the evaluation labels | Once, then when the set grows | ~1–2 h for 325 | Until then every quality number is Claude grading Claude |
+| Decide recovery candidates | After a re-run | 663 now, sorted by kNN | Each shows the past decisions it resembles, so similar ones go fast |
 | Check noisy topic categories | After big changes | Minutes | Keeps the search focused |
 | Label a sample of unclear articles | Rarely | ~80 articles | Keeps the AI check honest and measurable |
 | Confirm the must-have list | Rarely | Minutes | Guarantees key articles are never lost |
