@@ -379,6 +379,12 @@ def diagnostics(events: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+# Input tokens per question, summed over its model calls (spec R29). Every call re-sends the system
+# prompt and tool definitions (~6.5k tokens), so 40k was passed by ordinary 6-call answers; 80k still
+# catches runaways (the worst set question before R27 used 97k over 44 tool calls).
+DEFAULT_TOKEN_BUDGET = 80000
+
+
 def trace_warnings(events: list[dict[str, Any]], warn_steps: int | None = None) -> list[str]:
     """Warning codes derivable from the trace alone (spec R14)."""
     warn_steps = env_int("GEO_AGENT_WARN_STEPS", 10) if warn_steps is None else warn_steps
@@ -391,7 +397,7 @@ def trace_warnings(events: list[dict[str, Any]], warn_steps: int | None = None) 
         warnings.append("empty_resolution")
     if diag["steps"] > warn_steps:
         warnings.append("many_steps")
-    budget = env_int("GEO_AGENT_TOKEN_BUDGET", 40000)
+    budget = env_int("GEO_AGENT_TOKEN_BUDGET", DEFAULT_TOKEN_BUDGET)
     if budget and diag["input_tokens"] > budget:
         warnings.append("token_budget")
     return warnings
@@ -723,7 +729,8 @@ def attribute_failure(question: dict[str, Any], events: list[dict[str, Any]]) ->
             classes.append("wrong_tools")
     if not did_ask and final and resolved_ids(events) - (expected_resolved | acceptable):
         classes.append("wrong_entity_accepted")
-    if behavior == "ask" and not did_ask:
+    covered = bool(question.get("expected_candidates")) and set(question["expected_candidates"]) <= final
+    if behavior == "ask" and not did_ask or behavior == "ask_or_cover_all" and not (did_ask or covered):
         classes.append("should_have_asked")
     if behavior == "answer" and did_ask:
         classes.append("asked_unnecessarily")

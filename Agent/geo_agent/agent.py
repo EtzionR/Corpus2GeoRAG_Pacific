@@ -63,7 +63,7 @@ from rapidfuzz import fuzz
 from geo_agent.graph_store import QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, normalize_name, source_ref
 from geo_agent.schema import SCHEMA_VERSION
 from geo_agent.tools import build_tools
-from geo_agent.trace import RunTrace, TraceWriter, diagnostics, env_int, env_on, file_hash, short_hash, tool_calls_of, trace_warnings
+from geo_agent.trace import DEFAULT_TOKEN_BUDGET, RunTrace, TraceWriter, diagnostics, env_int, env_on, file_hash, short_hash, tool_calls_of, trace_warnings
 
 log = logging.getLogger("geo_agent")
 
@@ -91,9 +91,12 @@ How to work:
 - Name matches come with `match` (name/alias/fuzzy) and `quality`:
   * quality "clear": go on with that entity.
   * quality "uncertain" (a weak fuzzy match, or results marked `ambiguous` that nearly tie) and the entity matters
-    to the answer: do NOT answer. Reply with one short clarification question naming the candidates and what
-    matched, e.g. "Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?", and return no entity_ids.
-    Skip the question only if the user's question already settles it by year, type or context.
+    to the answer: never pick one silently. Reply with one short clarification question naming the candidates and
+    what matched, e.g. "Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?", and return no
+    entity_ids. Exception: when the tie is between at most 3 entities of the same name (e.g. two battles of Guam)
+    and each can be answered in a few lines, you may instead answer for EVERY candidate, clearly separated and
+    labelled by year or another distinguishing fact, with every candidate's id in context_ids.
+    Skip both only if the user's question already settles it by year, type or context.
   * no result: say plainly that the graph has no such entity.
   * You may retry search_entities with another spelling or romanization. That spelling is only a query: a result
     counts only if the graph returns it, and it is judged by the same rule.
@@ -104,17 +107,26 @@ How to work:
     date_from/date_to when the question names a period)
   * call graph_schema when you are unsure which relation or entity types exist.
 - Back claims with evidence: prefer relations with higher counts, and use search_source_text for supporting text.
-- "Show me all locations connected to / associated with X", "all islands of X", "major battles",
+- "Show me all locations connected to / associated with X", "all islands of X", "major battles" (of the whole graph),
   "where are A and B both connected": resolve the names, then use ONE set tool (connected_locations,
   find_entities, shared_connections; entities_mentioning only if the concept is not an entity).
   Put its result_set handle in answer_sets. Never answer such a question without calling the set tool in this
   turn: the map is empty unless a result_set is in answer_sets. In the answer give the count, the main groups (by_via /
   by_region) and at most ~10 top places; never list every place: the map shows the whole set.
+- BROAD questions (a whole war, theatre, campaign, period, class of events, or an organisation's or person's
+  whole war: "major battles of the Pacific War", "what happened in 1943", "everything about the IJN"): resolve
+  the scope name if there is one, then call overview ONCE (with kind/year only when the question gives them). Never
+  call it again per year or kind to explore, and never look the items up one by one: its by_year / by_kind counts
+  already describe the parts. Answer: say it is an overview of N items, give the main groups and the top items,
+  put the result_set in answer_sets, and end by offering the narrow_by options. Also switch to overview when a set
+  tool returns a total above 25 for a question that names no specific target. Never decline a broad question.
 - If a tool result has an "approximation" note, say in the answer that the result is approximate and why.
 - List tools return {total, shown, truncated, results}. If truncated is true, the list is incomplete: say how many there are in total and never present the shown rows as all of them.
 - Only put entity_ids and sources in the final answer that appeared in tool results; anything else is dropped.
 - Quote coordinates only as returned by tools, in decimal degrees (e.g. 28.21, -177.37). Never estimate them.
 - If the graph does not contain the answer, say so plainly. Never fill gaps from general knowledge.
+- If after about 6 tool calls you still have no relation of the kind the question asks about (e.g. no attacker
+  linked to the battle), stop searching: answer with what you found and say that the graph does not record the rest.
 - Coordinates are decimal degrees; a user's "(x, y)" is usually (lat, lon); state the interpretation you used.
 {graph_notes}
 Final answer fields (all required):
@@ -246,6 +258,16 @@ class AgentAnswer(BaseModel):
 # ----------------------------------------------------------------------- LLM
 
 
+def resolve_path(value: str | Path) -> Path:
+    """A path from an argument or the environment. A relative path that doesn't exist from the
+    working directory is read relative to the project root, where `.env` sets them
+    (`GRAPH_PATH=data/sample_graph.json`), so callers in other directories (the UI) work too."""
+    path = Path(value).expanduser()
+    if not path.is_absolute() and not path.exists() and (ROOT / path).exists():
+        return ROOT / path
+    return path
+
+
 class AgentConfigError(RuntimeError):
     """The agent can't be built from the current configuration (e.g. no API key).
 
@@ -274,7 +296,7 @@ def get_llm() -> ChatOpenAI:
     )
 
 
-SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning")
+SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning", "overview")
 BUDGET_NOTE = ("TOKEN BUDGET REACHED for this question: do not call more tools. Give your final answer now "
                "with what you already have, and say that the answer may be incomplete.")
 
@@ -298,6 +320,41 @@ class TokenBudget(AgentMiddleware):
         if self.budget and used >= self.budget:
             base = request.system_message.content if request.system_message is not None else ""
             request = request.override(system_message=SystemMessage(content=f"{base}\n\n{BUDGET_NOTE}"))
+        return await handler(request)
+
+
+STEP_NOTE = ("STEP BUDGET almost used up for this question: do not call more tools. Give your final answer now "
+             "with what you already have, and say what the graph does not record.")
+
+
+class StepBudget(AgentMiddleware):
+    """Make the model finish before the recursion limit (spec R58).
+
+    Each model call and each tool round is one graph step. With `max_steps` = L, the
+    model is called up to (L + 1) // 2 times, but only an answer from one of the first
+    (L - 1) // 2 calls ends the run in time. From `margin` calls before (L + 1) // 2, the
+    system prompt gets STEP_NOTE, so a question whose relation the graph lacks ends with an
+    answer instead of a step_limit error. A model may ignore the note (GLM kept calling
+    tools on a broad question, run 8dc847b7), so the last usable call is offered only the
+    AgentAnswer tool: the run then ends with what the evidence so far supports.
+    """
+
+    def __init__(self, max_steps: int, margin: int = 4):
+        super().__init__()
+        last_call = max(1, (max_steps - 1) // 2)  # 1-based number of the last call whose answer fits
+        self.force_at = last_call - 1  # earlier calls in this turn when that call starts
+        self.nudge_at = max(0, min(self.force_at, (max_steps + 1) // 2 - margin))  # unchanged since R58
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        msgs = request.messages
+        last_user = max((i for i, m in enumerate(msgs) if m.type == "human"), default=-1)
+        calls = sum(m.type == "ai" for m in msgs[last_user + 1:])
+        if calls >= self.nudge_at:
+            base = request.system_message.content if request.system_message is not None else ""
+            request = request.override(system_message=SystemMessage(content=f"{base}\n\n{STEP_NOTE}"))
+        if calls >= self.force_at:
+            log.info("last model call before the step limit: only the final answer tool is offered")
+            request = request.override(tools=[])
         return await handler(request)
 
 
@@ -331,10 +388,50 @@ class SetHandleGuard(AgentMiddleware):
             call_id = next((c["id"] for c in ai.tool_calls if c["name"] == AgentAnswer.__name__), None)
             rejection = ToolMessage(
                 content=(f"Rejected: result set {', '.join(unknown)} does not exist. A result_set handle only comes from "
-                         "calling connected_locations, find_entities, shared_connections or entities_mentioning in this "
+                         "calling connected_locations, find_entities, shared_connections, entities_mentioning or overview in this "
                          "turn. Call the right set tool now, then answer with the handle it returns."),
                 tool_call_id=call_id or "answer", name=AgentAnswer.__name__)
             log.info("final answer named unknown result set(s) %s; asking the model to call the set tool", unknown)
+            request = request.override(messages=[*msgs, ai, rejection])
+            response = await handler(request)
+        return response
+
+
+class GroundingGuard(AgentMiddleware):
+    """Send back a final answer that names graph entities no tool returned this turn (local UI test).
+
+    The prompt forbids filling gaps from general knowledge, but a model can still write facts from
+    memory around a grounded id (run c2cc1e3a: Leyte Gulf and USS St. Lo for "the first kamikaze
+    attack", with no tool having returned them). The model is told which names those are and gets
+    `retries` more tries to look them up or remove them; what remains is listed in
+    `ungrounded_names` with the warning of the same name.
+    """
+
+    def __init__(self, store: GraphStore, retries: int = 1):
+        super().__init__()
+        self.store = store
+        self.retries = retries
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        for _ in range(self.retries):
+            parsed = getattr(response, "structured_response", None)
+            if not isinstance(parsed, AgentAnswer):
+                return response
+            msgs = request.messages
+            turn = turn_messages(msgs)
+            question = next((str(m.content) for m in reversed(msgs) if m.type == "human"), "")
+            names = ungrounded_names(self.store, parsed.answer, turn, question)
+            if not names:
+                return response
+            ai = response.result[0]
+            call_id = next((c["id"] for c in ai.tool_calls if c["name"] == AgentAnswer.__name__), None)
+            rejection = ToolMessage(
+                content=(f"Rejected: your answer names {', '.join(names)}, which no tool returned for this question. "
+                         "Look them up with the tools and use what the graph says, or remove them. Never answer from "
+                         "general knowledge."),
+                tool_call_id=call_id or "answer", name=AgentAnswer.__name__)
+            log.info("final answer named ungrounded entities %s; sending it back once", names)
             request = request.override(messages=[*msgs, ai, rejection])
             response = await handler(request)
         return response
@@ -535,6 +632,13 @@ def collect_evidence(results: list[tuple[str, Any]]) -> dict[str, Any]:
                               "point_date": d.get("point_date")})
                 refs += [(ends, {"page": s}) for s in d.get("sources") or [] if isinstance(s, str)]
                 refs += [(ends, r) for r in d.get("source_refs") or [] if isinstance(r, dict)]
+            elif isinstance(d.get("relations"), list) and isinstance(d.get("id"), str):  # a get_locations row
+                for r in d["relations"]:
+                    if isinstance(r, dict) and isinstance(r.get("type"), str):
+                        edges.append({"source": None, "target": d["id"], "count": r.get("count", 1), "relation": r["type"],
+                                      "start_date": r.get("start_date"), "end_date": r.get("end_date"),
+                                      "point_date": r.get("point_date")})
+                        refs += [({d["id"]}, {"page": s}) for s in r.get("sources") or [] if isinstance(s, str)]
             elif isinstance(d.get("sources"), list):
                 entity = d.get("entity") if isinstance(d.get("entity"), dict) else d
                 if isinstance(entity.get("id"), str):
@@ -627,6 +731,18 @@ def search_hits(turn: list[Any]) -> list[dict[str, Any]]:
         typed = queries.get(getattr(m, "tool_call_id", None), "")
         hits += [{**r, "typed": typed} for r in results if isinstance(r, dict) and "id" in r] if isinstance(results, list) else []
     return hits
+
+
+def ungrounded_names(store: GraphStore, answer: str, turn: list[Any], question: str) -> list[str]:
+    """Graph entities the answer names although no tool returned them this turn and the user didn't
+    name them: facts the model added from its own knowledge (local UI test, run c2cc1e3a)."""
+    seen = collect_evidence(tool_results(turn))["ids"]
+    asked = {i for ids in store.names_in_text(question).values() for i in ids}
+    # a name a tool printed counts too (e.g. an overview row's "place": "Iwo Jima", which has no id)
+    words = lambda t: f" {re.sub(r'[^0-9a-z]+', ' ', normalize_name(t)).strip()} "
+    tool_text = words(" ".join(str(m.content) for m in turn if m.type == "tool"))
+    return [name for name, ids in store.names_in_text(answer).items()
+            if not set(ids) & (seen | asked) and words(name) not in tool_text]
 
 
 def resolution_records(store: GraphStore, kept_ids: list[str], turn: list[Any], question: str) -> list[dict[str, Any]]:
@@ -836,6 +952,9 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
     # R30: approximations reported by tools this turn (name heuristics, text-based concepts)
     approx = [d for _, data in tool_results(turn) for d in _walk(data) if isinstance(d.get("approximation"), str)]
     interpretation += [f"approximation: {n}" for n in dict.fromkeys(d["approximation"] for d in approx)]
+    # R57: a broad question answered with an overview
+    interpretation += [f"broad question: overview of {d['total']} items in {d['scope']}"
+                       for name, d in tool_results(turn) if name == "overview" and isinstance(d, dict) and d.get("overview")]
     text_based = any(d.get("text_based") for d in approx)
 
     if dropped:
@@ -844,7 +963,15 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         warnings.append("sources_unverified")
     if unverified_numbers:
         warnings.append("text_coordinates_unverified")
-    uncertain_used = bool(kept) and any(r["quality"] != "clear" for r in resolved)
+    # R4 amendment: answering for EVERY same-name candidate of a tied search (the two Battles of
+    # Guam) is not an uncertain pick. Names are compared without a trailing year, e.g. "(1941)".
+    ties: dict[tuple[str, str], set[str]] = {}
+    for h in search_hits(turn):
+        if h.get("ambiguous") and isinstance(h.get("name"), str):
+            base = normalize_name(re.sub(r"\s*\(\d{4}\)\s*$", "", h["name"]))
+            ties.setdefault((h["typed"], base), set()).add(h["id"])
+    covered = {i for group in ties.values() if len(group) > 1 and group <= set(kept) for i in group}
+    uncertain_used = bool(kept) and any(r["quality"] != "clear" and r["id"] not in covered for r in resolved)
     set_edges = [{"source": None, "target": loc, "count": m["strength"]} for loc, m in set_meta.items()
                  if isinstance(m.get("strength"), (int, float))]
     kept_set = set(kept)
@@ -856,6 +983,9 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         conf = {"level": "low", "basis": {**conf["basis"], "text_based_approximation": True}}
     if uncertain_used:
         warnings.append("uncertain_match_used")
+    ungrounded = ungrounded_names(store, parsed.answer, turn, question)
+    if ungrounded:
+        warnings.append("ungrounded_names")
     if any(r["model_rewritten_query"] for r in resolved):
         warnings.append("model_rewritten_query")
     if any("context_mismatch" in r for r in resolved):
@@ -885,6 +1015,8 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         if props["id"] in set_meta:
             props["via"], props["strength"] = set_meta[props["id"]]["via"], set_meta[props["id"]]["strength"]
     drawn = {f["properties"]["id"] for f in geojson["features"]}
+    if kept and not drawn:
+        warnings.append("nothing_on_map")  # the answer's entities have no place in the graph to draw
     result_sets = [{"handle": h, "label": e["label"], "total": len(e["ids"]),
                     "on_map": sum(d in drawn for d in e["meta"].get("draw", e["ids"])), "map_truncated": map_truncated}
                    for h, e in used_sets]
@@ -913,6 +1045,7 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         "dropped_ids": dropped,
         "unverified_sources": unverified_sources,
         "unverified_numbers": unverified_numbers,
+        "ungrounded_names": ungrounded,
         "resolved_entities": resolved,
         "interpretation": interpretation,
         "confidence": conf,
@@ -950,7 +1083,7 @@ def off_topic_result(model_text: str, store: GraphStore | None = None) -> dict[s
         "answer": off_topic_message(store), "answer_ids": [], "context_ids": [], "entity_ids": [], "sources": [], "source_refs": [],
         "geojson": {"type": "FeatureCollection", "features": []}, "bbox": None, "center": None,
         "tool_calls": [], "warnings": ["off_topic"],
-        "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [], "resolved_entities": [], "interpretation": [],
+        "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [], "ungrounded_names": [], "resolved_entities": [], "interpretation": [],
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "n_providers": 0, "uncertain_match_used": False}},
         "result_sets": [], "dropped_sets": [], "off_topic_model_text": model_text,
     }
@@ -975,6 +1108,7 @@ def error_result(run_id: str, exc: BaseException, stage: str, tool_calls: list[d
         "dropped_ids": [],
         "unverified_sources": [],
         "unverified_numbers": [],
+        "ungrounded_names": [],
         "resolved_entities": [],
         "interpretation": [],
         "result_sets": [],
@@ -1059,8 +1193,8 @@ class GeoAgent:
     ) -> "GeoAgent":
         """Build the agent. `llm` overrides the OpenRouter model (tests pass a fake one)."""
         load_dotenv()
-        graph_path = Path(graph_path or os.getenv("GRAPH_PATH", ROOT / "data" / "sample_graph.json"))
-        mcp_config = Path(mcp_config or os.getenv("MCP_CONFIG_PATH", ROOT / "mcp_servers.json"))
+        graph_path = resolve_path(graph_path or os.getenv("GRAPH_PATH", ROOT / "data" / "sample_graph.json"))
+        mcp_config = resolve_path(mcp_config or os.getenv("MCP_CONFIG_PATH", ROOT / "mcp_servers.json"))
 
         store = GraphStore.from_json(graph_path)
         sets = ResultSets()
@@ -1081,8 +1215,10 @@ class GeoAgent:
                 # messages, used by the evidence check, are untouched); set-tool outputs keep their handles.
                 ContextEditingMiddleware(edits=[ClearToolUsesEdit(
                     trigger=env_int("GEO_AGENT_CONTEXT_TRIGGER", 30000), keep=3, exclude_tools=SET_TOOLS)]),
-                TokenBudget(env_int("GEO_AGENT_TOKEN_BUDGET", 40000)),
+                TokenBudget(env_int("GEO_AGENT_TOKEN_BUDGET", DEFAULT_TOKEN_BUDGET)),
+                StepBudget(env_int("GEO_AGENT_MAX_STEPS", 25)),
                 SetHandleGuard(retries=1),
+                GroundingGuard(store, retries=1),
             ],
             checkpointer=InMemorySaver(),  # per-thread conversation memory
         )
@@ -1163,6 +1299,7 @@ class GeoAgent:
                 answer_ids=out["answer_ids"], context_ids=out["context_ids"],
                 claimed_sources=parsed.sources, kept_sources=out["sources"], source_refs=out["source_refs"],
                 unverified_sources=out["unverified_sources"], unverified_numbers=out["unverified_numbers"],
+                ungrounded_names=out["ungrounded_names"],
                 resolved_entities=out["resolved_entities"], interpretation=out["interpretation"],
                 confidence=out["confidence"], answer_sets=parsed.answer_sets,
                 result_sets=out["result_sets"], dropped_sets=out["dropped_sets"],
@@ -1273,7 +1410,7 @@ def _debug_command(argv: list[str]) -> int:
         return 0
 
     # --replay
-    graph_path = Path(os.getenv("GRAPH_PATH", ROOT / "data" / "sample_graph.json"))
+    graph_path = resolve_path(os.getenv("GRAPH_PATH", ROOT / "data" / "sample_graph.json"))
     store = GraphStore.from_json(graph_path)
     recorded = next((e.get("graph", {}).get("sha256") for e in run if e["event"] == "run_start"), None)
     print(f"Replaying run {run[0]['run_id']}: graph sha recorded {recorded}, current {file_hash(graph_path)}")

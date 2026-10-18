@@ -1,6 +1,6 @@
 # Notes for the UI team: connecting the Streamlit app to the agent
 
-**From:** the agent (Michael) · **Date:** 2026-10-13 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract") and the agent in `Agent/`
+**From:** the agent (Michael) · **Date:** 2026-10-13, updated 2026-10-18 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract"), rechecked at `2411e43`, and the agent in `Agent/`
 
 ## Summary
 - **The app's latest version already does most of the integration well.**
@@ -10,9 +10,24 @@
   - The GeoJSON is drawn directly, with meridian handling and clustering.
   - The sidebar shows real stats.
 - **The agent now ships its own runner and mock mode,** built for exactly this: `geo_agent.runner.AgentRunner` and `GEO_AGENT_MOCK=1`. **Recommendation:** replace the app's own `AgentRunner` and `MockAgent` with them. This fixes timeouts and double submits, adds progress events, and keeps mock replies identical to real ones.
-- **The reply format grew to `schema_version` "1.2"** (`source_refs`, `bbox`, `center`, feature `geometry_source`, new error stages). Nothing the app reads today changed name or type.
+- **We ran your app end to end with the agent (2026-10-18).** We wrote the integration ourselves in a local copy, following this note, and nothing was pushed. It works in mock mode, with the real agent on the sample graph, and on the 465 MB draft graph. The one real trap we hit is in section 0.
+- **The reply format grew to `schema_version` "1.3"** (1.2: `source_refs`, `bbox`, `center`, feature `geometry_source`, new error stages; 1.3: `ungrounded_names`). Nothing the app reads today changed name or type. Don't compare the version to a fixed string: additions are minor versions.
 - **The graph is getting broader.** The team's next graph covers World War II beyond the Pacific (`metadata.scope`), and ids become Wikidata QIDs. Don't hard-code "Pacific" assumptions or id formats.
 - **English only.**
+
+## 0. What we learned running your app with the agent (2026-10-18)
+- **Keep the running question in `st.session_state` and check it on every rerun.** If the app polls the answer only inside the function that handles the question, any click while the agent works (a sidebar button, a suggestion) reruns the script and the answer is lost. Store the `PendingAnswer` from `submit()` in session state, and at the top of every run, if one is pending, poll it and render it when it's done.
+- **Disable input while a question runs:** the chat input and the suggestion buttons, using `is_busy(thread_id)` or the pending answer. A Stop button can call `cancel()`.
+- **Fall back to mock mode visibly:** with no key, or if startup fails, show the reason in the sidebar instead of silently switching.
+- **Two new warnings deserve a visible note:**
+  - `nothing_on_map`: the answer has entities, but none has a place in the graph. Say "no location in the graph for this answer" instead of showing an empty map.
+  - `ungrounded_names`: the answer names entities no tool returned, i.e. from the model's own knowledge. Show them as "not from the graph".
+- **Answers may now cover several same-name entities** (both Battles of Guam, clearly separated), and **broad questions get an overview** ("major battles of the Pacific War": hundreds of items on the map, the text gives the main groups and ways to narrow). Both render like any answer with a result set.
+- **Links:** show `source_refs` and `sources` as links, allowing only `http(s)` URLs, and escape Markdown in their titles.
+- **Measured on the draft graph:**
+  - load 32.5 s, about 3 GB of memory
+  - answers in 6–28 s
+  - a 1,000-feature map across the 180° meridian renders in 0.1 s (358 KB) with clustering
 
 ## 1. Switch to the agent's runner
 | Today in `app.py` | With `geo_agent.runner.AgentRunner` |
@@ -61,6 +76,7 @@ if q := st.chat_input("Ask about World War II", disabled=r.is_busy(st.session_st
   - `instruction_text_removed`: suspicious text was removed from the source data
   - `token_budget`: the answer may be incomplete
   - `result_set_unknown`
+  - `nothing_on_map` and `ungrounded_names` (see section 0)
 
 ## 3. Keep doing (already right, please don't regress)
 - `answer` and user text go through `st.markdown` without `unsafe_allow_html`. Every GeoJSON property is HTML-escaped before Folium uses it.
@@ -80,7 +96,17 @@ if q := st.chat_input("Ask about World War II", disabled=r.is_busy(st.session_st
 2. A `<script>` or `<img onerror=…>` payload in a question, an answer or a node name shows as text.
 3. Features land at the right place, including a set that crosses the 180° meridian.
 4. A set question with hundreds of places stays responsive.
-5. Mock mode runs with no `.env`, and its replies have `"mock": true` and `schema_version` "1.2".
+5. Mock mode runs with no `.env`, and its replies have `"mock": true` and the agent's current `schema_version`. Its recorded questions:
+   - "Who attacked Guadalcanal in 1942?" and "Where did the Battle of Midway happen?"
+   - "What happened in the battle at Tara?", then "Tarawa" on the same `thread_id`
+   - "Who won the Battle of Guam?" (both battles)
+   - "Show me major battles in the Pacific War on the map" (overview)
+   - "Show me all locations connected to Admiral Yamamoto"
+   - "Write me a poem about the ocean"
+   - "Simulate an error"
 6. Errors show their `run_id`, which the agent developer can replay with `uv run geo-agent --trace <run_id>`.
+7. A click while the agent is working doesn't lose the answer (section 0).
+
+**When the text is right but the map is empty,** see "Debugging a run" in `Agent/README.md`. Send us the `run_id`.
 
 The full reply schema is in `Agent/README.md` ("Output schema" and "Using the agent from the UI") and machine-readable in `Agent/geo_agent/schemas/ask_result.schema.json`.

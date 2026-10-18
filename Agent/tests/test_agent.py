@@ -599,3 +599,134 @@ def test_r23_search_candidates_do_not_place_an_org():
                                              context_ids=["loc:guadalcanal"], sources=[]), turn_)
     drawn = {f["properties"]["id"] for f in out["geojson"]["features"]}
     assert "loc:guam" not in drawn and "loc:guadalcanal" in drawn
+
+
+def test_relative_paths_from_env_work_from_another_working_directory(tmp_path, monkeypatch):
+    """.env.example sets GRAPH_PATH=data/sample_graph.json and MCP_CONFIG_PATH=mcp_servers.json.
+    A caller in another directory (the Streamlit app in App/) must still find them."""
+    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GRAPH_PATH", "data/sample_graph.json")
+    monkeypatch.setenv("MCP_CONFIG_PATH", "mcp_servers.json")
+    monkeypatch.setattr(agent_mod, "load_dotenv", lambda *a, **k: False)
+    agent = asyncio.run(GeoAgent.create(llm=FakeMessagesListChatModel(responses=[])))
+    assert Path(agent.context["graph"]["path"]) == GRAPH
+    assert agent_mod.resolve_path("mcp_servers.json") == agent_mod.ROOT / "mcp_servers.json"
+    # A path that exists relative to the working directory keeps winning.
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "sample_graph.json").write_text(GRAPH.read_text())
+    assert agent_mod.resolve_path("data/sample_graph.json") == Path("data/sample_graph.json")
+    assert agent_mod.resolve_path(str(GRAPH)) == GRAPH
+
+
+@pytest.mark.parametrize("max_steps", [25, 9])
+def test_last_usable_model_call_is_forced_to_answer(max_steps, monkeypatch):
+    """Spec R58: a model that ignores the STEP BUDGET note and keeps calling tools (GLM on
+    "Show me major battles in the Pacific War on the map", run 8dc847b7) must still end with
+    an answer, not a step_limit error. The last model call that fits the recursion limit
+    only gets the AgentAnswer tool."""
+    import itertools
+
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+
+    ids = itertools.count()
+    calls = []
+
+    class ToolLoop(BaseChatModel):
+        bound: list = []
+
+        def bind_tools(self, tools, **kwargs):
+            return self.model_copy(update={"bound": [getattr(t, "name", None) for t in tools]})
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            calls.append(self.bound)
+            if self.bound == ["AgentAnswer"]:
+                args = {"answer": "What the graph has so far.", "answer_ids": [], "context_ids": [],
+                        "sources": [], "answer_sets": []}
+                msg = AIMessage("", tool_calls=[{"name": "AgentAnswer", "id": "final", "args": args}])
+            else:
+                msg = AIMessage("", tool_calls=[{"name": "search_entities", "id": f"c{next(ids)}",
+                                                 "args": {"query": f"Midway {next(ids)}"}}])
+            return ChatResult(generations=[ChatGeneration(message=msg)])
+
+        @property
+        def _llm_type(self):
+            return "tool-loop"
+
+    monkeypatch.setenv("GEO_AGENT_MAX_STEPS", str(max_steps))
+    agent = asyncio.run(GeoAgent.create(graph_path=GRAPH, llm=ToolLoop()))
+    out = asyncio.run(agent.ask("q", thread_id="t"))
+    assert out["error"] is None, out["error"]
+    assert out["answer"] == "What the graph has so far."
+    assert len(calls) == (max_steps - 1) // 2 and calls[-1] == ["AgentAnswer"]
+    assert all("search_entities" in bound for bound in calls[:-1])
+
+
+def test_where_answer_from_get_locations_is_supported():
+    """"Where did the Battle of Midway happen?" answered from get_locations: its relations carry their
+    count and pages, so the answer isn't low confidence and its source is verified."""
+    t = {x.name: x for x in build_tools(STORE)}
+    payload = t["get_locations"].invoke({"entity_id": "event:battle_of_midway"})
+    turn_ = search_turn("Where did the Battle of Midway happen?", "Battle of Midway") + [
+        msg("ai", tool_calls=[{"name": "get_locations", "args": {"entity_id": "event:battle_of_midway"}, "id": "g"}]),
+        msg("tool", payload, name="get_locations")]
+    parsed = AgentAnswer(answer="At Midway Atoll (28.21, -177.37).", answer_ids=["loc:midway_atoll"],
+                         context_ids=["event:battle_of_midway"], sources=["Battle of Midway"], answer_sets=[])
+    out = finalize_answer(STORE, parsed, turn_)
+    assert out["sources"] == ["Battle of Midway"] and "sources_unverified" not in out["warnings"]
+    assert out["confidence"]["basis"]["max_edge_count"] >= 1 and out["confidence"]["level"] != "low"
+
+
+def test_both_guam_battles_are_drawn_and_not_uncertain():
+    """"Who won the Battle of Guam?" answered for both battles from get_entity only: each event is drawn
+    at the place it occurred at, and covering every tied candidate is not an uncertain match (R4 amendment)."""
+    t = {x.name: x for x in build_tools(STORE)}
+    turn_ = search_turn("Who won the Battle of Guam?", "Battle of Guam") + [
+        msg("ai", tool_calls=[{"name": "get_entity", "args": {"entity_id": e}, "id": e} for e in GUAM_BATTLES]),
+        *[msg("tool", t["get_entity"].invoke({"entity_id": e}), name="get_entity") for e in GUAM_BATTLES]]
+    parsed = AgentAnswer(answer="1941: Japan won. 1944: the United States won.", answer_ids=GUAM_BATTLES,
+                         context_ids=[], sources=[], answer_sets=[])
+    out = finalize_answer(STORE, parsed, turn_)
+    assert {f["properties"]["id"] for f in out["geojson"]["features"]} == {"loc:guam"}
+    assert "uncertain_match_used" not in out["warnings"]
+
+
+def test_an_org_is_still_drawn_only_at_evidence_places():
+    """R23 unchanged for non-events: the IJN is not drawn at every place it ever touched."""
+    geo = STORE.to_geojson(["org:ijn"], restrict_to={"org:ijn"})
+    assert geo["features"] == []
+
+
+GUAM_BATTLES = ["event:battle_of_guam_1941", "event:battle_of_guam_1944"]
+
+
+# Grounding of the answer text (found in the local UI test: run c2cc1e3a answered "first kamikaze
+# attack" with Leyte Gulf and USS St. Lo from the model's memory; no tool had returned them)
+
+def test_names_in_text_finds_graph_entities():
+    found = STORE.names_in_text("It was fought at Midway Atoll during the Battle of Midway, not at Iwo Jima.")
+    assert {"loc:midway_atoll", "event:battle_of_midway", "loc:iwo_jima"} <= {i for ids in found.values() for i in ids}
+
+
+def test_answer_naming_entities_no_tool_returned_is_flagged():
+    t = {x.name: x for x in build_tools(STORE)}
+    turn_ = search_turn("Where did the Battle of Midway happen?", "Battle of Midway") + [
+        msg("ai", tool_calls=[{"name": "get_locations", "args": {"entity_id": "event:battle_of_midway"}, "id": "g"}]),
+        msg("tool", t["get_locations"].invoke({"entity_id": "event:battle_of_midway"}), name="get_locations")]
+    parsed = AgentAnswer(answer="At Midway Atoll, like the Battle of Iwo Jima later.", answer_ids=["loc:midway_atoll"],
+                         context_ids=["event:battle_of_midway"], sources=[], answer_sets=[])
+    out = finalize_answer(STORE, parsed, turn_)
+    assert out["ungrounded_names"] == ["Battle of Iwo Jima"] and "ungrounded_names" in out["warnings"]
+    clean = finalize_answer(STORE, AgentAnswer(answer="At Midway Atoll (Battle of Midway).", answer_ids=["loc:midway_atoll"],
+                                               context_ids=[], sources=[], answer_sets=[]), turn_)
+    assert clean["ungrounded_names"] == [] and "ungrounded_names" not in clean["warnings"]
+
+
+def test_answer_with_nothing_to_draw_is_flagged():
+    turn_ = search_turn("Who was Isoroku Yamamoto?", "Isoroku Yamamoto")
+    out = finalize_answer(STORE, AgentAnswer(answer="Isoroku Yamamoto commanded the Combined Fleet.", answer_ids=["per:yamamoto"],
+                                             context_ids=[], sources=[], answer_sets=[]), turn_)
+    assert out["geojson"]["features"] == [] and "nothing_on_map" in out["warnings"]

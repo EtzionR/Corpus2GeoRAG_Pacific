@@ -453,6 +453,8 @@ EVENT_DATED_ROLES = ("event_link", "occurred_at")  # undated edges of these role
 # the countries listed as their location. Campaigns stay below (Guadalcanal 10, New
 # Guinea 42) and are followed into their battles. Starting value.
 HUB_SUB_EVENTS = 50
+OVERVIEW_TOP = 10  # items shown in an overview (spec R57); the result set holds all of them
+OVERVIEW_THRESHOLD = 25  # a set larger than this answers a broad question: use overview (spec R57)
 ACTOR_TYPES = ("person", "org", "other")  # `other`: unresolved draft nodes, e.g. the IJN
 PLACE_TYPES = ("location", "other")
 
@@ -479,9 +481,13 @@ KIND_NAME_PATTERNS = {
     "bombing": r"\bbomb(ing|ings)?\b",
 }
 COUNTRY_NAME_PATTERNS = {
-    "japan": r"\b(japan|japanese|imperial)\b",
+    # no bare "imperial": it matched the Second Australian Imperial Force (spec R59)
+    "japan": r"\b(japan|japanese)\b",
     "united states": r"\b(united states|u\.s\.|us)\b",
 }
+# An org's country relations (spec R59): when an org has one, it decides membership before the name fallback.
+COUNTRY_RELATIONS = ("wd:P17", "wd:P27")
+COUNTRY_QIDS = {"japan": {"Q17", "Q188712"}, "united states": {"Q30"}}  # targets that may carry no label
 
 
 class ResultSets:
@@ -1344,7 +1350,11 @@ class GraphStore:
             notes.append(f"'{kind}' approximated from names: the graph has no {type} kinds")
         for g in group if isinstance(group, list) else [group]:
             if isinstance(g, str) and g.startswith("country:") and not self.has_attribute("org", "country"):
-                notes.append(f"'{g[8:]}' orgs approximated from names: the graph has no org countries")
+                if self.has_country_relations():
+                    notes.append(f"'{g[8:]}' orgs taken from their country relation (wd:P17/P27), or from their names "
+                                 "when they have none: the graph has no org country attribute")
+                else:
+                    notes.append(f"'{g[8:]}' orgs approximated from names: the graph has no org countries")
         return notes
 
     def entities_mentioning(self, phrase: str, type: str = "event") -> list[dict[str, Any]]:
@@ -1360,6 +1370,155 @@ class GraphStore:
                 rows.append({**self.summarize_node(node.id), "importance": self.importance(node.id)})
         rows.sort(key=lambda r: (-r["importance"], r["name"]))
         return rows
+
+    GROUNDING_TYPES = ("event", "location", "other")  # entities whose naming in an answer states a fact
+    GROUNDING_MIN_LEN = 5  # shorter names are too often ordinary words; short places ("Guam") go unchecked
+    GROUNDING_MAX_DEGREE = 2000  # countries and navies (Empire of Japan 2,455 edges); battles stay well below
+    GROUNDING_STOP = {"the", "a", "an", "of", "in", "on", "at", "and", "or", "to", "by", "for", "from", "with"}
+
+    def names_in_text(self, text: str, max_words: int = 6) -> dict[str, list[str]]:
+        """Graph entities named in a text: {name as written: [ids]}.
+
+        Exact normalized names of events, places and unresolved entities, longest match first.
+        A match must start with a capitalized word that isn't an article or preposition, so
+        "escort carrier" or "the Battle" are not names. Hubs (wars with more than HUB_SUB_EVENTS
+        parts, nodes with more than GROUNDING_MAX_DEGREE edges) are recognized but not returned:
+        mentioning World War II is no specific claim, and "World War II" must not leave "World War".
+        Used to check that an answer names only what this turn's tools returned.
+        """
+        index = self.__dict__.get("_grounding_index")
+        if index is None:
+            index = {}
+            for n in self.nodes.values():
+                norm = self._norm_name.get(n.id, "")
+                if n.type not in self.GROUNDING_TYPES or n.name == n.id or len(norm) < self.GROUNDING_MIN_LEN:
+                    continue
+                hub = (len(self.out_edges[n.id]) + len(self.in_edges[n.id]) > self.GROUNDING_MAX_DEGREE
+                       or (n.type == "event" and self.sub_event_count(n.id) > HUB_SUB_EVENTS))
+                index.setdefault(norm, []).append((n.id, hub))
+            self._grounding_index = index
+        words = re.findall(r"[\w][\w'’.\-]*", text)
+        found: dict[str, list[str]] = {}
+        i = 0
+        while i < len(words):
+            if words[i].lower() in self.GROUNDING_STOP or not (words[i][0].isupper() or words[i][0].isdigit()):
+                i += 1
+                continue
+            for n in range(min(max_words, len(words) - i), 0, -1):
+                span = " ".join(words[i:i + n]).rstrip(".")
+                hits = index.get(normalize_name(span))
+                if hits:
+                    ids = [node_id for node_id, hub in hits if not hub]
+                    if ids:
+                        found.setdefault(span, ids)
+                    i += n
+                    break
+            else:
+                i += 1
+        return found
+
+    def kind_of(self, node_id: str) -> str:
+        """An entity's kind: its attribute when the graph has kinds for its type, else the first
+        name pattern that matches (R30), else "other"."""
+        node = self.nodes[node_id]
+        if self.has_attribute(node.type, "kind"):
+            return str(node.attributes.get("kind") or "other")
+        labels = [node.name, *node.aliases]
+        return next((k for k, p in KIND_NAME_PATTERNS.items() if any(re.search(p, l, re.IGNORECASE) for l in labels)), "other")
+
+    def overview(self, scope: str | None = None, type: str = "event", kind: str | None = None,
+                 date_from: str | None = None, date_to: str | None = None, top: int = OVERVIEW_TOP) -> dict[str, Any]:
+        """Structure of a broad question's answer in one call (spec R57): counts, the most
+        important items with their places, and ways to narrow the question.
+
+        Items: with no scope, every entity of `type`; for an event scope (a war, theatre or
+        campaign), its sub-events, recursively; for a place, the events there (and in the places
+        inside it); for a person or org, the events it took part in or commanded, plus their
+        sub-events unless the event is a hub (HUB_SUB_EVENTS), as in connected_locations.
+        Each item is grouped by the scope's direct sub-event it belongs to (event scope), the
+        place (place scope), the event the actor is linked to (actor scope), or its own parent
+        (no scope).
+        """
+        groups: dict[str, str] = {}  # item id -> group label
+        node = self.nodes.get(scope) if scope else None
+        if scope and node is None:
+            return {"total": 0, "error": f"unknown entity id {scope}"}
+
+        def sub_events(event_id: str) -> list[str]:
+            return [sub for _, sub in self._subjects(event_id, "part_of") if self.nodes[sub].type == "event"]
+
+        def descend(event_id: str, label: str) -> None:
+            stack = [event_id]
+            while stack:
+                cur = stack.pop()
+                if cur in groups or cur == scope:
+                    continue
+                groups[cur] = label
+                stack += sub_events(cur)
+
+        if node is None:
+            for n in self.nodes.values():
+                if n.type == type:
+                    parent = next((p for _, p in self._objects(n.id, "part_of")), None)
+                    groups[n.id] = self.nodes[parent].name if parent else "(no parent)"
+        elif node.type == "event":
+            for child in sub_events(scope):
+                descend(child, self.nodes[child].name)
+        elif node.type == "location":
+            for place in {scope} | self.sublocations(scope):
+                for _, ev in self._subjects(place, "occurred_at"):
+                    if self.nodes[ev].type == "event":
+                        groups.setdefault(ev, self.nodes[place].name)
+        else:
+            for _, ev in self._objects(scope, "event_link"):
+                if self.nodes[ev].type != "event" or ev in groups:
+                    continue
+                groups[ev] = self.nodes[ev].name
+                if self.sub_event_count(ev) <= HUB_SUB_EVENTS:
+                    for child in sub_events(ev):
+                        descend(child, self.nodes[ev].name)
+
+        rows = []
+        for item, group in groups.items():
+            if kind and not self._matches_kind(self.nodes[item], kind):
+                continue
+            start, end = self.node_dates(item)
+            if (date_from or date_to) and not dates_overlap(start, end, date_from, date_to):
+                continue
+            if item in self.geoms:
+                place, where = self.nodes[item].name, [item]
+            else:
+                where = [p for _, p in self._objects(item, "occurred_at") if p in self.geoms]
+                place = self.nodes[where[0]].name if where else None
+            first = self.summarize_node(where[0]) if where else {}
+            rows.append({"id": item, "name": self.nodes[item].name, "kind": self.kind_of(item), "start_date": start,
+                         "end_date": end, "place": place, "lat": first.get("lat"), "lon": first.get("lon"),
+                         "group": group, "importance": self.importance(item), "draw": where})
+        rows.sort(key=lambda r: (-r["importance"], r["name"]))
+        by_kind = Counter(r["kind"] for r in rows)
+        by_year = Counter(str(r["start_date"])[:4] if r["start_date"] else "undated" for r in rows)
+        by_group = Counter(r["group"] for r in rows)
+        narrow = []
+        if len(by_group) > 1:
+            narrow += [{"by": "part" if node is not None and node.type == "event" else "group", "value": g, "count": c}
+                       for g, c in by_group.most_common(3) if g != "(no parent)"][:2]
+        if len(by_year) > 1:
+            narrow += [{"by": "year", "value": y, "count": c} for y, c in by_year.most_common(2) if y != "undated"][:1]
+        if len(by_kind) > 1 and not kind:
+            narrow += [{"by": "kind", "value": k, "count": c} for k, c in by_kind.most_common(1)]
+        keep = ("id", "name", "kind", "start_date", "end_date", "place", "lat", "lon", "group")
+        return {
+            "scope": node.name if node is not None else f"all {kind or type}s",
+            "total": len(rows),
+            "by_kind": dict(by_kind.most_common(8)),
+            "by_year": dict(sorted(by_year.items())[:15]),
+            "by_group": dict(by_group.most_common(8)),
+            "top": [{k: r[k] for k in keep if r.get(k) is not None} for r in rows[:top]],
+            "narrow_by": narrow,
+            "ids": [r["id"] for r in rows],
+            "draw": list(dict.fromkeys(d for r in rows for d in r["draw"])),
+            "kinds_from_names": not self.has_attribute(type, "kind"),
+        }
 
     def importance(self, entity_id: str) -> int:
         """Ranking signal for "major" (spec R28): the graph's `importance` attribute when
@@ -1391,9 +1550,8 @@ class GraphStore:
             a = node.attributes
             if node.type != type or (kind and not self._matches_kind(node, kind)):
                 continue
-            if country and name_country:  # R30: no country attribute in the graph
-                pattern = COUNTRY_NAME_PATTERNS.get(country.casefold(), re.escape(country))
-                if not any(re.search(pattern, l, re.IGNORECASE) for l in [node.name, *node.aliases]):
+            if country and name_country:  # R30/R59: no country attribute in the graph
+                if not self._in_country(node, country):
                     continue
             elif country and str(a.get("country", "")).casefold() != country.casefold():
                 continue
@@ -1406,6 +1564,24 @@ class GraphStore:
                          "start_date": start, "end_date": end})
         rows.sort(key=lambda r: (-r["importance"], r["name"]))
         return rows
+
+    def has_country_relations(self) -> bool:
+        """True if any org has a country relation (cached; spec R59)."""
+        if "_has_country_rel" not in self.__dict__:
+            self._has_country_rel = any(e.type in COUNTRY_RELATIONS for n in self.nodes.values() if n.type == "org"
+                                        for e in self.out_edges.get(n.id, ()))
+        return self._has_country_rel
+
+    def _in_country(self, node: Node, country: str) -> bool:
+        """Membership without a country attribute (spec R59): the org's country relation if it has one,
+        else its name or aliases."""
+        pattern = COUNTRY_NAME_PATTERNS.get(country.casefold(), re.escape(country))
+        qids = COUNTRY_QIDS.get(country.casefold(), set())
+        targets = [e.target for e in self.out_edges.get(node.id, ()) if e.type in COUNTRY_RELATIONS]
+        if targets:
+            return any(t in qids or any(re.search(pattern, l, re.IGNORECASE)
+                                        for l in [self.nodes[t].name, *self.nodes[t].aliases]) for t in targets)
+        return any(re.search(pattern, l, re.IGNORECASE) for l in [node.name, *node.aliases])
 
     def group_members(self, spec: str | list[str]) -> list[str]:
         """Org ids for a group: a list of entity ids, "country:<name>" or "side:<name>"."""
@@ -1484,8 +1660,10 @@ class GraphStore:
             if other == entity_id or other not in self.geoms or not self.is_place_via(e, other):
                 continue
             entry = by_loc.setdefault(other, {**self.summarize_node(other), "relations": [], "geometry_source": "related"})
+            pages = list(dict.fromkeys(s.page for a in self.group(e) for s in a.sources if s.page))
             entry["relations"].append({"type": e.type, "start_date": e.start_date, "end_date": e.end_date,
-                                       **({"point_date": e.point_date} if e.point_date else {})})
+                                       **({"point_date": e.point_date} if e.point_date else {}),
+                                       "count": self.support(e), **({"sources": pages} if pages else {})})
         return own + list(by_loc.values())
 
     def distance_km(self, node_id: str, lat: float, lon: float) -> float:
@@ -1651,7 +1829,8 @@ class GraphStore:
         - "related": the geometry of a place linked to the entity, which has none of
           its own; `related_to` names the entity. So `to_geojson(["event:battle_of_midway"])`
           still yields a map feature. With `restrict_to`, such an entity is drawn only at
-          linked places in that set (spec R23); otherwise at all of them.
+          linked places in that set (spec R23); otherwise at all of them. An event is always
+          drawn at the places it occurred at: that is its site, not an incidental link.
         `type` is the drawn node's own type, so the UI can tell an event site from a place.
         """
         features, seen = [], set()
@@ -1672,7 +1851,10 @@ class GraphStore:
             if eid in self.geoms:
                 add(eid)
             else:
+                is_event = self.nodes[eid].type == "event"
                 for loc in self.locations_of(eid):
-                    if loc["id"] != eid and (restrict_to is None or loc["id"] in restrict_to):
+                    site = is_event and any(isinstance(r, dict) and r.get("type") in RELATION_ROLES["occurred_at"]
+                                            for r in loc.get("relations") or [])
+                    if loc["id"] != eid and (restrict_to is None or loc["id"] in restrict_to or site):
                         add(loc["id"], via=eid)
         return {"type": "FeatureCollection", "features": features}
