@@ -155,7 +155,7 @@ class PendingAnswer:
             return self.future.result(STOP_GRACE)
         except concurrent.futures.TimeoutError:  # the run ignores cancellation; report it stopped anyway
             log.warning("%s run did not stop within %.0fs after %s", self.run_id[:8], STOP_GRACE, self._stop)
-            return stopped_result(self.run_id, self._stop or "timeout", [])
+            return self.runner._own_reply(stopped_result(self.run_id, self._stop or "timeout", []))
 
     def poll_progress(self) -> list[dict[str, Any]]:
         """Progress events that arrived since the last call (for a polling UI loop)."""
@@ -214,7 +214,7 @@ class PendingAnswer:
     async def _run(self, agent: Any) -> dict[str, Any]:
         self._task = asyncio.current_task()
         if self._stop:
-            return stopped_result(self.run_id, self._stop, [])
+            return self.runner._own_reply(stopped_result(self.run_id, self._stop, []))
         internal = self.runner._internal_thread(self.thread_id)
         timer = asyncio.get_running_loop().call_later(max(self.deadline - time.monotonic(), 0.0), self._deadline_on_loop)
         try:
@@ -227,10 +227,10 @@ class PendingAnswer:
                 out = stopped_result(self.run_id, reason, out["tool_calls"] if out else [])
             if reason == "timeout":
                 out["error"]["message"] = f"the question took longer than {self.timeout:g}s and was stopped"
-            return out
+            return self.runner._own_reply(out)
         except Exception as exc:  # GeoAgent.ask returns errors as data; this is a safety net
             log.error("%s run raised outside GeoAgent.ask", self.run_id[:8], exc_info=exc)
-            return error_result(self.run_id, exc, "unknown", [])
+            return self.runner._own_reply(error_result(self.run_id, exc, "unknown", []))
         finally:
             timer.cancel()
 
@@ -315,7 +315,7 @@ class AgentRunner:
             left = deadline - time.monotonic()
             if if_busy == "reject" or left <= 0:
                 pending.future = concurrent.futures.Future()
-                pending.future.set_result(error_result(pending.run_id, ThreadBusy(BUSY_MESSAGE), "busy", []))
+                pending.future.set_result(self._own_reply(error_result(pending.run_id, ThreadBusy(BUSY_MESSAGE), "busy", [])))
                 return pending
             concurrent.futures.wait([running.future], timeout=left)  # type: ignore[list-item]
         pending.future = asyncio.run_coroutine_threadsafe(pending._run(self.agent), self.loop)
@@ -430,6 +430,13 @@ class AgentRunner:
                 self.loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
             self.loop.run_until_complete(self.loop.shutdown_asyncgens())
             self.loop.close()
+
+    def _own_reply(self, out: dict[str, Any]) -> dict[str, Any]:
+        """A reply the runner made itself (timeout, cancelled, busy): in mock mode it is marked
+        `"mock": true` like the recorded replies, so the UI can label every mock reply."""
+        if self.mock:
+            out["mock"] = True
+        return out
 
     def _finished(self, pending: PendingAnswer) -> None:
         with self._mutex:

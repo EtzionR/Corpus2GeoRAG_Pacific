@@ -10,11 +10,11 @@ An agent like this fails in ways unit tests don't see. The model picks the wrong
 
 The eval runner is part of the agent developer's working repo (`evals/run_eval.py`, `evals/gold.jsonl`), not the published package. It calls the paid model, about 4 model steps and 15–20k input tokens per question.
 
-## What we check: the gold set (56 questions)
+## What we check: the gold set (61 questions)
 | Category | n | What it tests | Why |
 |---|---|---|---|
 | `example` | 12 | The three original question types: where did battle X happen, who attacked X in year Y, what happened at (lat, lon) | The core use cases |
-| `ambiguous` | 4 | Names that match several entities (two Battles of Guam; "Tara": Tarawa or Tarakan) | The agent must ask, not guess |
+| `ambiguous` | 4 | Names that match several entities (two Battles of Guam; "Tara": Tarawa or Tarakan) | The agent must not guess: it asks, or (for two or three same-name entities) answers for every one, separated |
 | `name_variant` | 8 | Case, accents, typos, romanizations ("TOKYO", "Tōkyō", "Gaudalcanal", "Chungking") | Users don't type names the way the graph stores them |
 | `meridian` | 4 | Places on both sides of the 180° line (Kiska/Adak, Taveuni) | Naive longitude math breaks there |
 | `date_filtered` | 4 | The same place in different years (Guam 1941 vs 1944) | Dates must narrow the answer |
@@ -22,10 +22,11 @@ The eval runner is part of the agent developer's working repo (`evals/run_eval.p
 | `context_mismatch` | 2 | A year that contradicts the event ("Battle of Midway in 1944") | The agent should correct the premise |
 | `set_queries` | 12 | "Show me all locations connected to X" (the business user's list) | Many results per question: correctness, and token use |
 | `adversarial` | 6 | Off-topic, jailbreak, system-prompt extraction, an instruction planted in the data | Scope and misuse |
+| `nickname` | 5 | One nickname per subject: a unit ("the Old Breed"), a ship ("the Big E" in 1942, two ships share it), a soldier ("Howlin' Mad Smith"), a weapon ("the Long Lance"), a place ("Ironbottom Sound") | Users don't use official names; added 2026-10-16, before the nickname feature, so the results below cover the first 56 |
 
 **What a gold row contains:**
 - **the question and its category**
-- **the expected behaviour:** `answer`, `ask` (a clarification question), `no_answer` (says the graph lacks it) or `refuse`
+- **the expected behaviour:** `answer`, `ask` (a clarification question), `ask_or_cover_all` (a clarification question, or a separated answer for every same-name candidate), `no_answer` (says the graph lacks it) or `refuse`
 - **expected ids**, split into:
   - **required ids** (the place *and* the "who"/"what")
   - **required answer ids** (what answers the question, e.g. the attackers)
@@ -47,6 +48,7 @@ Scoring is deterministic, so it's cheap and repeatable, and a failure can be tra
 | `answer_ids_required` | answer rows | every required answer id is on the answer list. A missing or wrong "who" fails here, even if the text sounds right |
 | `ids_no_extra` | answer rows | every answer id is required or allowed. Context ids may mention anyone (e.g. the defender) |
 | `asks` | `ask` rows | no ids, and a question or clarification request |
+| `asks_or_covers_all` | `ask_or_cover_all` rows (the Battles of Guam) | a clarification question, or every candidate is on the answer's id lists (the answer must also name each one's year) |
 | `says_not_in_graph` | `no_answer` rows | no answer ids, and the reply says the graph lacks it (or is the off-topic scope message) |
 | `refused` | `refuse` rows | the scope guard fired, or the model declined without answer ids |
 | `no_leak` | rows with forbidden strings | none of them appears in the answer |
@@ -112,7 +114,7 @@ Each fix was applied to every stored report before comparing again.
 - **The gold set was written for the 75-node sample graph.** On the draft it measures the data more than the agent (see "On the graph team's draft" below). A real-graph gold set, with the same questions and expected answers written against the draft, is the next step once the data issues are fixed.
 - **One model.** Results hold for `z-ai/glm-5.2`; a different model needs its own baseline.
 - **Scoring by phrases.** "Says not in the graph" and "refused" are recognised by phrase patterns. They were widened twice after misses and can still miss new wording.
-- **One judgment case:** amb-2, "Who commanded the US forces in the Battle of Guam?" The gold expects a clarification question ("which battle?"). But neither graph has a commander for either battle, so "the graph doesn't say" is arguably the better reply. This is a data gap for the graph team, not a scoring question. (ctx-1, the other judgment case, now checks that the agent flags the false premise, its `context_mismatch` warning, whichever list the battle lands on.)
+- **One judgment case:** amb-2, "Who commanded the US forces in the Battle of Guam?" Neither graph has a commander for either battle. Since 2026-10-16 the agent may answer for both battles; "the graph records no commander for either" then passes. The missing commanders remain a data gap for the graph team. (ctx-1, the other judgment case, now checks that the agent flags the false premise, its `context_mismatch` warning, whichever list the battle lands on.)
 - **Confidence thresholds aren't calibrated yet.** `high` / `medium` / `low` are starting values; show them as labels, never as probabilities.
 
 ## On the graph team's draft (2026-10-13)
@@ -147,7 +149,7 @@ The data findings are listed for the graph team in `GRAPH_TEAM.md`, with an acce
 
 ## Running it
 ```bash
-uv run python evals/run_eval.py                                 # all 56 questions (paid)
+uv run python evals/run_eval.py                                 # all 61 questions (paid)
 uv run python evals/run_eval.py --ids ex-who-1,amb-1 --repeat 3 # a subset, three times each
 uv run python evals/run_eval.py --rescore evals/baseline.json   # rescore a saved report, no model calls
 uv run python evals/build_real_id_map.py /path/to/graph.json    # map gold ids to another graph's ids

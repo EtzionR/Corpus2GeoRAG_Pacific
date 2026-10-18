@@ -7,7 +7,7 @@ import pytest
 from langchain_core.tools import tool
 
 from geo_agent.agent import filter_mcp_tools
-from geo_agent.graph_store import GraphStore
+from geo_agent.graph_store import HUB_SUB_EVENTS, GraphStore
 from geo_agent.tools import build_tools
 
 GRAPH = Path(__file__).resolve().parent.parent / "data" / "sample_graph.json"
@@ -364,9 +364,9 @@ def test_r28_set_tools_register_full_sets(store):
                                                          "loc:sand_island", "loc:eastern_island"}
 
     battles = json.loads(t["find_entities"].invoke({"type": "event", "kind": "battle", "limit": 3}))
-    assert [r["name"] for r in battles["top"]] == ["Battle of Midway", "Battle of the Coral Sea", "Battle of Iwo Jima"]
+    assert [r["name"] for r in battles["top"]] == ["Battle of Midway", "Battle of Iwo Jima", "Battle of the Coral Sea"]
     entry = sets.get(battles["result_set"])
-    assert entry["ids"] == ["event:battle_of_midway", "event:battle_of_coral_sea", "event:battle_of_iwo_jima"]
+    assert entry["ids"] == ["event:battle_of_midway", "event:battle_of_iwo_jima", "event:battle_of_coral_sea"]
     assert {"loc:midway_atoll", "loc:coral_sea", "loc:iwo_jima"} <= set(entry["meta"]["draw"])
 
     shared = json.loads(t["shared_connections"].invoke({"group_a": "country:United States", "group_b": "country:Japan"}))
@@ -600,11 +600,11 @@ def test_contract_what_happened_at_event_site_and_point_dates(tools):
 
 def test_contract_data_limits_stay_visible(tools, store):
     cov = call(tools, "graph_schema")["coverage"]
-    assert cov["nodes_name_is_id"] == 1 and cov["nodes_type_other"] == 3 and cov["nodes_without_text"] == 1
+    assert cov["nodes_name_is_id"] == 1 and cov["nodes_type_other"] == 6  # 3 QID nodes, 2 ships, 1 weapon and cov["nodes_without_text"] == 1
     assert cov["events_without_dates"] == 0 and cov["locations_without_geometry"] == 0
     assert cov["non_location_nodes_with_geometry"] == {"event": 1, "other": 2}
     assert cov["edges_with_point_date_only"] == 4 and cov["duplicate_assertions_combined"] == 1
-    assert cov["edges_family_differs_from_catalog"] == 0 and cov["relation_types_not_in_catalog"] == 15  # the short vocabulary
+    assert cov["edges_family_differs_from_catalog"] == 0 and cov["relation_types_not_in_catalog"] == 16  # the short vocabulary, incl. USED_IN
     assert cov["edges_with_interval_dates"] + cov["edges_with_point_date_only"] + cov["edges_without_dates"] == len(store.edges)
     assert call(tools, "get_entity", entity_id="Q900005")["data_limits"] == ["name_is_id", "no_text", "type_unresolved"]
     assert "data_limits" not in call(tools, "get_entity", entity_id="loc:midway_atoll")
@@ -623,3 +623,64 @@ def test_short_abbreviations_get_no_partial_match_credit(store):
 def test_contract_metadata_is_read():
     s = GraphStore.from_dict({"metadata": DRAFT_META, "nodes": [{"id": "Q1", "name": "Q1", "type": "other"}], "edges": []})
     assert s.schema()["metadata"] == {k: DRAFT_META[k] for k in ("schema_version", "relation_map_version", "release_status", "scope")}
+
+
+def test_r59_country_groups_use_country_links_and_no_bare_imperial():
+    """Draft-shaped graph (no country attribute): "imperial" alone pulled the Second Australian
+    Imperial Force into Japan, and with it 53 North African places."""
+    nodes = [Node(id="Q17", name="Q17", type="other"), Node(id="Q408", name="Australia", type="other"),
+             Node(id="Q148", name="China", type="other"),
+             Node(id="aif", name="Second Australian Imperial Force", type="org"),           # no link: name decides
+             Node(id="aif2", name="First Australian Imperial Force", type="org"),           # linked to Australia
+             Node(id="kw", name="Kwantung Army", type="org"),                               # linked to Japan by QID
+             Node(id="ijn", name="Imperial Japanese Navy", type="org"),                     # no link, name says Japanese
+             Node(id="cn", name="Japanese Puppet Army of Nanjing", type="org")]             # name says Japanese, linked to China
+    edges = [Edge(source="aif2", target="Q408", type="wd:P17"), Edge(source="kw", target="Q17", type="wd:P17"),
+             Edge(source="cn", target="Q148", type="wd:P17")]
+    s = GraphStore(nodes, edges)
+    assert sorted(s.group_members("country:Japan")) == ["ijn", "kw"]
+    assert "country relation" in s.approximations("org", group="country:Japan")[0]
+
+
+def test_r57_overview_of_a_campaign_and_of_everything(store):
+    camp = store.overview("event:island_hopping_campaign")
+    assert camp["total"] == 3 and set(camp["draw"]) == {"loc:iwo_jima", "loc:tarawa", "loc:guam"}
+    assert {t["name"] for t in camp["top"]} == {"Battle of Iwo Jima", "Battle of Tarawa", "Battle of Guam (1944)"}
+    assert all(t.get("lat") is not None and t.get("place") for t in camp["top"])  # no per-item lookups needed
+    every = store.overview(kind="battle")
+    assert every["total"] == every["by_kind"]["battle"] and every["total"] >= 10
+    assert all(n["value"] != "(no parent)" for n in every["narrow_by"])
+    assert store.overview("loc:guam")["total"] == 2
+    assert store.overview("nope")["total"] == 0
+
+
+def test_r57_overview_tool_registers_the_whole_set(store):
+    sets = ResultSets()
+    t = {x.name: x for x in build_tools(store, sets)}
+    out = json.loads(t["overview"].invoke({"scope": "event:island_hopping_campaign", "limit": 2}))
+    assert out["overview"] is True and out["total"] == 3 and out["shown"] == 2 and out["truncated"] is True
+    assert len(sets.get(out["result_set"])["ids"]) == 3 and out["narrow_by"]
+    assert json.loads(t["overview"].invoke({"scope": "event:island_hopping_campaign", "year": 1990}))["result"].startswith("no ")
+
+
+def test_r57_overview_payload_stays_small_for_a_huge_war():
+    war = Node(id="war", name="Big War", type="event")
+    battles = [Node(id=f"b{i}", name=f"Battle {i}", type="event", attributes={"kind": "battle", "start_date": f"19{40 + i % 6}-01-01"})
+               for i in range(2000)]
+    s = GraphStore([war, *battles], [Edge(source=b.id, target="war", type="PART_OF") for b in battles])
+    sets = ResultSets()
+    out = json.loads({x.name: x for x in build_tools(s, sets)}["overview"].invoke({"scope": "war"}))
+    assert out["total"] == 2000 and out["shown"] == 10 and len(sets.get(out["result_set"])["ids"]) == 2000
+    assert len(json.dumps(out)) < 4000
+
+
+def test_names_in_text_skips_common_words_and_hubs():
+    """Draft-graph cases: "the Battle" and "escort carrier" are no names; "World War II" (a hub)
+    is recognized but not returned, and doesn't leave "World War"."""
+    war = Node(id="ww2", name="World War II", type="event")
+    parts = [Node(id=f"p{i}", name=f"Operation {i}", type="event") for i in range(HUB_SUB_EVENTS + 1)]
+    nodes = [war, *parts, Node(id="ww", name="World War", type="event"), Node(id="tb", name="The Battle", type="other"),
+             Node(id="ec", name="escort carrier", type="other"), Node(id="lg", name="Battle of Leyte Gulf", type="event")]
+    s = GraphStore(nodes, [Edge(source=p.id, target="ww2", type="PART_OF") for p in parts])
+    found = s.names_in_text("In World War II, the Battle of Leyte Gulf hit an escort carrier.")
+    assert found == {"Battle of Leyte Gulf": ["lg"]}

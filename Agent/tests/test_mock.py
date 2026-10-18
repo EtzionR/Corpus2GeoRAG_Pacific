@@ -33,8 +33,8 @@ def test_fixtures_are_up_to_date():
 
 def test_every_fixture_validates():
     fixtures = load_fixtures()
-    assert {"answer_guadalcanal", "clarification_guam", "followup_guam_1944", "set_yamamoto", "off_topic_poem",
-            "error_model_call"} <= set(fixtures)
+    assert {"answer_guadalcanal", "both_guam", "clarification_tara", "followup_tarawa", "overview_battles",
+            "set_yamamoto", "off_topic_poem", "error_model_call"} <= set(fixtures)
     for key, fx in fixtures.items():
         AskResult.model_validate({**fx["reply"], "run_id": "x"})
 
@@ -44,10 +44,16 @@ def test_all_reply_kinds(runner):
     assert ans["mock"] is True and ans["error"] is None and {"org:usmc", "org:ija"} <= set(ans["answer_ids"])
     assert ans["geojson"]["features"] and len(ans["run_id"]) == 32
 
-    clar = runner.ask_sync("Who won the Battle of Guam?", thread_id="b")
+    clar = runner.ask_sync("What happened in the battle at Tara?", thread_id="b")
     assert clar["answer"].startswith("Did you mean") and clar["answer_ids"] == []
-    follow = runner.ask_sync("the 1944 one", thread_id="b")
-    assert follow["answer_ids"] == ["org:usmc"] and "event:battle_of_guam_1944" in follow["context_ids"]
+    follow = runner.ask_sync("Tarawa", thread_id="b")
+    assert follow["answer_ids"] == ["event:battle_of_tarawa"] and follow["geojson"]["features"]
+
+    both = runner.ask_sync("Who won the Battle of Guam?", thread_id="f")  # R4 amendment: both battles, separated
+    assert {"event:battle_of_guam_1941", "event:battle_of_guam_1944"} <= set(both["context_ids"])
+    assert "1941" in both["answer"] and "1944" in both["answer"] and "uncertain_match_used" not in both["warnings"]
+    over = runner.ask_sync("Show me major battles in the Pacific War on the map", thread_id="g")  # R57
+    assert over["result_sets"][0]["total"] == 11 and any(i.startswith("broad question") for i in over["interpretation"])
 
     poem = runner.ask_sync("Write me a poem about the ocean", thread_id="c")
     assert poem["warnings"] == ["off_topic"]
@@ -55,7 +61,7 @@ def test_all_reply_kinds(runner):
     assert err["error"]["stage"] == "model_call" and err["answer"] == ""
     sets = runner.ask_sync("Show me all locations connected to Admiral Yamamoto", thread_id="e")
     assert sets["result_sets"][0]["total"] == 5 and len(sets["geojson"]["features"]) == 5
-    for out in (ans, clar, follow, poem, err, sets):
+    for out in (ans, clar, follow, both, over, poem, err, sets):
         AskResult.model_validate(out)
 
 
@@ -64,8 +70,8 @@ def test_matching_ignores_case_and_punctuation(runner):
 
 
 def test_follow_up_needs_its_question_on_the_same_thread(runner):
-    runner.ask_sync("Who won the Battle of Guam?", thread_id="x")
-    other = runner.ask_sync("the 1944 one", thread_id="y")
+    runner.ask_sync("What happened in the battle at Tara?", thread_id="x")
+    other = runner.ask_sync("Tarawa", thread_id="y")
     assert other["warnings"] == [NO_FIXTURE_WARNING]
 
 
@@ -73,7 +79,7 @@ def test_unknown_question_gets_a_deterministic_default(runner):
     a = runner.ask_sync("What is the capital of France?")
     b = runner.ask_sync("Something else entirely")
     assert a["warnings"] == [NO_FIXTURE_WARNING] and a["answer"] == b["answer"]
-    assert "Who attacked Guadalcanal in 1942?" in a["answer"] and "the 1944 one" not in a["answer"]
+    assert "Who attacked Guadalcanal in 1942?" in a["answer"] and '"Tarawa"' not in a["answer"]  # follow-ups aren't listed
     assert a["error"] is None and a["geojson"]["features"] == []
     AskResult.model_validate(a)
 
@@ -109,3 +115,23 @@ def test_mock_progress_events(runner):
     assert [e["name"] for e in seen if e["event"] == "tool_start"] == [c["name"] for c in out["tool_calls"]]
     assert seen[0]["event"] == "run_start" and seen[-1]["event"] == "run_end"
     assert all(e["run_id"] == out["run_id"] and e["label"] for e in seen)
+
+
+def test_runner_made_replies_are_marked_mock(monkeypatch):
+    """timeout, cancelled and busy replies come from the runner, not a fixture; they are mock replies too."""
+    import threading
+
+    monkeypatch.setenv("GEO_AGENT_MOCK_DELAY", "1")
+    with AgentRunner(mock=True) as r:
+        timed_out = r.ask_sync("Who attacked Guadalcanal in 1942?", thread_id="a", timeout=0.1)
+        first = r.submit("Who attacked Guadalcanal in 1942?", thread_id="b")
+        busy = r.ask_sync("Who attacked Guadalcanal in 1942?", thread_id="b")
+        first.result()
+        timer = threading.Timer(0.1, r.cancel, args=("c",))
+        timer.start()
+        cancelled = r.ask_sync("Who attacked Guadalcanal in 1942?", thread_id="c")
+        timer.join()
+    for out, stage in ((timed_out, "timeout"), (busy, "busy"), (cancelled, "cancelled")):
+        assert out["error"]["stage"] == stage
+        assert out.get("mock") is True, stage
+        AskResult.model_validate(out)

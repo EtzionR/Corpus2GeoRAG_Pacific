@@ -111,25 +111,44 @@ SCENARIOS: list[dict[str, Any]] = [
     {"turns": [{"key": "answer_midway", "question": "Where did the Battle of Midway happen?", "script": [
         _call("search_entities", query="Battle of Midway"),
         _call("get_locations", entity_id="event:battle_of_midway"),
-        _call("search_source_text", query="Battle of Midway atoll", entity_ids=["event:battle_of_midway", "loc:midway_atoll"]),
+        _call("search_source_text", query="Battle of Midway atoll", entity_ids=["event:battle_of_midway"]),
         _final("The Battle of Midway (4-7 June 1942) was fought at **Midway Atoll** (28.21, -177.37), "
                "including Sand Island and Eastern Island.",
                ["loc:midway_atoll", "loc:sand_island", "loc:eastern_island"], ["event:battle_of_midway"],
-               ["Battle of Midway", "Midway Atoll"]),
+               ["Battle of Midway"]),
+    ]}]},
+    {"turns": [{"key": "both_guam", "question": "Who won the Battle of Guam?", "script": [
+        # R4 amendment: two same-name battles, each answered in a few lines, so both are answered, separated
+        _call("search_entities", query="Battle of Guam"),
+        _call("search_entities", query="Guam", type="location"),
+        _call("find_relations", target_id="loc:guam", relation_type="CAPTURED"),
+        _final("There were two Battles of Guam:\n\n- **Battle of Guam (1941)**, 8-10 December 1941: the **Imperial "
+               "Japanese Navy** captured Guam on 10 December 1941.\n- **Battle of Guam (1944)**, 21 July - 10 August 1944: "
+               "the **United States Marine Corps** recaptured the island on 10 August 1944.",
+               ["org:ijn", "org:usmc"], ["event:battle_of_guam_1941", "event:battle_of_guam_1944", "loc:guam"],
+               ["Battle of Guam (1941)", "Battle of Guam (1944)"]),
     ]}]},
     {"turns": [
-        {"key": "clarification_guam", "question": "Who won the Battle of Guam?", "script": [
-            _call("search_entities", query="Battle of Guam"),
-            _final("Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?"),
+        {"key": "clarification_tara", "question": "What happened in the battle at Tara?", "script": [
+            _call("search_entities", query="Tara"),
+            _final("Did you mean the Battle of Tarawa (November 1943) or the Battle of Tarakan (1942)?"),
         ]},
-        {"key": "followup_guam_1944", "question": "the 1944 one", "after": "clarification_guam", "script": [
-            _call("get_entity", entity_id="event:battle_of_guam_1944"),
-            _call("find_relations", target_id="loc:guam", relation_type="CAPTURED", year=1944),
-            _final("The United States won the Battle of Guam (21 July - 10 August 1944): it was the American "
-                   "recapture of Guam, and the **United States Marine Corps** captured the island on 10 August 1944.",
-                   ["org:usmc"], ["event:battle_of_guam_1944", "loc:guam"], ["Battle of Guam (1944)"]),
+        {"key": "followup_tarawa", "question": "Tarawa", "after": "clarification_tara", "script": [
+            _call("get_entity", entity_id="event:battle_of_tarawa"),
+            _call("get_locations", entity_id="event:battle_of_tarawa"),
+            _final("The **Battle of Tarawa** (20-23 November 1943) was fought at Tarawa Atoll, as part of the "
+                   "island-hopping campaign.", ["event:battle_of_tarawa"], ["loc:tarawa"], ["Battle of Tarawa"]),
         ]},
     ]},
+    {"turns": [{"key": "overview_battles", "question": "Show me major battles in the Pacific War on the map", "script": [
+        # R57: a broad question gets one overview call (the sample graph has no Pacific War node)
+        _call("search_entities", query="Pacific War"),
+        _call("overview", type="event", kind="battle"),
+        _final_with_set("An overview of the **11 battles** in the graph, all shown on the map. The most documented: "
+                        "the Battle of Midway (June 1942), the Battle of Iwo Jima (February-March 1945), the Battle of "
+                        "the Coral Sea (May 1942), the Battle of Savo Island (August 1942) and the Battle of Tarawa "
+                        "(November 1943). Ask about one year, e.g. 1942, to narrow it down.", []),
+    ]}]},
     {"turns": [{"key": "set_yamamoto", "question": "Show me all locations connected to Admiral Yamamoto", "script": [
         _call("search_entities", query="Admiral Yamamoto"),
         _call("connected_locations", entity_id="per:yamamoto"),

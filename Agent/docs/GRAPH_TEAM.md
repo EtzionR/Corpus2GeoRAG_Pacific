@@ -135,9 +135,25 @@ Users name things by nickname: "Big E", "Mighty Mo", "Bull Halsey", "the Slot", 
 - 271 groups of ships share a name (551 nodes), and few carry a hull number.
 
 **Ask:**
+- **The agent matches only the labels you export.** It doesn't build "Howlin' Mad Smith" out of "Howlin' Mad" plus the surname, and it keeps no nickname list of its own. Export the forms people actually type.
 - **Nicknames:** export Wikidata `skos:altLabel` and `wd:P1449` (nickname) and DBpedia `nickname`. If you can, give each alias a kind (`alias`, `nickname`, `hull_number`, `codename`) and its provider, as an optional `alias_details: [{label, kind, provider, record_id}]` next to `aliases`. The agent will read both.
 - **Ships:** add hull numbers (`wd:P879`) and commissioning and decommissioning dates (`wd:P729` / `wd:P730`), so "Enterprise in 1942" can be told apart from a later Enterprise. Never merge same-name ships into one node.
 - **Places known by a nickname:** add New Georgia Sound ("the Slot") and Ironbottom Sound with coordinates, and the codename "Cactus" on Guadalcanal.
+
+### P10: mark wars, theatres and countries (hubs)
+Some nodes link to almost everything: World War II has 1,256 parts and 27,092 edges, the Pacific War 462 parts, Empire of Japan 2,455 edges.
+
+The agent must not treat them like ordinary entities:
+- Taking part in World War II mustn't connect a person to every battle.
+- Mentioning the Pacific War in an answer is no specific claim.
+
+Today it guesses which nodes are hubs from the graph's shape: an event with more than 50 parts, or a node with more than 2,000 edges. Those thresholds are ours, and the data should state this directly.
+
+**Ask:**
+- **The level of every event,** as `attributes.level`: `war`, `theatre`, `campaign`, `operation`, `battle` or `incident`. It can come from Wikidata `wd:P31` (e.g. "theatre of war", "military campaign", "battle").
+- **Mark countries and states** (`kind: "country"`), and **mark top-level armed forces** (`kind: "service"` for the US Navy, the Imperial Japanese Army…).
+
+When these attributes are present, the agent uses them and the shape-based guess switches off. This is the same rule as for event kinds (P7) and for country-scale locations (P4).
 
 ### Fine as is
 - **74,111 duplicate assertions:** combined at query time, so they don't distort answers.

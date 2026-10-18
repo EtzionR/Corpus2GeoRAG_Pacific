@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from types import SimpleNamespace
 import logging
 from pathlib import Path
 
@@ -188,7 +189,8 @@ def test_unknown_stage(isolated_env):
         ("repeated_tool_call", [ai(call("search_entities", "a", query="Midway")), ai(call("search_entities", "b", query="Midway")), final()], {}),
         ("empty_resolution", [ai(call("search_entities", "a", query="Leyte Gulf")), final()], {}),
         ("many_steps", [ai(call("graph_schema", "a")), ai(call("graph_schema", "b")), final()], {"GEO_AGENT_WARN_STEPS": "2"}),
-        ("ids_dropped", [ai(call("graph_schema", "g")), final("Tokyo", ["loc:tokyo"])], {}),  # no tool returned loc:tokyo
+        # no tool returned loc:tokyo; the answer is sent back once (ungrounded name) and the model insists
+        ("ids_dropped", [ai(call("graph_schema", "g")), final("Tokyo", ["loc:tokyo"]), final("Tokyo", ["loc:tokyo"])], {}),
         ("sources_unverified", [ai(call("graph_schema", "g")), ai(call("AgentAnswer", "f", answer="x", context_ids=[], answer_ids=[], answer_sets=[], sources=["Made-up page"]))], {}),
         ("text_coordinates_unverified", [ai(call("graph_schema", "g")), final("It is at 12.34, 56.78.")], {}),
         ("low_confidence", [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])], {}),  # uncertain match -> low
@@ -565,7 +567,8 @@ def test_r24_extra_ids_only_on_answer_ids():
 def test_r27_end_to_end_answer_set(isolated_env, monkeypatch):
     """The model names only the handle; the map gets every place in the set."""
     import uuid as uuid_mod
-    monkeypatch.setattr("geo_agent.graph_store.uuid.uuid4", lambda: uuid_mod.UUID("abcdef00000000000000000000000000"))
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
     out = ask([
         ai(call("search_entities", "a", query="Isoroku Yamamoto")),
         ai(call("connected_locations", "b", entity_id="per:yamamoto")),
@@ -609,7 +612,8 @@ def test_plan_answer_is_sent_back_and_the_tool_gets_called(isolated_env):
 def test_invented_result_set_is_sent_back_once(isolated_env, monkeypatch):
     """Eval step 17c: the model named "rs-1" without calling a set tool; it must get a chance to call it."""
     import uuid as uuid_mod
-    monkeypatch.setattr("geo_agent.graph_store.uuid.uuid4", lambda: uuid_mod.UUID("abcdef00000000000000000000000000"))
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
     out = ask([
         ai(call("search_entities", "a", query="Douglas MacArthur")),
         ai(call("AgentAnswer", "f1", answer="Here are his places.", answer_ids=["per:macarthur"], context_ids=[], sources=[],
@@ -661,3 +665,75 @@ def test_default_log_dir_is_absolute(monkeypatch, tmp_path):
     assert TraceWriter.from_env().log_dir == root / "logs"
     monkeypatch.setenv("GEO_AGENT_LOG_DIR", str(tmp_path / "x"))
     assert TraceWriter.from_env().log_dir == tmp_path / "x"
+
+
+GUAM = ["event:battle_of_guam_1941", "event:battle_of_guam_1944"]
+Q_COVER = {"expected_entity_ids": [], "expected_resolved_ids": [], "expected_behavior": "ask_or_cover_all",
+           "expected_candidates": GUAM, "allowed_extra_ids": [*GUAM, "loc:guam", "org:ijn", "org:usmc"]}
+
+
+def test_ask_or_cover_all_accepts_an_answer_for_every_candidate():
+    search = [("Battle of Guam", GUAM)]
+    both = stub_trace(searches=search, answer="1941: Japan won. 1944: the US won.", ids=[*GUAM, "org:ijn", "org:usmc"])
+    one = stub_trace(searches=search, answer="Japan won in 1941.", ids=["event:battle_of_guam_1941", "org:ijn"])
+    ask = stub_trace(searches=search, answer="Did you mean the Battle of Guam (1941) or (1944)?")
+    assert attribute_failure(Q_COVER, both) == []
+    assert attribute_failure(Q_COVER, ask) == []
+    assert "should_have_asked" in attribute_failure(Q_COVER, one)  # picked one silently
+
+
+def test_r58_step_budget_nudges_before_the_limit(isolated_env, monkeypatch):
+    """25 graph steps run up to 13 model calls (12 can still answer); from the 10th on, the model is told to finish."""
+    monkeypatch.setenv("GEO_AGENT_MAX_STEPS", "25")
+    RecordingModel.systems = []
+    out = ask([*[ai(call("graph_schema", f"s{i}")) for i in range(10)], final()], model_cls=RecordingModel)
+    assert out.get("error") is None
+    assert "STEP BUDGET" not in RecordingModel.systems[8] and "STEP BUDGET" in RecordingModel.systems[9]
+
+
+def test_r58_prompt_says_stop_when_the_relation_is_missing():
+    from geo_agent import agent as agent_mod
+    assert "does not record" in agent_mod.SYSTEM_PROMPT
+
+
+def test_r57_overview_answer_gets_an_interpretation_line(isolated_env, monkeypatch):
+    import uuid as uuid_mod
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
+    out = ask([
+        ai(call("search_entities", "a", query="island-hopping campaign")),
+        ai(call("overview", "b", scope="event:island_hopping_campaign")),
+        ai(call("AgentAnswer", "f", answer="An overview of 3 battles: Tarawa, Guam, Iwo Jima.", answer_ids=[],
+                context_ids=[], sources=[], answer_sets=["rs-abcdef"])),
+    ], question="Show me the island-hopping campaign.")
+    assert any(i.startswith("broad question: overview of 3 items") for i in out["interpretation"])
+    assert len(out["geojson"]["features"]) == 3
+
+
+def test_r57_prompt_has_the_overview_rule():
+    from geo_agent import agent as agent_mod
+    assert "call overview ONCE" in agent_mod.SYSTEM_PROMPT and "Never decline a broad question" in agent_mod.SYSTEM_PROMPT
+
+
+def test_r29_ordinary_six_call_answer_is_not_over_budget(monkeypatch):
+    """Six calls of ~8k input tokens each (system prompt + tools re-sent every call) are a normal answer."""
+    monkeypatch.delenv("GEO_AGENT_TOKEN_BUDGET", raising=False)
+
+    def run(per_call, calls):
+        return [{"run_id": "r", "seq": 1, "event": "run_start"}] + [
+            {"run_id": "r", "seq": i + 2, "event": "model_end", "latency_ms": 500, "input_tokens": per_call, "output_tokens": 50}
+            for i in range(calls)]
+    assert "token_budget" not in trace_warnings(run(8500, 6))   # 51k: an ordinary answer
+    assert "token_budget" in trace_warnings(run(8500, 12))      # 102k: a runaway
+
+
+def test_answer_with_ungrounded_names_is_sent_back_once(isolated_env):
+    out = ask([
+        ai(call("search_entities", "a", query="Battle of Midway")),
+        ai(call("get_locations", "b", entity_id="event:battle_of_midway")),
+        ai(call("AgentAnswer", "f1", answer="At Midway Atoll; later the Battle of Iwo Jima.", answer_ids=["loc:midway_atoll"],
+                context_ids=[], sources=[], answer_sets=[])),
+        ai(call("AgentAnswer", "f2", answer="At Midway Atoll.", answer_ids=["loc:midway_atoll"], context_ids=[],
+                sources=[], answer_sets=[])),
+    ], question="Where did the Battle of Midway happen?")
+    assert out["answer"] == "At Midway Atoll." and out["ungrounded_names"] == []
