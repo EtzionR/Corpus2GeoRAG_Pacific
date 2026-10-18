@@ -1,0 +1,163 @@
+{
+  "question": "Who won the Battle of Guam?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.3",
+    "answer": "There were two Battles of Guam:\n\n- **Battle of Guam (1941)**, 8-10 December 1941: the **Imperial Japanese Navy** captured Guam on 10 December 1941.\n- **Battle of Guam (1944)**, 21 July - 10 August 1944: the **United States Marine Corps** recaptured the island on 10 August 1944.",
+    "answer_ids": [
+      "org:ijn",
+      "org:usmc"
+    ],
+    "context_ids": [
+      "event:battle_of_guam_1941",
+      "event:battle_of_guam_1944",
+      "loc:guam"
+    ],
+    "entity_ids": [
+      "org:ijn",
+      "org:usmc",
+      "event:battle_of_guam_1941",
+      "event:battle_of_guam_1944",
+      "loc:guam"
+    ],
+    "sources": [
+      "Battle of Guam (1941)",
+      "Battle of Guam (1944)"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)",
+        "page": "Battle of Guam (1941)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)",
+        "page": "Battle of Guam (1944)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Imperial_Japanese_Navy",
+        "page": "Imperial Japanese Navy"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/United_States_Marine_Corps",
+        "page": "United States Marine Corps"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              144.79,
+              13.44
+            ]
+          },
+          "properties": {
+            "id": "loc:guam",
+            "name": "Guam",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "org:ijn",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      144.79,
+      13.44,
+      144.79,
+      13.44
+    ],
+    "center": {
+      "lat": 13.44,
+      "lon": 144.79
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Guam"
+        }
+      },
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Guam",
+          "type": "location"
+        }
+      },
+      {
+        "name": "find_relations",
+        "args": {
+          "target_id": "loc:guam",
+          "relation_type": "CAPTURED"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [
+      {
+        "id": "event:battle_of_guam_1941",
+        "name": "Battle of Guam (1941)",
+        "typed": "Battle of Guam",
+        "matched_label": "Battle of Guam (1941)",
+        "match": "fuzzy",
+        "score": 90,
+        "quality": "uncertain",
+        "model_rewritten_query": false
+      },
+      {
+        "id": "event:battle_of_guam_1944",
+        "name": "Battle of Guam (1944)",
+        "typed": "Battle of Guam",
+        "matched_label": "Battle of Guam (1944)",
+        "match": "fuzzy",
+        "score": 90,
+        "quality": "uncertain",
+        "model_rewritten_query": false
+      },
+      {
+        "id": "loc:guam",
+        "name": "Guam",
+        "typed": "Guam",
+        "matched_label": "Guam",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false
+      }
+    ],
+    "interpretation": [
+      "'Battle of Guam' read as Battle of Guam (1941) (fuzzy)",
+      "'Battle of Guam' read as Battle of Guam (1944) (fuzzy)"
+    ],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 2,
+        "n_source_pages": 2,
+        "n_providers": 1,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

@@ -399,6 +399,46 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None) -> list[BaseT
                       "shown": len(keep), "truncated": len(rows) > len(keep), "locations_on_map": len(draw_rows),
                       "top": [{"id": r["id"], "name": r["name"]} for r in keep]})
 
+    @tool
+    def overview(
+        scope: str | None = None,
+        type: str = "event",
+        kind: str | None = None,
+        year: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = 10,
+    ) -> str:
+        """Overview for BROAD questions, in ONE call: a whole war, theatre, campaign, period, class of
+        events, or an organisation's or person's whole war ("major battles of the Pacific War", "what
+        happened in 1943", "everything about the Imperial Japanese Navy", "show me the war in the Pacific").
+        Do not look items up one by one after this call: the payload already has what the answer needs.
+        Args:
+            scope: entity id of the war/campaign/org/person/place (from search_entities), or omit for all
+                entities of `type`.
+            type: entity type when there is no scope (default "event").
+            kind: e.g. "battle", "bombing", "campaign" to keep only that kind.
+            year / date_from / date_to: keep items overlapping the period.
+            limit: how many of the most important items to show (default 10).
+        Returns {result_set, total, by_kind, by_year, by_group, top (name, kind, dates, place, lat/lon),
+        narrow_by}. Put result_set in answer_sets (the map shows every item). In the answer say it is an
+        overview of `total` items, give the main groups and the top items, and end by offering the
+        narrow_by options (e.g. "ask about the New Guinea campaign, or about 1942").
+        """
+        f, t = _year_range(year, date_from, date_to)
+        data = store.overview(scope, type, kind, f, t, top=max(1, limit))
+        if data.get("error"):
+            return _json({"result": data["error"]})
+        if not data["total"]:
+            return _json({"result": f"no {kind or type}s in {data['scope']} in the graph"})
+        label = f"overview: {kind or type}s in {data['scope']}"
+        handle = register(data["ids"], label, [], draw=data["draw"])
+        notes = [f"kinds approximated from names: the graph has no {type} kinds"] if data["kinds_from_names"] else []
+        payload = {k: v for k, v in data.items() if k not in ("ids", "draw", "kinds_from_names")}
+        return _json({"result_set": handle, "label": label, "overview": True, **_approx(notes), **payload,
+                      "shown": len(payload["top"]), "truncated": data["total"] > len(payload["top"]),
+                      "locations_on_map": len(data["draw"])})
+
     return [
         graph_schema,
         list_relations,
@@ -416,4 +456,5 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None) -> list[BaseT
         find_entities,
         shared_connections,
         entities_mentioning,
+        overview,
     ]

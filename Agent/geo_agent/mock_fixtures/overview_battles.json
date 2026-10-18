@@ -1,0 +1,404 @@
+{
+  "question": "Show me major battles in the Pacific War on the map",
+  "after": null,
+  "reply": {
+    "schema_version": "1.3",
+    "answer": "An overview of the **11 battles** in the graph, all shown on the map. The most documented: the Battle of Midway (June 1942), the Battle of Iwo Jima (February-March 1945), the Battle of the Coral Sea (May 1942), the Battle of Savo Island (August 1942) and the Battle of Tarawa (November 1943). Ask about one year, e.g. 1942, to narrow it down.",
+    "answer_ids": [
+      "event:battle_of_midway",
+      "event:battle_of_iwo_jima",
+      "event:battle_of_coral_sea",
+      "event:battle_of_savo_island",
+      "event:battle_of_tarawa",
+      "event:battle_of_corregidor",
+      "event:battle_of_guam_1944",
+      "event:battle_of_bataan",
+      "event:battle_of_guam_1941",
+      "event:battle_of_tarakan",
+      "event:naval_battle_of_guadalcanal"
+    ],
+    "context_ids": [],
+    "entity_ids": [
+      "event:battle_of_midway",
+      "event:battle_of_iwo_jima",
+      "event:battle_of_coral_sea",
+      "event:battle_of_savo_island",
+      "event:battle_of_tarawa",
+      "event:battle_of_corregidor",
+      "event:battle_of_guam_1944",
+      "event:battle_of_bataan",
+      "event:battle_of_guam_1941",
+      "event:battle_of_tarakan",
+      "event:naval_battle_of_guadalcanal"
+    ],
+    "sources": [
+      "Battle of Midway",
+      "Battle of Iwo Jima",
+      "Battle of the Coral Sea",
+      "Battle of Savo Island",
+      "Battle of Tarawa"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Midway",
+        "page": "Battle of Midway"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima",
+        "page": "Battle of Iwo Jima"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_the_Coral_Sea",
+        "page": "Battle of the Coral Sea"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Savo_Island",
+        "page": "Battle of Savo Island"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa",
+        "page": "Battle of Tarawa"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Corregidor",
+        "page": "Battle of Corregidor"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)",
+        "page": "Battle of Guam (1944)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Bataan",
+        "page": "Battle of Bataan"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1941)",
+        "page": "Battle of Guam (1941)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Tarakan_(1942)",
+        "page": "Battle of Tarakan (1942)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Naval_Battle_of_Guadalcanal",
+        "page": "Naval Battle of Guadalcanal"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.37,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:midway_atoll",
+            "name": "Midway Atoll",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.36,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:sand_island",
+            "name": "Sand Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.33,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:eastern_island",
+            "name": "Eastern Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              141.32,
+              24.78
+            ]
+          },
+          "properties": {
+            "id": "loc:iwo_jima",
+            "name": "Iwo Jima",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_iwo_jima",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              155.0,
+              -15.0
+            ]
+          },
+          "properties": {
+            "id": "loc:coral_sea",
+            "name": "Coral Sea",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_coral_sea",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              160.15,
+              -9.1
+            ]
+          },
+          "properties": {
+            "id": "loc:tulagi",
+            "name": "Tulagi",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_coral_sea",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              159.81,
+              -9.13
+            ]
+          },
+          "properties": {
+            "id": "loc:savo_island",
+            "name": "Savo Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_savo_island",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              172.98,
+              1.42
+            ]
+          },
+          "properties": {
+            "id": "loc:tarawa",
+            "name": "Tarawa",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_tarawa",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              120.57,
+              14.38
+            ]
+          },
+          "properties": {
+            "id": "loc:corregidor",
+            "name": "Corregidor",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_corregidor",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              144.79,
+              13.44
+            ]
+          },
+          "properties": {
+            "id": "loc:guam",
+            "name": "Guam",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_guam_1944",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              120.48,
+              14.62
+            ]
+          },
+          "properties": {
+            "id": "loc:bataan",
+            "name": "Bataan Peninsula",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_bataan",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              117.6,
+              3.3
+            ]
+          },
+          "properties": {
+            "id": "loc:tarakan",
+            "name": "Tarakan",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_tarakan",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              159.95,
+              -9.2
+            ]
+          },
+          "properties": {
+            "id": "loc:savo_sound",
+            "name": "Savo Sound",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:naval_battle_of_guadalcanal",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      117.6,
+      -15.0,
+      -177.33,
+      28.21
+    ],
+    "center": {
+      "lat": 6.605,
+      "lon": 150.135
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Pacific War"
+        }
+      },
+      {
+        "name": "overview",
+        "args": {
+          "type": "event",
+          "kind": "battle"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [],
+    "interpretation": [
+      "broad question: overview of 11 items in all battles"
+    ],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 5,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "overview: battles in all battles",
+        "total": 11,
+        "on_map": 13,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

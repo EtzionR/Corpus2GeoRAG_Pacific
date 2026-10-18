@@ -1840,6 +1840,215 @@
     "classification_status": "UNRESOLVED"
    },
    "embedding": null
+  },
+  {
+   "id": "org:1st_marine_division",
+   "name": "1st Marine Division",
+   "type": "org",
+   "aliases": [
+    "1st MarDiv"
+   ],
+   "alias_details": [
+    {
+     "label": "The Old Breed",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "text": "The 1st Marine Division of the United States Marine Corps landed on Guadalcanal in August 1942.",
+   "attributes": {
+    "country": "United States"
+   },
+   "embedding": null
+  },
+  {
+   "id": "ship:enterprise_cv6",
+   "name": "USS Enterprise (CV-6)",
+   "type": "other",
+   "aliases": [],
+   "alias_details": [
+    {
+     "label": "Big E",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    },
+    {
+     "label": "CV-6",
+     "kind": "hull_number",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "USS Enterprise (CV-6)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/USS_Enterprise_(CV-6)"
+    }
+   ],
+   "text": "USS Enterprise (CV-6) was a Yorktown-class aircraft carrier of the United States Navy, commissioned in 1938.",
+   "attributes": {
+    "kind": "ship",
+    "start_date": "1938-05-12",
+    "end_date": "1947-02-17"
+   },
+   "embedding": null
+  },
+  {
+   "id": "ship:enterprise_cvn65",
+   "name": "USS Enterprise (CVN-65)",
+   "type": "other",
+   "aliases": [],
+   "alias_details": [
+    {
+     "label": "Big E",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    },
+    {
+     "label": "CVN-65",
+     "kind": "hull_number",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "USS Enterprise (CVN-65)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/USS_Enterprise_(CVN-65)"
+    }
+   ],
+   "text": "USS Enterprise (CVN-65) was the first nuclear-powered aircraft carrier of the United States Navy.",
+   "attributes": {
+    "kind": "ship",
+    "start_date": "1961-11-25",
+    "end_date": "2017-02-03"
+   },
+   "embedding": null
+  },
+  {
+   "id": "per:holland_smith",
+   "name": "Holland Smith",
+   "type": "person",
+   "aliases": [
+    "Holland M. Smith"
+   ],
+   "alias_details": [
+    {
+     "label": "Howlin' Mad Smith",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Holland Smith",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Holland_Smith"
+    }
+   ],
+   "text": "General Holland Smith of the United States Marine Corps commanded the V Amphibious Corps in the Central Pacific.",
+   "attributes": {
+    "country": "United States"
+   },
+   "embedding": null
+  },
+  {
+   "id": "weapon:type_93_torpedo",
+   "name": "Type 93 torpedo",
+   "type": "other",
+   "aliases": [],
+   "alias_details": [
+    {
+     "label": "Long Lance",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Type 93 torpedo",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Type_93_torpedo"
+    }
+   ],
+   "text": "The Type 93 was a 61 cm oxygen-propelled torpedo used by destroyers and cruisers of the Imperial Japanese Navy.",
+   "attributes": {
+    "kind": "weapon"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:savo_sound",
+   "name": "Savo Sound",
+   "type": "location",
+   "aliases": [],
+   "alias_details": [
+    {
+     "label": "Ironbottom Sound",
+     "kind": "nickname",
+     "provider": "wikidata",
+     "record_id": null
+    }
+   ],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     159.95,
+     -9.2
+    ]
+   },
+   "sources": [
+    {
+     "page": "Iron Bottom Sound",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Iron_Bottom_Sound"
+    }
+   ],
+   "text": "Savo Sound lies between Guadalcanal, Savo Island and the Florida Islands; dozens of ships sank there in 1942 and 1943.",
+   "attributes": {
+    "kind": "sea"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:naval_battle_of_guadalcanal",
+   "name": "Naval Battle of Guadalcanal",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Naval Battle of Guadalcanal",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Naval_Battle_of_Guadalcanal"
+    }
+   ],
+   "text": "The Naval Battle of Guadalcanal, 12-15 November 1942, was fought in the waters off Guadalcanal.",
+   "attributes": {
+    "kind": "battle",
+    "start_date": "1942-11-12",
+    "end_date": "1942-11-15"
+   },
+   "embedding": null
   }
  ],
  "edges": [
@@ -3740,6 +3949,118 @@
     "review_status": "ACCEPTED",
     "relation_map_version": "relation-map-v1.0.0"
    }
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "event:guadalcanal_campaign",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": "1942-08-07",
+   "end_date": "1942-12-09",
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "org:usmc",
+   "type": "PART_OF",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "ship:enterprise_cv6",
+   "target": "event:battle_of_midway",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": "1942-06-04",
+   "end_date": "1942-06-07",
+   "sources": [
+    {
+     "page": "USS Enterprise (CV-6)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/USS_Enterprise_(CV-6)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:holland_smith",
+   "target": "event:battle_of_iwo_jima",
+   "type": "COMMANDED",
+   "count": 1,
+   "start_date": "1945-02-19",
+   "end_date": "1945-03-26",
+   "sources": [
+    {
+     "page": "Holland Smith",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Holland_Smith"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "per:holland_smith",
+   "target": "event:battle_of_tarawa",
+   "type": "COMMANDED",
+   "count": 1,
+   "start_date": "1943-11-20",
+   "end_date": "1943-11-23",
+   "sources": [
+    {
+     "page": "Holland Smith",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Holland_Smith"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "weapon:type_93_torpedo",
+   "target": "event:battle_of_savo_island",
+   "type": "USED_IN",
+   "count": 1,
+   "start_date": "1942-08-08",
+   "end_date": "1942-08-09",
+   "sources": [
+    {
+     "page": "Type 93 torpedo",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Type_93_torpedo"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:naval_battle_of_guadalcanal",
+   "target": "loc:savo_sound",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1942-11-12",
+   "end_date": "1942-11-15",
+   "sources": [
+    {
+     "page": "Naval Battle of Guadalcanal",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Naval_Battle_of_Guadalcanal"
+    }
+   ],
+   "embedding": null
   }
  ],
  "relation_catalog": [

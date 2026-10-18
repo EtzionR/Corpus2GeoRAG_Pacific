@@ -697,6 +697,14 @@
       "title": "Unverified Numbers",
       "type": "array"
     },
+    "ungrounded_names": {
+      "description": "Graph entities the answer names although no tool returned them (the model added them from its own knowledge); warning ungrounded_names",
+      "items": {
+        "type": "string"
+      },
+      "title": "Ungrounded Names",
+      "type": "array"
+    },
     "resolved_entities": {
       "items": {
         "$ref": "#/$defs/ResolvedEntity"
@@ -758,6 +766,7 @@
     "dropped_ids",
     "unverified_sources",
     "unverified_numbers",
+    "ungrounded_names",
     "resolved_entities",
     "interpretation",
     "confidence",
@@ -767,5 +776,5 @@
   ],
   "title": "AskResult",
   "type": "object",
-  "$id": "geo_agent/ask_result/1.2"
+  "$id": "geo_agent/ask_result/1.3"
 }

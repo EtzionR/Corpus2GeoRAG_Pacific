@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from geo_agent.trace import FAILURE_STAGES
 
-SCHEMA_VERSION = "1.2"  # 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers
+SCHEMA_VERSION = "1.3"  # 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "ask_result.schema.json"
 
 
@@ -156,6 +156,8 @@ class AskResult(_Open):
     dropped_ids: list[DroppedId]
     unverified_sources: list[str]
     unverified_numbers: list[float]
+    ungrounded_names: list[str] = Field(description="Graph entities the answer names although no tool returned them "
+                                        "(the model added them from its own knowledge); warning ungrounded_names")
     resolved_entities: list[ResolvedEntity]
     interpretation: list[str] = Field(description="How names were read when not literal; show to the user")
     confidence: Confidence
