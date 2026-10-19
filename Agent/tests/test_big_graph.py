@@ -174,3 +174,24 @@ def test_typical_tool_calls_are_fast(tools):
         t = time.perf_counter()
         tools[name].invoke(args)
         assert time.perf_counter() - t < 2.0, name
+
+
+# Nicknames the draft already holds (spec R51-R54): checked on the real data, where the article and
+# partial-match rules matter most.
+@pytest.mark.parametrize("query,name,match", [
+    ("Mighty Mo", "USS Missouri", "alias"),
+    ("Big E", "USS Enterprise", "alias"),              # the graph's alias is "The Big E"
+    ("Howlin' Mad", "Holland Smith", "nickname"),      # quoted part of 'Holland McTyeire "Howlin' Mad" Smith'
+    ("Howlin' Mad Smith", "Holland Smith", "alias_part"),
+    ("Long Lance", "Type 93", "alias"),
+])
+def test_draft_nicknames_resolve_clearly(store, query, name, match):
+    top = store.search_entities(query)[0]
+    assert (top["name"], top["match"], top["quality"]) == (name, match, "clear")
+
+
+def test_draft_nickname_rules_dont_mislead(store):
+    assert store.search_entities("Bull Halsey")[0]["name"] != "Tupolev Tu-4"  # the Tu-4's alias "Bull": no partial credit
+    assert store.search_entities("Old Breed")[0]["quality"] == "uncertain"     # only a book title holds it
+    midway = store.search_entities("Battle of Midway")
+    assert midway[0]["name"] == "Battle of Midway" and midway[0]["score"] == 100  # the article rule doesn't tie the film

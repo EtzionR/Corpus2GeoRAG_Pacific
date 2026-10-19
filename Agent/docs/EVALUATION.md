@@ -10,7 +10,7 @@ An agent like this fails in ways unit tests don't see. The model picks the wrong
 
 The eval runner is part of the agent developer's working repo (`evals/run_eval.py`, `evals/gold.jsonl`), not the published package. It calls the paid model, about 4 model steps and 15–20k input tokens per question.
 
-## What we check: the gold set (61 questions)
+## What we check: the gold set (63 questions)
 | Category | n | What it tests | Why |
 |---|---|---|---|
 | `example` | 12 | The three original question types: where did battle X happen, who attacked X in year Y, what happened at (lat, lon) | The core use cases |
@@ -22,7 +22,7 @@ The eval runner is part of the agent developer's working repo (`evals/run_eval.p
 | `context_mismatch` | 2 | A year that contradicts the event ("Battle of Midway in 1944") | The agent should correct the premise |
 | `set_queries` | 12 | "Show me all locations connected to X" (the business user's list) | Many results per question: correctness, and token use |
 | `adversarial` | 6 | Off-topic, jailbreak, system-prompt extraction, an instruction planted in the data | Scope and misuse |
-| `nickname` | 5 | One nickname per subject: a unit ("the Old Breed"), a ship ("the Big E" in 1942, two ships share it), a soldier ("Howlin' Mad Smith"), a weapon ("the Long Lance"), a place ("Ironbottom Sound") | Users don't use official names; added 2026-10-16, before the nickname feature, so the results below cover the first 56 |
+| `nickname` | 7 | One nickname per subject: a unit ("the Old Breed"), a ship ("the Big E" in 1942, two ships share it), a soldier ("Howlin' Mad Smith"), a weapon ("the Long Lance"), a place ("Ironbottom Sound"). Two negatives: a made-up name ("Purple Thunder Brigade"), and a real alias outside the graph's scope ("the Big Red One", which fought in Europe). Both must end in "not in the graph" | Users don't use official names; added 2026-10-16, before the nickname feature, so the results below cover the first 56 |
 
 **What a gold row contains:**
 - **the question and its category**
@@ -149,7 +149,7 @@ The data findings are listed for the graph team in `GRAPH_TEAM.md`, with an acce
 
 ## Running it
 ```bash
-uv run python evals/run_eval.py                                 # all 61 questions (paid)
+uv run python evals/run_eval.py                                 # all 63 questions (paid)
 uv run python evals/run_eval.py --ids ex-who-1,amb-1 --repeat 3 # a subset, three times each
 uv run python evals/run_eval.py --rescore evals/baseline.json   # rescore a saved report, no model calls
 uv run python evals/build_real_id_map.py /path/to/graph.json    # map gold ids to another graph's ids

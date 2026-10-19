@@ -119,8 +119,15 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None) -> list[BaseT
             type: optional filter: "location", "person", "org", "event" (see graph_schema).
             limit: max results.
 
-        Each result has `match` ("name", "alias" or "fuzzy"), `score` (0-100),
-        `quality` and `ambiguous`:
+        Nicknames the graph holds are found too ("Big E", "Howlin' Mad Smith", a codename in the text):
+        `match` is then "nickname", "hull_number" or "alias_part", and `evidence` says where the graph
+        holds it (the alias, or the sentence of the text). If the user's nickname finds nothing, you may
+        search the name you know it stands for; the answer will say that reading was yours.
+
+        Each result has `match` ("name", "alias", "nickname", "hull_number", "alias_part" or "fuzzy"),
+        `score` (0-100), `quality` and `ambiguous`; tied results also have a `hint` (hull number,
+        years or a description) that tells them apart: use it in your question, or to settle it from the
+        user's year:
         - quality "clear": the top result is a confident, unique match. Use it.
         - quality "uncertain": a weak match, or `ambiguous` (another result scores
           almost the same, e.g. "Battle of Guam (1941)" vs "Battle of Guam (1944)").

@@ -164,7 +164,7 @@
      "url": "https://en.wikipedia.org/wiki/Guadalcanal"
     }
    ],
-   "text": "Guadalcanal is the largest island of the Solomon Islands. The Japanese began building an airfield there in mid-1942, which prompted the Allied landings in August 1942.",
+   "text": "Guadalcanal is the largest island of the Solomon Islands. The Japanese began building an airfield there in mid-1942, which prompted the Allied landings in August 1942. Its Allied codename was \"Cactus\".",
    "attributes": {
     "kind": "island"
    },
@@ -1945,15 +1945,8 @@
    "name": "Holland Smith",
    "type": "person",
    "aliases": [
-    "Holland M. Smith"
-   ],
-   "alias_details": [
-    {
-     "label": "Howlin' Mad Smith",
-     "kind": "nickname",
-     "provider": "wikidata",
-     "record_id": null
-    }
+    "Holland M. Smith",
+    "Holland McTyeire \"Howlin' Mad\" Smith"
    ],
    "geometry": null,
    "sources": [
@@ -2047,6 +2040,27 @@
     "kind": "battle",
     "start_date": "1942-11-12",
     "end_date": "1942-11-15"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:1st_infantry_division",
+   "name": "1st Infantry Division",
+   "type": "org",
+   "aliases": [
+    "Big Red One"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "1st Infantry Division (United States)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Infantry_Division_(United_States)"
+    }
+   ],
+   "text": "The 1st Infantry Division is a division of the United States Army.",
+   "attributes": {
+    "country": "United States"
    },
    "embedding": null
   }
@@ -4058,6 +4072,22 @@
      "page": "Naval Battle of Guadalcanal",
      "paragraph": 0,
      "url": "https://en.wikipedia.org/wiki/Naval_Battle_of_Guadalcanal"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_infantry_division",
+   "target": "org:us_army",
+   "type": "PART_OF",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Infantry Division (United States)",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Infantry_Division_(United_States)"
     }
    ],
    "embedding": null

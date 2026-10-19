@@ -2,7 +2,7 @@
   "question": "Show me major battles in the Pacific War on the map",
   "after": null,
   "reply": {
-    "schema_version": "1.3",
+    "schema_version": "1.4",
     "answer": "An overview of the **11 battles** in the graph, all shown on the map. The most documented: the Battle of Midway (June 1942), the Battle of Iwo Jima (February-March 1945), the Battle of the Coral Sea (May 1942), the Battle of Savo Island (August 1942) and the Battle of Tarawa (November 1943). Ask about one year, e.g. 1942, to narrow it down.",
     "answer_ids": [
       "event:battle_of_midway",

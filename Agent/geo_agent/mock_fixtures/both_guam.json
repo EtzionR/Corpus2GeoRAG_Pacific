@@ -2,7 +2,7 @@
   "question": "Who won the Battle of Guam?",
   "after": null,
   "reply": {
-    "schema_version": "1.3",
+    "schema_version": "1.4",
     "answer": "There were two Battles of Guam:\n\n- **Battle of Guam (1941)**, 8-10 December 1941: the **Imperial Japanese Navy** captured Guam on 10 December 1941.\n- **Battle of Guam (1944)**, 21 July - 10 August 1944: the **United States Marine Corps** recaptured the island on 10 August 1944.",
     "answer_ids": [
       "org:ijn",
@@ -118,7 +118,8 @@
         "match": "fuzzy",
         "score": 90,
         "quality": "uncertain",
-        "model_rewritten_query": false
+        "model_rewritten_query": false,
+        "model_reading": false
       },
       {
         "id": "event:battle_of_guam_1944",
@@ -128,7 +129,8 @@
         "match": "fuzzy",
         "score": 90,
         "quality": "uncertain",
-        "model_rewritten_query": false
+        "model_rewritten_query": false,
+        "model_reading": false
       },
       {
         "id": "loc:guam",
@@ -138,7 +140,8 @@
         "match": "name",
         "score": 100,
         "quality": "clear",
-        "model_rewritten_query": false
+        "model_rewritten_query": false,
+        "model_reading": false
       }
     ],
     "interpretation": [

@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from geo_agent.trace import FAILURE_STAGES
 
-SCHEMA_VERSION = "1.3"  # 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names
+SCHEMA_VERSION = "1.4"  # 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names; 1.4: match nickname/hull_number/alias_part, resolved evidence and model_reading
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "ask_result.schema.json"
 
 
@@ -98,10 +98,13 @@ class ResolvedEntity(_Open):
     name: str
     typed: str = Field(description="The text the agent searched")
     matched_label: str | None = None
-    match: Literal["name", "alias", "fuzzy"] | None = None
+    match: Literal["name", "alias", "nickname", "hull_number", "alias_part", "fuzzy"] | None = None
     score: float | None = None
     quality: Literal["clear", "uncertain"]
     model_rewritten_query: bool
+    model_reading: bool = Field(False, description="The model's own reading: the graph doesn't tie the user's words to "
+                                "this entity (e.g. a nickname the graph doesn't hold)")
+    evidence: str | None = Field(None, description="Where the graph holds the matched nickname: the alias or the text")
     context_mismatch: ContextMismatch | None = None
 
 

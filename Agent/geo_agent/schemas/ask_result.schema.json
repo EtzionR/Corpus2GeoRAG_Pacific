@@ -401,6 +401,9 @@
               "enum": [
                 "name",
                 "alias",
+                "nickname",
+                "hull_number",
+                "alias_part",
                 "fuzzy"
               ],
               "type": "string"
@@ -435,6 +438,25 @@
         "model_rewritten_query": {
           "title": "Model Rewritten Query",
           "type": "boolean"
+        },
+        "model_reading": {
+          "default": false,
+          "description": "The model's own reading: the graph doesn't tie the user's words to this entity (e.g. a nickname the graph doesn't hold)",
+          "title": "Model Reading",
+          "type": "boolean"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the graph holds the matched nickname: the alias or the text",
+          "title": "Evidence"
         },
         "context_mismatch": {
           "anyOf": [
@@ -776,5 +798,5 @@
   ],
   "title": "AskResult",
   "type": "object",
-  "$id": "geo_agent/ask_result/1.3"
+  "$id": "geo_agent/ask_result/1.4"
 }

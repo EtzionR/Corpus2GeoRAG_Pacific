@@ -684,3 +684,55 @@ def test_names_in_text_skips_common_words_and_hubs():
     s = GraphStore(nodes, [Edge(source=p.id, target="ww2", type="PART_OF") for p in parts])
     found = s.names_in_text("In World War II, the Battle of Leyte Gulf hit an escort carrier.")
     assert found == {"Battle of Leyte Gulf": ["lg"]}
+
+
+# Nicknames from the graph (spec R51-R53, plan steps 23b-24)
+
+def _top(store, query, **kw):
+    return store.search_entities(query, **kw)[0]
+
+
+@pytest.mark.parametrize("query,expected,match", [
+    ("Old Breed", "org:1st_marine_division", "nickname"),        # alias_details "The Old Breed", article ignored
+    ("the Old Breed", "org:1st_marine_division", "nickname"),
+    ("Long Lance", "weapon:type_93_torpedo", "nickname"),        # alias_details
+    ("Ironbottom Sound", "loc:savo_sound", "nickname"),
+    ("Howlin' Mad", "per:holland_smith", "nickname"),            # quoted part of 'Holland McTyeire "Howlin' Mad" Smith'
+    ("Howlin' Mad Smith", "per:holland_smith", "alias_part"),    # alias words in order
+    ("Cactus", "loc:guadalcanal", "nickname"),                   # text: 'Its Allied codename was "Cactus".'
+])
+def test_nickname_resolves_clearly_from_graph_data(store, query, expected, match):
+    hit = _top(store, query)
+    assert (hit["id"], hit["match"], hit["quality"]) == (expected, match, "clear")
+
+
+def test_shared_nickname_is_a_tie(store):
+    hits = store.search_entities("Big E")
+    tied = {h["id"] for h in hits if h.get("ambiguous")}
+    assert {"ship:enterprise_cv6", "ship:enterprise_cvn65"} <= tied and hits[0]["quality"] == "uncertain"
+
+
+def test_text_nickname_keeps_its_evidence(store):
+    hit = _top(store, "Cactus")
+    assert "codename" in hit["evidence"] and "Cactus" in hit["evidence"]
+
+
+def test_plain_alias_nickname_already_resolves(store):
+    hit = _top(store, "Big Red One")
+    assert (hit["id"], hit["match"], hit["quality"]) == ("org:1st_infantry_division", "alias", "clear")
+
+
+def test_nickname_labels_get_no_partial_credit(store):
+    lance = store.search_entities("Lance")  # plain similarity only: a weak, never clear, match
+    assert all(h["quality"] == "uncertain" and h["score"] < 90 for h in lance if h["id"] == "weapon:type_93_torpedo")
+    assert _top(store, "Tokyo")["id"] == "loc:tokyo"
+    assert _top(store, "Guadalcanal")["id"] == "loc:guadalcanal"  # the "Cactus" text doesn't disturb the name
+
+
+def test_tied_results_carry_a_hint(store):
+    hits = {h["id"]: h for h in store.search_entities("Big E")}
+    assert hits["ship:enterprise_cv6"]["hint"] == "CV-6, 1938-1947"
+    assert hits["ship:enterprise_cvn65"]["hint"] == "CVN-65, 1961-2017"
+    guam = {h["id"]: h for h in store.search_entities("Battle of Guam")}
+    assert guam["event:battle_of_guam_1941"]["hint"].startswith("1941")
+    assert "hint" not in store.search_entities("Midway")[0]  # clear results need none
