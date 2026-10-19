@@ -2,7 +2,7 @@
   "question": "Show me all locations connected to Admiral Yamamoto",
   "after": null,
   "reply": {
-    "schema_version": "1.3",
+    "schema_version": "1.4",
     "answer": "**5 places** are connected to Isoroku Yamamoto in the graph: 3 through the Battle of Midway (Midway Atoll, Sand Island, Eastern Island) and 2 through the Attack on Pearl Harbor (Pearl Harbor, Hickam Field). The map shows all of them.",
     "answer_ids": [
       "loc:midway_atoll",
@@ -198,7 +198,8 @@
         "match": "fuzzy",
         "score": 90,
         "quality": "clear",
-        "model_rewritten_query": false
+        "model_rewritten_query": false,
+        "model_reading": false
       }
     ],
     "interpretation": [

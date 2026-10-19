@@ -79,6 +79,9 @@ def redact_instructions(text: str) -> tuple[str, int]:
 
 # Name-match quality (spec R4). Starting values, to be calibrated on the eval set.
 CLEAR_SCORE = 90  # minimum score for a "clear" best match
+ALIAS_PART_SCORE = 97  # a person's nickname + surname, in order, inside one alias (spec R53)
+ARTICLE_SCORE = 94  # exact except for a leading article: below a literal exact match by more than AMBIGUITY_MARGIN,
+                    # so "Battle of Midway" stays clear of the film "The Battle of Midway"
 AMBIGUITY_MARGIN = 5  # another node scoring within this of a result makes it a near-tie
 MATCH_CUTOFF = 60  # results below this are not returned
 
@@ -320,6 +323,29 @@ def normalize_name(text: str) -> str:
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
     stripped = re.sub(r"['\u2018\u2019`]", "", stripped).replace("-", " ")
     return " ".join(stripped.split())
+
+
+def _in_order(needle: list[str], hay: list[str]) -> bool:
+    """True if every word of `needle` appears in `hay` in the same order (gaps allowed)."""
+    it = iter(hay)
+    return all(w in it for w in needle)
+
+
+def strip_article(norm: str) -> str:
+    """A normalized label without a leading article: "the big e" -> "big e" (spec R53)."""
+    for art in ("the ", "a ", "an "):
+        if norm.startswith(art) and len(norm) > len(art):
+            return norm[len(art):]
+    return norm
+
+
+# Nickname labels the graph itself holds (spec R53): the quoted part of an alias, and phrases in node text.
+QUOTED_RE = re.compile(r'["\u201c\u201d]([^"\u201c\u201d]{2,40})["\u201c\u201d]')
+TEXT_NICKNAME_RE = re.compile(
+    r"\b(?:nicknamed|also known as|known as|dubbed|called the|codenamed|codename was|codename)\s+(?:the\s+)?"
+    r"(?:[\"\u201c\u2018']([^\"\u201d\u2019']{2,40})[\"\u201d\u2019']"   # quoted
+    r"|((?:[A-Z][\w\-.]*)(?:\s+[A-Z][\w\-.]*){0,4}))")          # or up to five capitalized words
+NICKNAME_KINDS = {"nickname", "codename"}  # alias_details kinds matched like nicknames (exact, no partial credit)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -582,6 +608,8 @@ class GraphStore:
         self._names: list[str] = []  # normalized labels
         self._labels: list[str] = []  # original labels
         self._name_owner: list[str] = []
+        self._label_kind: list[str] = []  # name / alias / nickname / hull_number (spec R53)
+        self._label_evidence: dict[int, str] = {}  # where a derived label comes from: the quoted alias or text
         self._norm_name: dict[str, str] = {}  # node id -> normalized name
         self._norm_aliases: dict[str, frozenset[str]] = {}  # node id -> normalized aliases
         no_aliases: frozenset[str] = frozenset()
@@ -593,14 +621,27 @@ class GraphStore:
             self._norm_name[n.id] = norm
             self._norm_aliases[n.id] = frozenset(aliases) if aliases else no_aliases
             code = type_codes.setdefault(n.type, len(type_codes))
-            for label, normalized in zip([n.name, *n.aliases], [norm, *aliases]):
+
+            def add_label(label: str, normalized: str, kind: str, evidence: str | None = None) -> None:
+                if not normalized:
+                    return
+                if evidence:
+                    self._label_evidence[len(self._names)] = evidence
                 self._names.append(normalized)
                 self._labels.append(label)
                 self._name_owner.append(n.id)
+                self._label_kind.append(kind)
                 label_types.append(code)
-        self._type_codes = type_codes
-        self._label_types = np.array(label_types, dtype=np.int32)
-        self._label_lens = np.array([len(x) for x in self._names], dtype=np.int32)
+
+            for label, normalized, kind in zip([n.name, *n.aliases], [norm, *aliases], ["name"] + ["alias"] * len(aliases)):
+                add_label(label, normalized, kind)
+            for a in n.aliases:  # 'Holland McTyeire "Howlin' Mad" Smith' -> "Howlin' Mad"
+                for part in QUOTED_RE.findall(a):
+                    add_label(part, normalize_name(part), "nickname", f"alias: {a}")
+            for d in (n.model_extra or {}).get("alias_details") or []:  # spec R51: typed aliases
+                if isinstance(d, dict) and isinstance(d.get("label"), str):
+                    kind = "nickname" if d.get("kind") in NICKNAME_KINDS else "hull_number" if d.get("kind") == "hull_number" else "alias"
+                    add_label(d["label"], normalize_name(d["label"]), kind, f"typed alias from {d.get('provider') or 'the graph'}")
 
         # Instruction-like sentences are removed from source text before it is indexed or
         # returned by any tool (spec R32); the raw text stays on the node.
@@ -617,6 +658,36 @@ class GraphStore:
                 if removed:
                     self.redacted_ids.add(n.id)
             self.safe_text[n.id] = "\n\n".join(paras)
+
+        # Nickname phrases in the (redacted) text: 'codename was "Cactus"', "nicknamed the Big E" (spec R53)
+        for n in nodes:
+            text = self.safe_text.get(n.id) or ""
+            if not text:
+                continue
+            code = type_codes[n.type]
+            for m in TEXT_NICKNAME_RE.finditer(text):
+                label = (m.group(1) or m.group(2) or "").strip(" .,;:")
+                if len(normalize_name(label)) < 3 or normalize_name(label) == self._norm_name[n.id]:
+                    continue
+                start = max(0, text.rfind(".", 0, m.start()) + 1)
+                end = text.find(".", m.end())
+                self._label_evidence[len(self._names)] = "text: " + text[start:end + 1 if end >= 0 else None].strip()[:200]
+                self._names.append(normalize_name(label))
+                self._labels.append(label)
+                self._name_owner.append(n.id)
+                self._label_kind.append("nickname")
+                label_types.append(code)
+        self._type_codes = type_codes
+        self._label_types = np.array(label_types, dtype=np.int32)
+        self._label_lens = np.array([len(x) for x in self._names], dtype=np.int32)
+        self._nick_mask = np.array([k in ("nickname", "hull_number") for k in self._label_kind], dtype=bool)
+        self._alias_mask = np.array([k == "alias" for k in self._label_kind], dtype=bool)
+        self._label_ids: dict[str, list[int]] = {}  # node id -> its label indexes
+        for i, owner in enumerate(self._name_owner):
+            self._label_ids.setdefault(owner, []).append(i)
+        self._exact: dict[str, list[int]] = {}  # label without a leading article -> label indexes
+        for i, name in enumerate(self._names):
+            self._exact.setdefault(strip_article(name), []).append(i)
 
         # Text index: one chunk per paragraph of each node's (redacted) text.
         self._chunks: list[tuple[str, str]] = [
@@ -948,16 +1019,33 @@ class GraphStore:
         - `ambiguous`: true when another result scores within AMBIGUITY_MARGIN
         """
         q = normalize_name(query)
-        results, seen = [], set()
+        best: dict[str, tuple[float, int, str]] = {}  # node id -> (score, label index, match)
+
+        def offer(node_id: str, score: float, idx: int, match: str) -> None:
+            if node_id not in best or score > best[node_id][0]:
+                best[node_id] = (score, idx, match)
+
+        code = self._type_codes.get(type, -1) if type is not None else None
+        for idx in self._exact.get(strip_article(q), []) if q else []:  # exact, article-insensitive (R53)
+            if code is None or self._label_types[idx] == code:
+                kind = self._label_kind[idx]
+                offer(self._name_owner[idx], 100.0 if self._names[idx] == q else ARTICLE_SCORE, idx,
+                      "name" if kind == "name" else kind)
+        q_tokens = _tokenize(q)
         for score, idx in self._name_candidates(q, type):
             node_id = self._name_owner[idx]
-            if node_id in seen:
-                continue
-            seen.add(node_id)
-            match = "name" if q == self._norm_name[node_id] else "alias" if q in self._norm_aliases[node_id] else "fuzzy"
-            results.append({**self.summarize_node(node_id), "matched": self._labels[idx], "score": round(score), "match": match})
-            if len(results) >= limit:
-                break
+            label_tokens = _tokenize(self._names[idx]) if len(q_tokens) >= 2 and self._label_kind[idx] == "alias" else []
+            if (label_tokens and self.nodes[node_id].type == "person" and q_tokens[-1] == label_tokens[-1]
+                    and _in_order(q_tokens, label_tokens)):
+                offer(node_id, ALIAS_PART_SCORE, idx, "alias_part")  # "howlin mad smith" in 'Holland McTyeire "Howlin' Mad" Smith'
+            offer(node_id, score, idx, "fuzzy")
+        ranked = sorted(best.items(), key=lambda kv: (-kv[1][0], kv[1][1]))[:limit]
+        results = []
+        for node_id, (score, idx, match) in ranked:
+            r = {**self.summarize_node(node_id), "matched": self._labels[idx], "score": round(score), "match": match}
+            if idx in self._label_evidence:
+                r["evidence"] = self._label_evidence[idx]
+            results.append(r)
 
         scores = [r["score"] for r in results]
         for i, r in enumerate(results):
@@ -965,10 +1053,32 @@ class GraphStore:
             r["ambiguous"] = any(abs(r["score"] - s) <= AMBIGUITY_MARGIN for s in others)
             clear = i == 0 and r["score"] >= CLEAR_SCORE and not r["ambiguous"]
             r["quality"] = "clear" if clear else "uncertain"
+            if r["ambiguous"] and (hint := self.hint(r["id"])):
+                r["hint"] = hint  # spec R54: what tells tied candidates apart
         return results
 
+    def named_in(self, node_id: str, text: str) -> bool:
+        """True if the text uses one of the node's labels (name, alias, graph nickname), as whole words and
+        ignoring a leading article. Tells a graph-backed reading of the user's words from the model's own (Q18)."""
+        words = f" {' '.join(_tokenize(normalize_name(text)))} "
+        for i in self._label_ids.get(node_id, ()):
+            label = " ".join(_tokenize(strip_article(self._names[i])))
+            if len(label) >= 3 and f" {label} " in words:
+                return True
+        return False
+
+    def hint(self, node_id: str) -> str:
+        """Short distinguishing text for a tied search result (spec R54): hull numbers and
+        years ("CV-6, 1938-1947"), else the first words of the description."""
+        hulls = [self._labels[i] for i in self._label_ids.get(node_id, ()) if self._label_kind[i] == "hull_number"]
+        start, end = self.node_dates(node_id)
+        years = "-".join(dict.fromkeys(str(d)[:4] for d in (start, end) if d))
+        parts = [*hulls, years] if (hulls or years) else [" ".join((self.nodes[node_id].text or "").split()[:8])]
+        return ", ".join(p for p in parts if p)
+
     NAME_CANDIDATES = 200  # best-scoring labels examined per search (several labels can belong to one node)
-    SHORT_LABEL = 3  # abbreviations up to this length get no partial-match credit
+    SHORT_LABEL = 3  # names up to this length get no partial-match credit
+    SHORT_ALIAS = 5  # nor do aliases up to this length: "Bull", the Tu-4's alias, inside "Bull Halsey" (spec R53)
 
     def _name_candidates(self, q: str, type: str | None) -> list[tuple[float, int]]:
         """(score, label index) of labels scoring >= MATCH_CUTOFF, best first, ties in label order.
@@ -990,7 +1100,9 @@ class GraphStore:
         if type is not None:
             code = self._type_codes.get(type)
             mask &= self._label_types == (code if code is not None else -1)
-        short = mask & (self._label_lens <= self.SHORT_LABEL) & (self._label_lens * 2 < len(q))
+        short_len = (self._label_lens <= self.SHORT_LABEL) | (self._alias_mask & (self._label_lens <= self.SHORT_ALIAS))
+        short = mask & short_len & (self._label_lens * 2 < len(q))
+        short |= mask & self._nick_mask  # nickname labels: no partial credit ("Bull" in "Bull Halsey"; spec R53)
         for i in np.flatnonzero(short):
             scores[i] = fuzz.ratio(q, self._names[i])
         mask &= scores >= MATCH_CUTOFF

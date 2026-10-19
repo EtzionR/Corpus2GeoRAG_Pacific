@@ -2,7 +2,7 @@
   "question": "Write me a poem about the ocean",
   "after": null,
   "reply": {
-    "schema_version": "1.3",
+    "schema_version": "1.4",
     "answer": "I can only answer questions about the Pacific theatre of World War II, using the knowledge graph built from Wikipedia: places, battles, people and organizations, and how they are connected. For example: \"Where did the Battle of Midway happen?\" or \"Show me all locations connected to Admiral Yamamoto.\"",
     "answer_ids": [],
     "context_ids": [],
