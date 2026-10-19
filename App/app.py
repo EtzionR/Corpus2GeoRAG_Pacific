@@ -327,6 +327,8 @@ def render_reply(res: Dict[str, Any]):
         err = res.get("error") or {}
         stage = err.get("stage", "unknown")
         message = ERROR_MESSAGES.get(stage, "The agent couldn't answer this question. Please try again or rephrase it.")
+        if stage == "model_call" and ("Authentication" in str(err.get("type")) or "401" in str(err.get("message"))):
+            message = "The model provider rejected the API key. Check OPENROUTER_API_KEY in Agent/.env or the app's secrets."
         (st.warning if stage in ERROR_MESSAGES else st.error)(message)
         st.caption(f"Stage: {md_text(stage)} · run\\_id: `{res.get('run_id', '')}`")
         return
