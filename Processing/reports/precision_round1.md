@@ -218,7 +218,8 @@ verified by a person. A person should check the disagreements first.*
   Wikitext and Wikipedia API fetches for missing Articles. It read leads and service or career sections, returning
   to long histories where needed. Other labels, Overrides and pipeline decisions stayed closed until the labels
   in `reports/eval_log_gpt.tsv` were committed on their own (`823e7f4`). Only then were the 40 recovery labels copied
-  into `eval_set.yaml`. The original 325 labels and existing header were preserved.
+  into `eval_set.yaml`. The original 325 labels were preserved. The main header wording has since been restored,
+  with the recovery exception and provenance placed after it; all 365 titles and labels are unchanged.
 
 ### Results
 
@@ -237,14 +238,26 @@ evaluator's 95% intervals from 2,000 bootstrap samples within sections. Each com
 for its earlier and current run. Earlier tables used other labels or treated recovery Overrides as correct;
 use this table for the round 2 comparison.
 
+**Correction to the earlier round 2 figures.** The evaluator weighted recovery by how many recovery includes
+were in each run, instead of the fixed population of 500. That left almost all missed recovery Articles out of
+the baseline and step 5 recall denominators, overstating recall and understating the recovery gain. It also
+mistook two baseline e5 inclusions for recovery Overrides and subtracted two original Overrides. The weight is
+now 500 / 40 in every run; only recovery includes actually decided by Override are subtracted from the original
+Override count (0 in baseline and step 5, 500 now). Majority baseline recall changes from 73.0% to 67.7%, step 5
+from 72.5% to 67.3%; current stays 74.5%. Wrong rates are unchanged at the precision shown.
+
+Classification recall excludes the **154 recovery exclude-Overrides**, an unmeasured group removed from the
+classification-recall sampling pool. Any relevant Articles among them are missing from this estimate. No sample
+was drawn from them. All labels are by models, none verified by a person.
+
 | Label mode | Run | Corpus | Wrong in the Corpus (95%) | ≈ wrong Articles | Classification recall (95%) | Discovery recall |
 |---|---|---|---|---|---|---|
-| `set` | Baseline | 5,422 | 12.3% (7.6–17.2%) | 667 | 74.5% (68.6–81.4%) | 70.8% (34 / 48) |
+| `set` | Baseline | 5,422 | 12.3% (7.6–17.2%) | 667 | 69.0% (63.8–74.8%) | 70.8% (34 / 48) |
 | `set` | Current | 5,693 | 8.3% (4.6–12.5%) | 471 | 75.9% (70.2–82.2%) | 70.8% (34 / 48) |
-| `majority` | Baseline | 5,422 | 11.9% (7.2–16.9%) | 646 | 73.0% (67.1–79.6%) | 71.4% (35 / 49) |
-| `majority` | Step 5, before recovery review | 5,193 | 8.5% (4.5–12.9%) | 439 | 72.5% (66.6–79.1%) | 71.4% (35 / 49) |
+| `majority` | Baseline | 5,422 | 11.9% (7.2–16.9%) | 646 | 67.7% (62.6–73.5%) | 71.4% (35 / 49) |
+| `majority` | Step 5, before recovery review | 5,193 | 8.5% (4.5–12.9%) | 439 | 67.3% (62.1–73.0%) | 71.4% (35 / 49) |
 | **`majority`** | **Current** | **5,693** | **7.9% (4.3–12.0%)** | **450** | **74.5% (68.8–80.8%)** | **71.4% (35 / 49)** |
-| `gpt` | Baseline | 5,422 | 11.5% (6.9–16.3%) | 625 | 70.8% (65.3–77.3%) | 69.2% (36 / 52) |
+| `gpt` | Baseline | 5,422 | 11.5% (6.9–16.3%) | 625 | 65.9% (61.1–71.6%) | 69.2% (36 / 52) |
 | `gpt` | Current | 5,693 | 8.1% (4.6–12.3%) | 464 | 71.9% (66.6–78.2%) | 69.2% (36 / 52) |
 
 `set` means the second Claude session's 325 labels plus GPT's 40 recovery labels. `majority` votes on correct
@@ -255,7 +268,8 @@ The paired sample comparison, baseline → current, removes **6 wrong and 1 corr
 labels, or **5 wrong and 2 correct** under GPT labels. All modes add **39 correct and 1 wrong** sampled recovery
 Articles. Step 5 → current adds those same 40 sampled Articles and removes none. The majority wrong rate falls
 by about 0.6 points after recovery, while the estimated number of wrong Articles rises from 439 to 450 because
-the Corpus is larger. Classification recall rises by about 2 points. Discovery does not change: under majority
+the Corpus is larger. Classification recall rises by about 7.2 points after recovery (6.8 points from baseline).
+Discovery does not change: under majority
 labels, 35 of 49 relevant list Articles are found and 32 are included. Gold-set recall remains **55 / 55** in the
 latest notebook output.
 
@@ -317,5 +331,7 @@ Late-war ship histories also need dates, not just the word Pacific. GPT's keep f
 marginal for *Masamoto Nasu* are broader readings than the Claude sessions'. A person should settle these
 boundaries before changing any rules or Overrides.
 
-Verification: **32 tests passed** with `.venv/bin/python -m pytest tests -q`. The current flow counts were
+Verification after the correction: **35 tests passed** with `.venv/bin/python -m pytest tests -q`. All four
+evaluation comparisons above were re-run with the corrected evaluator. A programmatic check against the committed
+evaluation set confirmed that all 365 titles and labels are unchanged. The current flow counts were
 checked against the saved outputs of `crawl_corpus.ipynb` and the Article records in `Data/interim/`.

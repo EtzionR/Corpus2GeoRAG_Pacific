@@ -10,7 +10,7 @@
 |---|---|
 | **Articles delivered** | **5,693** (104.3 MB), out of 14,665 examined |
 | **Wrong articles in the Corpus** | **~7.9%** (95% 4.3–12.0%), down from ~11.9% (7.2–16.9%) before the 2026-10-17 changes · *provisional: majority of two Claude sessions and GPT; all labels are by models, none verified by a person; the 40 recovery labels are by GPT alone* |
-| **Recall** | **74.5%** (95% 68.8–80.8%) of relevant Articles that were found are included; **71.4%** (35 / 49) of relevant Articles from independent Wikipedia lists are found at all · *provisional, same caveat* |
+| **Recall** | **74.5%** (95% 68.8–80.8%) of relevant Articles that were found are included, up from **67.7%** (62.6–73.5%) in baseline and **67.3%** (62.1–73.0%) before recovery review; excludes 154 unmeasured recovery exclude-Overrides; **71.4%** (35 / 49) of relevant Articles from independent Wikipedia lists are found at all · *provisional, same caveat* |
 | **Quality check** | 55 / 55 hand-picked must-have articles are included |
 | **Accuracy on unclear cases** | ~93% when the AI check is confident (50 of 54 hand-labelled articles it never saw) |
 | **Hand decisions** | 1,832 articles decided one by one (1,103 kept, 729 dropped): 1,178 in the 2026-10-12 review and 654 recovery candidates decided by a Claude session on 2026-10-17 (500 kept, 154 dropped; *not yet checked by a person*); every reason is in `reports/review_log.tsv` |
@@ -19,6 +19,13 @@
 
 How these numbers are measured: [`reports/precision_round1.md`](reports/precision_round1.md) and
 `python Processing/evaluate.py`.
+
+The earlier round 2 figures gave recovery Articles a smaller weight before they were included, leaving almost
+all missed recovery Articles out of the recall denominator. Two baseline e5 inclusions were also mistaken for
+recovery Overrides, removing two original Overrides from the count. Using the same 500-Article recovery
+population in every run corrects majority baseline recall from 73.0% to 67.7% and pre-recovery recall from 72.5%
+to 67.3%; current recall stays 74.5%, and wrong rates are unchanged at the precision shown. Recall excludes the
+154 unmeasured recovery exclude-Overrides. All labels are by models, none verified by a person.
 
 ## The flow
 
