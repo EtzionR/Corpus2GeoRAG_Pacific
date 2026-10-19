@@ -730,3 +730,30 @@ def test_answer_with_nothing_to_draw_is_flagged():
     out = finalize_answer(STORE, AgentAnswer(answer="Isoroku Yamamoto commanded the Combined Fleet.", answer_ids=["per:yamamoto"],
                                              context_ids=[], sources=[], answer_sets=[]), turn_)
     assert out["geojson"]["features"] == [] and "nothing_on_map" in out["warnings"]
+
+
+# Nicknames in the answer path (spec R53, R55, plan step 26)
+
+def _resolve(question, query, kept, answer_ids=None):
+    parsed = AgentAnswer(answer="x", answer_ids=answer_ids or kept, context_ids=[], sources=[], answer_sets=[])
+    return finalize_answer(STORE, parsed, search_turn(question, query))
+
+
+def test_model_reading_is_shown_when_the_graph_doesnt_link_the_users_words():
+    out = _resolve("Where did the Leathernecks fight?", "United States Marine Corps", ["org:usmc"])
+    assert any("the model's reading" in line and "United States Marine Corps" in line for line in out["interpretation"])
+    linked = _resolve("Where did the Old Breed fight?", "1st Marine Division", ["org:1st_marine_division"])
+    assert not any("the model's reading" in line for line in linked["interpretation"])  # the graph holds "The Old Breed"
+
+
+def test_nickname_interpretation_cites_the_graph_evidence():
+    out = _resolve("Who attacked Cactus in 1942?", "Cactus", ["loc:guadalcanal"])
+    assert any(line.startswith("'Cactus' read as Guadalcanal (nickname") and 'codename was "Cactus"' in line
+               for line in out["interpretation"])
+
+
+def test_year_outside_a_ships_service_is_a_context_mismatch():
+    late = _resolve("Where did the Big E fight in 1945?", "Big E", ["ship:enterprise_cvn65"])
+    assert "context_mismatch" in late["warnings"]
+    ok = _resolve("Where did the Big E fight in 1942?", "Big E", ["ship:enterprise_cv6"])
+    assert "context_mismatch" not in ok["warnings"]

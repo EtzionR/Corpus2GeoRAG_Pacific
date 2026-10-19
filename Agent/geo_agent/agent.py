@@ -791,8 +791,12 @@ def resolution_records(store: GraphStore, kept_ids: list[str], turn: list[Any], 
             "quality": h.get("quality", "uncertain"),
             "model_rewritten_query": bool(typed) and fuzz.partial_ratio(normalize_name(typed), norm_question) < REWRITE_RATIO,
         }
+        if h.get("evidence"):
+            rec["evidence"] = h["evidence"]  # where the graph holds a nickname (spec R53)
+        # Q18: the model searched a name the user didn't use, and the graph doesn't tie the user's words to it
+        rec["model_reading"] = rec["model_rewritten_query"] and not store.named_in(node_id, question)
         start, end = store.node_dates(node_id)  # point dates count (start == end)
-        if node.type == "event" and start and end:
+        if start and end:  # R55: any dated entity (a ship's service, an event), not only events
             outside = [y for y in years if not int(str(start)[:4]) <= y <= int(str(end)[:4])]
             if outside:
                 rec["context_mismatch"] = {"question_year": outside[0], "start_date": start, "end_date": end}
@@ -947,8 +951,10 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
 
     question = next((str(m.content) for m in reversed(messages) if m.type == "human"), "")
     resolved = resolution_records(store, kept, turn, question)
-    interpretation = [f"'{r['typed']}' read as {r['name']} ({r['match']})"
+    interpretation = [f"'{r['typed']}' read as {r['name']} ({r['match']}" + (f"; {r['evidence']}" if r.get("evidence") else "") + ")"
                       for r in resolved if r["typed"] and normalize_name(r["typed"]) != normalize_name(r["name"])]
+    interpretation += [f"{r['name']}: the model's reading of the question; the graph doesn't record the name used"
+                       for r in resolved if r.get("model_reading")]
     # R30: approximations reported by tools this turn (name heuristics, text-based concepts)
     approx = [d for _, data in tool_results(turn) for d in _walk(data) if isinstance(d.get("approximation"), str)]
     interpretation += [f"approximation: {n}" for n in dict.fromkeys(d["approximation"] for d in approx)]

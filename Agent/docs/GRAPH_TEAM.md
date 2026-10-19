@@ -135,7 +135,8 @@ Users name things by nickname: "Big E", "Mighty Mo", "Bull Halsey", "the Slot", 
 - 271 groups of ships share a name (551 nodes), and few carry a hull number.
 
 **Ask:**
-- **The agent matches only the labels you export.** It doesn't build "Howlin' Mad Smith" out of "Howlin' Mad" plus the surname, and it keeps no nickname list of its own. Export the forms people actually type.
+- **What the agent already uses:** your aliases, the quoted part of an alias (`Holland McTyeire "Howlin' Mad" Smith`), and phrases in the text such as *nicknamed …*, *known as …*, *codename was "…"*. It keeps no nickname list of its own.
+- **The text helps only if it holds such phrases.** Today's text is a short description (median 30 characters), and only 15 texts say "nicknamed" or "known as". Exporting Wikipedia paragraphs (P6) would let the agent find many more nicknames on its own.
 - **Nicknames:** export Wikidata `skos:altLabel` and `wd:P1449` (nickname) and DBpedia `nickname`. If you can, give each alias a kind (`alias`, `nickname`, `hull_number`, `codename`) and its provider, as an optional `alias_details: [{label, kind, provider, record_id}]` next to `aliases`. The agent will read both.
 - **Ships:** add hull numbers (`wd:P879`) and commissioning and decommissioning dates (`wd:P729` / `wd:P730`), so "Enterprise in 1942" can be told apart from a later Enterprise. Never merge same-name ships into one node.
 - **Places known by a nickname:** add New Georgia Sound ("the Slot") and Ironbottom Sound with coordinates, and the codename "Cactus" on Guadalcanal.

@@ -11,7 +11,7 @@
   - The sidebar shows real stats.
 - **The agent now ships its own runner and mock mode,** built for exactly this: `geo_agent.runner.AgentRunner` and `GEO_AGENT_MOCK=1`. **Recommendation:** replace the app's own `AgentRunner` and `MockAgent` with them. This fixes timeouts and double submits, adds progress events, and keeps mock replies identical to real ones.
 - **We ran your app end to end with the agent (2026-10-18).** We wrote the integration ourselves in a local copy, following this note, and nothing was pushed. It works in mock mode, with the real agent on the sample graph, and on the 465 MB draft graph. The one real trap we hit is in section 0.
-- **The reply format grew to `schema_version` "1.3"** (1.2: `source_refs`, `bbox`, `center`, feature `geometry_source`, new error stages; 1.3: `ungrounded_names`). Nothing the app reads today changed name or type. Don't compare the version to a fixed string: additions are minor versions.
+- **The reply format grew to `schema_version` "1.4"** (1.2: `source_refs`, `bbox`, `center`, feature `geometry_source`, new error stages; 1.3: `ungrounded_names`; 1.4: `resolved_entities[].match` can be `nickname`, `hull_number` or `alias_part`). Nothing the app reads today changed name or type. Don't compare the version to a fixed string: additions are minor versions.
 - **The graph is getting broader.** The team's next graph covers World War II beyond the Pacific (`metadata.scope`), and ids become Wikidata QIDs. Don't hard-code "Pacific" assumptions or id formats.
 - **English only.**
 

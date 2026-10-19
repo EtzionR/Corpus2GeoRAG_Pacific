@@ -2,7 +2,7 @@
   "question": "Simulate an error",
   "after": null,
   "reply": {
-    "schema_version": "1.3",
+    "schema_version": "1.4",
     "answer": "",
     "answer_ids": [],
     "context_ids": [],
