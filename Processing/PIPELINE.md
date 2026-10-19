@@ -4,6 +4,9 @@
 (battles, people, ships, units, aircraft, places, events…) and hand it over as one JSON file:
 `{ article title: article text }`.
 
+*"The app" in these docs is the corpus review app, `App/corpus_review_app.py`
+(`.venv/bin/streamlit run App/corpus_review_app.py`), not the project UI in `App/app.py`.*
+
 ## At a glance
 
 | | |

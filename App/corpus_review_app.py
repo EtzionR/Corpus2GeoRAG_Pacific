@@ -1,6 +1,7 @@
 """Review and explore the Pacific War Corpus.
 
-Run from the repo root:  .venv/bin/streamlit run App/app.py
+Run from the repo root:  .venv/bin/streamlit run App/corpus_review_app.py
+(The project UI is App/app.py; this is the corpus review app the Processing docs call "the app".)
 Reads the outputs of Processing/crawl_corpus.ipynb (Data/interim/) and writes hand decisions to
 Processing/config/overrides.yaml. Vocabulary: see CONTEXT.md.
 """
