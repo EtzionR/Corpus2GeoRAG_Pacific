@@ -10,6 +10,7 @@
 # e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
 # Drawn by Processing/eval_sample.py (seed 1) from the pipeline output of 2026-10-17 22:07.
 # Labels: second, independent Claude session on 2026-10-17, blind to the drafts in reports/eval_log.tsv — not yet verified by a person.
+# precision_recovery labels: GPT via opencode on 2026-10-19, blind, not verified by a person; filled from reports/eval_log_gpt.tsv.
 precision_rules:
   135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: wrong
   18th Brigade (Australia): marginal
@@ -340,43 +341,43 @@ discovery_recall:
   Wayne Morris: marginal
   William H. Wilbur: wrong
 precision_recovery:
-  HMAS Mallina: null
-  Ha-101-class submarine: null
-  Japanese submarine Ro-45: null
-  Japanese survey ship Hakuyo Maru: null
-  Tamahoko Maru: null
-  USCGC McLane: null
-  USS Achilles (ARL-41): null
-  USS Ammonusuc: null
-  USS Bandera: null
-  USS Barnstable: null
-  USS Beaverhead: null
-  USS Bridge (AF-1): null
-  USS Enceladus: null
-  USS Fleming (DE-32): null
-  USS Freestone: null
-  USS Holland (AS-3): null
-  USS Hydrographer (AGS-2): null
-  USS Jerauld: null
-  USS LST-16: null
-  USS LST-767: null
-  USS LST-794: null
-  USS LST-826: null
-  USS LST-828: null
-  USS Lagarto: null
-  USS Las Vegas Victory: null
-  USS Lesuth: null
-  USS Leyte (ARG-8): null
-  USS Mallard (AMCU-30): null
-  USS McCracken: null
-  USS Megrez: null
-  USS Oahu (ARG-5): null
-  USS Pelias: null
-  USS Polana: null
-  USS Rockbridge: null
-  USS Shaula: null
-  USS Steelhead: null
-  USS Suisun: null
-  USS Toro: null
-  USS Trego: null
-  USS Tuscana: null
+  HMAS Mallina: keep
+  Ha-101-class submarine: wrong
+  Japanese submarine Ro-45: keep
+  Japanese survey ship Hakuyo Maru: keep
+  Tamahoko Maru: keep
+  USCGC McLane: marginal
+  USS Achilles (ARL-41): keep
+  USS Ammonusuc: keep
+  USS Bandera: marginal
+  USS Barnstable: keep
+  USS Beaverhead: marginal
+  USS Bridge (AF-1): keep
+  USS Enceladus: keep
+  USS Fleming (DE-32): keep
+  USS Freestone: keep
+  USS Holland (AS-3): keep
+  USS Hydrographer (AGS-2): keep
+  USS Jerauld: keep
+  USS LST-16: marginal
+  USS LST-767: keep
+  USS LST-794: keep
+  USS LST-826: keep
+  USS LST-828: keep
+  USS Lagarto: keep
+  USS Las Vegas Victory: keep
+  USS Lesuth: keep
+  USS Leyte (ARG-8): marginal
+  USS Mallard (AMCU-30): keep
+  USS McCracken: keep
+  USS Megrez: keep
+  USS Oahu (ARG-5): keep
+  USS Pelias: keep
+  USS Polana: marginal
+  USS Rockbridge: keep
+  USS Shaula: keep
+  USS Steelhead: keep
+  USS Suisun: keep
+  USS Toro: keep
+  USS Trego: keep
+  USS Tuscana: keep

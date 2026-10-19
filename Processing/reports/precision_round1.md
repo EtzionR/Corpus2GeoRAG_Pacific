@@ -197,3 +197,125 @@ With the first session's drafts the same runs give 9.2% → 5.6% → **5.1%** wr
 No sampled evaluation title changed between step 5 and now (none can: they are never overrides), so the gain comes
 from the 500 recovered Articles, which `evaluate.py` counts as correct because they are overrides. That is only as
 good as the Claude decisions behind them; a person's spot check of them would make it real.
+
+## Round 2: frozen kNN neighbours, recovery precision, three labellers
+
+*2026-10-19 · all evaluation labels are by models: two Claude sessions and GPT via opencode. None has been
+verified by a person. A person should check the disagreements first.*
+
+### What changed
+
+- **Frozen neighbours.** The Second key now reads `config/knn_neighbours.yaml`: 1,308 Articles, 672 in and 636 out.
+  Recovery Overrides are kept out of this list. It changes only through an explicit rebuild. The 654 recovery
+  decisions therefore no longer change other Articles' kNN neighbours. The latest cached notebook run has **5,693**
+  Articles, **157** vetoes and **9** recovery Candidates. Against step 5, exactly **500** Articles enter through
+  Overrides; no other inclusion changes. This removes the side effect described in the follow-up above.
+- **Recovery measured on its own.** `precision_recovery` is a random sample of 40 of the 500 recovery
+  include-Overrides (seed 3). These Overrides no longer count as correct by definition: the sample estimates their
+  wrong rate. The other, original review Overrides still count as correct by definition. Only this evaluation
+  section is allowed to overlap Overrides, and it is kept out of calibration and kNN neighbours.
+- **A third blind labeller.** GPT read the 365 titles from `Data/interim/eval_titles_blind.tsv`, using cached
+  Wikitext and Wikipedia API fetches for missing Articles. It read leads and service or career sections, returning
+  to long histories where needed. Other labels, Overrides and pipeline decisions stayed closed until the labels
+  in `reports/eval_log_gpt.tsv` were committed on their own (`823e7f4`). Only then were the 40 recovery labels copied
+  into `eval_set.yaml`. The original 325 labels and existing header were preserved.
+
+### Results
+
+Commands run with the repository's Python:
+
+```sh
+.venv/bin/python Processing/evaluate.py --compare Data/interim/runs/baseline
+.venv/bin/python Processing/evaluate.py --labels majority --compare Data/interim/runs/baseline
+.venv/bin/python Processing/evaluate.py --labels gpt --compare Data/interim/runs/baseline
+.venv/bin/python Processing/evaluate.py --labels majority --compare Data/interim/runs/step5
+.venv/bin/python -m pytest tests -q
+```
+
+*Keep* and *marginal* both count as correct. Wrong-rate and classification-recall intervals below are the
+evaluator's 95% intervals from 2,000 bootstrap samples within sections. Each comparison uses the same weights
+for its earlier and current run. Earlier tables used other labels or treated recovery Overrides as correct;
+use this table for the round 2 comparison.
+
+| Label mode | Run | Corpus | Wrong in the Corpus (95%) | ≈ wrong Articles | Classification recall (95%) | Discovery recall |
+|---|---|---|---|---|---|---|
+| `set` | Baseline | 5,422 | 12.3% (7.6–17.2%) | 667 | 74.5% (68.6–81.4%) | 70.8% (34 / 48) |
+| `set` | Current | 5,693 | 8.3% (4.6–12.5%) | 471 | 75.9% (70.2–82.2%) | 70.8% (34 / 48) |
+| `majority` | Baseline | 5,422 | 11.9% (7.2–16.9%) | 646 | 73.0% (67.1–79.6%) | 71.4% (35 / 49) |
+| `majority` | Step 5, before recovery review | 5,193 | 8.5% (4.5–12.9%) | 439 | 72.5% (66.6–79.1%) | 71.4% (35 / 49) |
+| **`majority`** | **Current** | **5,693** | **7.9% (4.3–12.0%)** | **450** | **74.5% (68.8–80.8%)** | **71.4% (35 / 49)** |
+| `gpt` | Baseline | 5,422 | 11.5% (6.9–16.3%) | 625 | 70.8% (65.3–77.3%) | 69.2% (36 / 52) |
+| `gpt` | Current | 5,693 | 8.1% (4.6–12.3%) | 464 | 71.9% (66.6–78.2%) | 69.2% (36 / 52) |
+
+`set` means the second Claude session's 325 labels plus GPT's 40 recovery labels. `majority` votes on correct
+vs wrong, not keep vs marginal. All three modes use GPT alone for recovery: copying those 40 labels into the
+set does not supply another independent judgement.
+
+The paired sample comparison, baseline → current, removes **6 wrong and 1 correct** under set and majority
+labels, or **5 wrong and 2 correct** under GPT labels. All modes add **39 correct and 1 wrong** sampled recovery
+Articles. Step 5 → current adds those same 40 sampled Articles and removes none. The majority wrong rate falls
+by about 0.6 points after recovery, while the estimated number of wrong Articles rises from 439 to 450 because
+the Corpus is larger. Classification recall rises by about 2 points. Discovery does not change: under majority
+labels, 35 of 49 relevant list Articles are found and 32 are included. Gold-set recall remains **55 / 55** in the
+latest notebook output.
+
+### Pairwise agreement
+
+On the **325 Articles independently labelled by all three models**:
+
+| Pair | Correct vs wrong | Exact keep / marginal / wrong |
+|---|---|---|
+| Claude drafts / second Claude session | 310 / 325 (95.4%) | 293 / 325 (90.2%) |
+| Claude drafts / GPT | 303 / 325 (93.2%) | 278 / 325 (85.5%) |
+| Second Claude session / GPT | 310 / 325 (95.4%) | 292 / 325 (89.8%) |
+
+The command prints `set/gpt` as 350 / 365 (95.9%). That includes the 40 copied recovery labels; the independent
+comparison is 310 / 325. The two Claude sessions split on 15 correct-vs-wrong judgements, so neither has a
+majority there. GPT breaks those ties. The resulting majority differs from the second Claude session on four:
+*Hidemi Kon*, *Japanese submarine chaser Cha-203*, *USS Habersham* and *USS YP-422* become correct.
+
+### Precision of the recovery include-Overrides
+
+GPT's 40 recovery labels are **33 keep, 6 marginal, 1 wrong**. With marginal counted as correct, precision is
+**97.5% (39 / 40; 95% Wilson interval 87.1–99.6%)**. Applied to the 500 include-Overrides, that estimates about
+488 correct and 13 wrong Articles. The lower bound is below 90%; this small model-labelled sample does not
+establish that precision is at least 90%. Strict keep alone is 82.5% (33 / 40).
+
+The one recovery Article labelled **wrong** is **Ha-101-class submarine**. Its Article describes transport
+designs, late-war conversions and postwar disposal, but does not document service in US–Japan fighting. This
+is an evidence gap, not proof that every boat was inactive.
+
+The six marginal cases are *USCGC McLane*, *USS Bandera*, *USS Beaverhead*, *USS LST-16*, *USS Leyte (ARG-8)*
+and *USS Polana*. Most are support or transport ships without a stated combat operation. McLane's claimed
+Japanese submarine sinking was later discredited; the target remains unidentified. LST-16's Article gives
+its Pacific route and September arrival in Japan, but leaves the intermediate dates unclear. Both deserve
+a person's check before treating their inclusion as settled.
+
+### Where GPT disagrees with both Claude sessions
+
+These **11** Articles disagree on correct vs wrong with the two-Claude consensus. Keep vs marginal alone
+does not put an Article in this table. The 15 Claude splits above have no two-Claude majority.
+
+| Article | Claude drafts | Second Claude | GPT | GPT's reason |
+|---|---|---|---|---|
+| List of territories acquired by the Empire of Japan | wrong | wrong | marginal | Broad list, but includes occupied US possessions and their liberation. |
+| Marine Air, West Coast | marginal | marginal | wrong | Stateside aviation training and administration, without combat deployment. |
+| Osamu Kudō | marginal | marginal | wrong | Stated combat death was at Broome against a Dutch airman. |
+| Wei Lihuang | wrong | wrong | keep | Y Force's offensive directly supported Stilwell's US-led Burma operations. |
+| Shojiro Hayashi | wrong | wrong | keep | Commanded Japanese troops at Milne Bay, where US forces also served. |
+| Masamoto Nasu | wrong | wrong | marginal | Writer who survived the US atomic bombing of Hiroshima as a child. |
+| Operation Opossum | wrong | wrong | keep | MacArthur-authorized rescue used US Navy patrol boats with Australian crews. |
+| USS Scania (AKA-40) | wrong | wrong | marginal | Carried cargo to Tarawa, Majuro and Kwajalein in July 1945, before surrender. |
+| Norfolk Island | wrong | wrong | marginal | US personnel helped build a rear-area Allied airfield; the island was not attacked. |
+| United States Navy | wrong | wrong | keep | The service itself fought Japan throughout the naval campaigns. |
+| William H. Wilbur | wrong | wrong | marginal | European combat followed by a short, poorly described east Asian posting. |
+
+The main dividing lines are **direct combat vs support**, **a whole organization vs a particular wartime unit**,
+and **a passing civilian or biographical tie**. Burma and Australian-led operations need care: a US commander,
+US-owned boat or nearby US unit does not always establish the subject's own role in US–Japan engagement.
+Late-war ship histories also need dates, not just the word Pacific. GPT's keep for *United States Navy* and
+marginal for *Masamoto Nasu* are broader readings than the Claude sessions'. A person should settle these
+boundaries before changing any rules or Overrides.
+
+Verification: **32 tests passed** with `.venv/bin/python -m pytest tests -q`. The current flow counts were
+checked against the saved outputs of `crawl_corpus.ipynb` and the Article records in `Data/interim/`.
