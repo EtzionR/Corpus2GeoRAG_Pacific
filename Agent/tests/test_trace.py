@@ -1,0 +1,739 @@
+"""Tracing tests (spec R12-R16): fake chat model + real tools on the fixture. No network."""
+
+import asyncio
+import json
+from types import SimpleNamespace
+import logging
+from pathlib import Path
+
+import pytest
+from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+from langchain_core.messages import AIMessage
+
+import geo_agent.agent as agent_mod
+from geo_agent.agent import GeoAgent
+from geo_agent.graph_store import GraphStore
+from geo_agent.trace import diagnostics, result_status, trace_warnings
+
+GRAPH = Path(__file__).resolve().parent.parent / "data" / "sample_graph.json"
+SECRET = "sk-or-v1-THIS-IS-A-FAKE-KEY-0123456789"
+
+
+@pytest.fixture(autouse=True)
+def isolated_env(tmp_path, monkeypatch):
+    """Traces go to a temp dir, and a fake key is set so .env is never used for it."""
+    monkeypatch.setenv("GEO_AGENT_LOG_DIR", str(tmp_path / "logs"))
+    monkeypatch.setenv("OPENROUTER_API_KEY", SECRET)
+    for var in ("GEO_AGENT_TRACE", "GEO_AGENT_MAX_STEPS", "GEO_AGENT_WARN_STEPS", "GEO_AGENT_LOG_QUESTIONS", "GEO_AGENT_TRACE_FULL"):
+        monkeypatch.delenv(var, raising=False)
+    return tmp_path / "logs"
+
+
+class FakeToolModel(FakeMessagesListChatModel):
+    """Replays scripted AI messages; tool binding is a no-op."""
+
+    def bind_tools(self, tools, **kwargs):
+        return self
+
+
+class FailingModel(FakeToolModel):
+    def _generate(self, *args, **kwargs):
+        raise TimeoutError("provider timed out")
+
+
+def call(name, id, **args):
+    return {"name": name, "args": args, "id": id}
+
+
+def ai(*calls, usage=None):
+    return AIMessage("", tool_calls=list(calls), usage_metadata=usage)
+
+
+def final(answer="done", ids=()):
+    return ai(call("AgentAnswer", "final", answer=answer, context_ids=[], answer_ids=list(ids), answer_sets=[], sources=[]))
+
+
+def ask(responses, question="q", model_cls=FakeToolModel):
+    async def go():
+        agent = await GeoAgent.create(graph_path=GRAPH, llm=model_cls(responses=responses))
+        return await agent.ask(question)
+    return asyncio.run(go())
+
+
+def read_events(log_dir):
+    return [json.loads(line) for f in sorted(Path(log_dir).glob("trace-*.jsonl")) for line in f.read_text().splitlines()]
+
+
+USAGE = {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
+MIDWAY_RUN = [
+    ai(call("search_entities", "c1", query="Battle of Midway"), usage=USAGE),
+    ai(call("get_locations", "c2", entity_id="event:battle_of_midway")),
+    final("Midway Atoll", ["loc:midway_atoll"]),
+]
+
+
+# R12: run identity and context
+
+
+def test_run_start_context(isolated_env):
+    out = ask([final()], question="Where is Midway?")
+    start = read_events(isolated_env)[0]
+    assert start["event"] == "run_start" and start["run_id"] == out["run_id"]
+    assert start["question"] == "Where is Midway?" and start["thread_id"] == "default"
+    assert start["model"] == "FakeToolModel" and start["base_url_host"] == "openrouter.ai"
+    assert len(start["system_prompt_hash"]) == 12
+    graph = json.loads(GRAPH.read_text())
+    assert (start["graph"]["nodes"], start["graph"]["edges"]) == (len(graph["nodes"]), len(graph["edges"]))
+    assert len(start["graph"]["sha256"]) == 12
+    assert start["graph"]["redacted_text_nodes"] == ["loc:nauru"]
+    assert "search_entities" in start["tools"] and start["mcp_loaded"] == [] and start["mcp_skipped"] == []
+    assert start["step_limit"] == 25 and start["version"] == "0.1.0"
+
+
+def test_question_can_be_omitted(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_LOG_QUESTIONS", "0")
+    ask([final()], question="private question")
+    assert "private question" not in (isolated_env / next(isolated_env.iterdir()).name).read_text()
+
+
+def test_api_key_never_logged(isolated_env, caplog):
+    caplog.set_level(logging.DEBUG)
+    ask(MIDWAY_RUN)
+    ask([final()], model_cls=FailingModel)
+    text = "".join(f.read_text() for f in isolated_env.glob("*.jsonl"))
+    assert SECRET not in text and SECRET not in caplog.text
+
+
+# R13: structured trace
+
+
+def test_event_order_end_to_end(isolated_env):
+    out = ask(MIDWAY_RUN)
+    events = read_events(isolated_env)
+    assert [e["event"] for e in events] == [
+        "run_start", "model_end", "tool_end", "model_end", "tool_end", "model_end", "structured_output", "finalize", "run_end",
+    ]
+    assert [e["seq"] for e in events] == list(range(1, len(events) + 1))
+    assert {e["run_id"] for e in events} == {out["run_id"]}
+
+    m1, t1, _, t2 = events[1:5]
+    assert (m1["step"], m1["input_tokens"], m1["output_tokens"]) == (1, 10, 5)
+    assert m1["tool_calls_requested"] == [{"name": "search_entities", "args": {"query": "Battle of Midway"}, "id": "c1"}]
+    assert (t1["name"], t1["args"], t1["status"], t1["step"]) == ("search_entities", {"query": "Battle of Midway"}, "ok", 1)
+    assert (t2["name"], t2["status"]) == ("get_locations", "ok")
+    assert len(t2["result_sha256"]) == 64 and t2["result_chars"] >= len(t2["result_preview"])
+
+    end = events[-1]
+    assert end["outcome"] == "ok" and end["failure_stage"] is None and end["warnings"] == []
+    assert out["entity_ids"] == ["loc:midway_atoll"] and out["error"] is None and out["warnings"] == []
+
+
+def test_tool_error_is_traced_and_run_ends(isolated_env, monkeypatch):
+    def boom(*args, **kwargs):
+        raise RuntimeError("spatial index broke")
+    monkeypatch.setattr(GraphStore, "near", boom)
+    out = ask([ai(call("entities_near", "c1", lat=28.2, lon=-177.4, radius_km=20)), final()])
+    events = read_events(isolated_env)
+    err = next(e for e in events if e["event"] == "tool_error")
+    assert (err["name"], err["error_type"], err["message"]) == ("entities_near", "RuntimeError", "spatial index broke")
+    assert "Traceback" in err["traceback"]
+    assert events[-1]["event"] == "run_end" and events[-1]["failure_stage"] == "tool_call"
+    assert out["error"]["stage"] == "tool_call" and out["tool_calls"][0]["name"] == "entities_near"
+
+
+# R14: failure stages and warning codes
+
+
+def loop_model():
+    return [ai(call("graph_schema", f"c{i}")) for i in range(20)]
+
+
+@pytest.mark.parametrize("stage", ["model_call", "tool_call", "step_limit", "structured_output", "post_processing"])
+def test_failure_stages(isolated_env, monkeypatch, stage):
+    responses, model_cls = [final()], FakeToolModel
+    if stage == "model_call":
+        model_cls = FailingModel
+    elif stage == "tool_call":
+        monkeypatch.setattr(GraphStore, "schema", lambda self: 1 / 0)
+        responses = [ai(call("graph_schema", "c1")), final()]
+    elif stage == "step_limit":
+        monkeypatch.setenv("GEO_AGENT_MAX_STEPS", "4")
+        responses = loop_model()
+    elif stage == "structured_output":
+        responses = [ai(call("graph_schema", "g")), AIMessage("plain text answer")]
+    elif stage == "post_processing":
+        monkeypatch.setattr(agent_mod, "finalize_answer", lambda *a: 1 / 0)
+
+    out = ask(responses, model_cls=model_cls)
+    end = read_events(isolated_env)[-1]
+    assert end["event"] == "run_end" and end["failure_stage"] == stage
+    if stage == "structured_output":
+        assert end["outcome"] == "ok_with_warnings" and out["error"] is None
+        assert out["warnings"] == ["structured_output_failed"] and out["answer"] == "plain text answer"
+    else:
+        assert end["outcome"] == "error" and out["error"]["stage"] == stage and out["answer"] == ""
+
+
+def test_unknown_stage(isolated_env):
+    class Stub:
+        async def ainvoke(self, *args, **kwargs):
+            raise ValueError("something odd")
+    out = asyncio.run(GeoAgent(GraphStore.from_json(GRAPH), Stub()).ask("q"))
+    assert out["error"] == {"type": "ValueError", "message": "something odd", "stage": "unknown"}
+    assert read_events(isolated_env)[-1]["failure_stage"] == "unknown"
+
+
+@pytest.mark.parametrize(
+    "code,responses,env",
+    [
+        ("repeated_tool_call", [ai(call("search_entities", "a", query="Midway")), ai(call("search_entities", "b", query="Midway")), final()], {}),
+        ("empty_resolution", [ai(call("search_entities", "a", query="Leyte Gulf")), final()], {}),
+        ("many_steps", [ai(call("graph_schema", "a")), ai(call("graph_schema", "b")), final()], {"GEO_AGENT_WARN_STEPS": "2"}),
+        # no tool returned loc:tokyo; the answer is sent back once (ungrounded name) and the model insists
+        ("ids_dropped", [ai(call("graph_schema", "g")), final("Tokyo", ["loc:tokyo"]), final("Tokyo", ["loc:tokyo"])], {}),
+        ("sources_unverified", [ai(call("graph_schema", "g")), ai(call("AgentAnswer", "f", answer="x", context_ids=[], answer_ids=[], answer_sets=[], sources=["Made-up page"]))], {}),
+        ("text_coordinates_unverified", [ai(call("graph_schema", "g")), final("It is at 12.34, 56.78.")], {}),
+        ("low_confidence", [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])], {}),  # uncertain match -> low
+    ],
+)
+def test_warning_codes(isolated_env, monkeypatch, code, responses, env):
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    out = ask(responses)
+    assert code in out["warnings"]
+    end = read_events(isolated_env)[-1]
+    assert code in end["warnings"] and end["outcome"] == "ok_with_warnings" and end["failure_stage"] is None
+
+
+# R15: diagnostics (pure function over stub traces)
+
+
+def ev(event, **fields):
+    return {"event": event, **fields}
+
+
+def test_diagnostics_from_stub_trace():
+    events = [
+        ev("model_end", latency_ms=100, input_tokens=50, output_tokens=7),
+        ev("tool_end", name="find_relations", args={"target_id": "loc:x"}, latency_ms=3, status="empty"),
+        ev("model_end", latency_ms=80, input_tokens=60, output_tokens=9),
+        ev("tool_end", name="search_entities", args={"query": "X"}, latency_ms=2, status="ok"),
+        ev("tool_end", name="search_entities", args={"query": "X"}, latency_ms=2, status="ok"),
+        ev("model_end", latency_ms=50, input_tokens=None, output_tokens=None),
+    ]
+    d = diagnostics(events)
+    assert d == {
+        "steps": 3,
+        "tool_sequence": ["find_relations", "search_entities", "search_entities"],
+        "tool_counts": {"find_relations": 1, "search_entities": 2},
+        "empty_results": 1,
+        "repeated_calls": 1,
+        "resolved_before_query": False,  # queried relations before resolving a name
+        "model_ms": 230,
+        "tools_ms": 7,
+        "input_tokens": 110,
+        "output_tokens": 16,
+    }
+    assert trace_warnings(events, warn_steps=10) == ["repeated_tool_call"]
+    assert diagnostics([ev("model_end", latency_ms=1, input_tokens=1, output_tokens=1)])["resolved_before_query"] is None
+
+
+def test_result_status():
+    assert result_status('{"result": "no matching entity in graph"}') == "empty"
+    assert result_status("[]") == "empty"
+    assert result_status('{"error": "unknown entity_id x"}') == "error"
+    assert result_status('[{"id": "loc:x"}]') == "ok"
+    assert result_status("plain text from an MCP tool") == "ok"
+
+
+# R16: console logging and switches
+
+
+def test_unwritable_log_dir_does_not_fail_run(tmp_path, monkeypatch, caplog):
+    blocker = tmp_path / "not_a_dir"
+    blocker.write_text("x")
+    monkeypatch.setenv("GEO_AGENT_LOG_DIR", str(blocker / "logs"))
+    out = ask(MIDWAY_RUN)
+    assert out["error"] is None and out["entity_ids"] == ["loc:midway_atoll"]
+    failures = [r for r in caplog.records if "trace write failed" in r.getMessage()]
+    assert len(failures) == 1 and failures[0].levelno == logging.WARNING
+
+
+def test_trace_can_be_turned_off(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_TRACE", "0")
+    ask([final()])
+    assert not isolated_env.exists()
+
+
+def test_info_logs_steps_and_default_is_quiet(caplog):
+    caplog.set_level(logging.INFO, logger="geo_agent")
+    out = ask(MIDWAY_RUN)
+    lines = [r.getMessage() for r in caplog.records]
+    assert any("step 1 model" in l for l in lines) and any("tool search_entities ok" in l for l in lines)
+    assert all(l.startswith(out["run_id"][:8]) for l in lines)
+
+    caplog.clear()
+    caplog.set_level(logging.WARNING, logger="geo_agent")
+    ask(MIDWAY_RUN)
+    assert [r for r in caplog.records if r.name == "geo_agent"] == []
+
+
+# R17-R19: viewer, replay, report
+
+from datetime import datetime, timedelta, timezone
+
+from geo_agent.tools import build_tools
+from geo_agent.trace import find_run, load_events, parse_since, render_timeline, replay, summarize
+
+
+def test_timeline_of_ok_and_failing_runs(isolated_env, monkeypatch):
+    ask(MIDWAY_RUN, question="Where was the Battle of Midway?")
+    ok_text = render_timeline(find_run(load_events(isolated_env), "last"))
+    for expected in ("Question: Where was the Battle of Midway?", "Model: FakeToolModel", "Outcome: ok",
+                     "Step 1", 'tool search_entities(query="Battle of Midway")  ok', "Answer: Midway Atoll"):
+        assert expected in ok_text, expected
+
+    monkeypatch.setattr(GraphStore, "near", lambda *a, **k: 1 / 0)
+    out = ask([ai(call("search_entities", "a", query="Midway")),
+               ai(call("entities_near", "b", lat=28.2, lon=-177.4, radius_km=20)), final()])
+    fail_text = render_timeline(find_run(load_events(isolated_env), out["run_id"][:8]))
+    assert "failure stage: tool_call" in fail_text
+    assert "RAISED ZeroDivisionError" in fail_text
+    assert "Last tool call: entities_near(lat=28.2, lon=-177.4, radius_km=20)" in fail_text
+
+
+def test_find_run_not_found(isolated_env):
+    ask([final()])
+    events = load_events(isolated_env)
+    assert find_run(events, "doesnotexist") is None and find_run([], "last") is None
+    assert agent_mod.cli(["--trace", "doesnotexist"]) == 1
+    assert agent_mod.cli(["--trace"]) == 0
+
+
+def test_replay_matches_then_detects_graph_change(isolated_env, tmp_path):
+    graph = tmp_path / "graph.json"
+    graph.write_text(GRAPH.read_text())
+
+    async def go():
+        a = await GeoAgent.create(graph_path=graph, llm=FakeToolModel(responses=MIDWAY_RUN))
+        return await a.ask("q")
+    asyncio.run(go())
+    run = find_run(load_events(isolated_env), "last")
+
+    rows = replay(run, {t.name: t for t in build_tools(GraphStore.from_json(graph))})
+    assert [r["status"] for r in rows] == ["match", "match"]
+
+    # Edit the battle's OCCURRED_AT date: get_locations shows it, search_entities does not.
+    data = json.loads(graph.read_text())
+    edge = next(e for e in data["edges"] if e["source"] == "event:battle_of_midway" and e["type"] == "OCCURRED_AT")
+    edge["end_date"] = "1942-06-08"
+    graph.write_text(json.dumps(data))
+    rows = replay(run, {t.name: t for t in build_tools(GraphStore.from_json(graph))})
+    assert [(r["name"], r["status"]) for r in rows] == [("search_entities", "match"), ("get_locations", "mismatch")]
+    assert rows[1]["detail"].startswith("result changed")
+
+
+def run_events(rid, start, latency, outcome="ok", stage=None, warnings=(), tools=(), tokens=(0, 0)):
+    """Stub run: run_start, tool events (name, status), run_end."""
+    evs = [{"run_id": rid, "seq": 1, "ts": start.isoformat(), "event": "run_start"}]
+    for i, (name, status) in enumerate(tools, 2):
+        evs.append({"run_id": rid, "seq": i, "ts": start.isoformat(), "event": "tool_end", "name": name, "status": status})
+    evs.append({"run_id": rid, "seq": 99, "ts": start.isoformat(), "event": "run_end", "outcome": outcome,
+                "failure_stage": stage, "latency_ms": latency, "warnings": list(warnings),
+                "diagnostics": {"steps": len(tools) + 1, "tool_sequence": [t for t, _ in tools],
+                                "input_tokens": tokens[0], "output_tokens": tokens[1]}})
+    return evs
+
+
+def test_report_numbers():
+    now = datetime(2026, 10, 5, 12, tzinfo=timezone.utc)
+    events = (
+        run_events("a", now - timedelta(hours=1), 1000, tools=[("search_entities", "ok"), ("find_relations", "empty")], tokens=(100, 10))
+        + run_events("b", now - timedelta(hours=2), 3000, "ok_with_warnings", warnings=["empty_resolution"],
+                     tools=[("search_entities", "empty")], tokens=(50, 5))
+        + run_events("c", now - timedelta(hours=3), 2000, "error", "model_call", tokens=(20, 0))
+        + run_events("old", now - timedelta(days=30), 9000, "error", "step_limit")
+        + [{"run_id": "crashed", "seq": 1, "ts": (now - timedelta(minutes=5)).isoformat(), "event": "run_start"}]
+    )
+    r = summarize(events, since=parse_since("7d"), now=now)
+    assert r["runs"] == 4 and r["unfinished"] == 1
+    assert r["outcomes"] == {"ok": 1, "ok_with_warnings": 1, "error": 1}
+    assert r["failures_by_stage"] == {"model_call": 1}
+    assert r["warnings"] == {"empty_resolution": 1}
+    assert (r["latency_ms_p50"], r["latency_ms_p95"]) == (2000, 3000)
+    assert (r["mean_steps"], r["mean_tool_calls"]) == (2.0, 1.0)
+    assert r["tool_usage"] == {"search_entities": 2, "find_relations": 1}
+    assert r["empty_share"] == {"search_entities": 0.5, "find_relations": 1.0}
+    assert (r["input_tokens"], r["output_tokens"]) == (170, 15)
+    assert summarize(events, now=now)["failures_by_stage"] == {"model_call": 1, "step_limit": 1}
+    with pytest.raises(ValueError):
+        parse_since("7 days")
+
+
+def test_report_cli(isolated_env, capsys):
+    ask(MIDWAY_RUN)
+    assert agent_mod.cli(["--report", "--since", "1d"]) == 0
+    out = capsys.readouterr().out
+    assert "Runs: 1" in out and "search_entities" in out
+
+
+# R20: failure attribution (pure function of question record + trace events)
+
+from geo_agent.trace import attribute_failure, resolved_ids
+
+
+def stub_trace(*, outcome="ok", searches=(), tools=(), answer="Answer.", ids=(), dropped=None):
+    """Minimal trace: search_entities results, other tool results, final answer."""
+    evs, seq = [], 0
+
+    def add(event, **f):
+        nonlocal seq
+        seq += 1
+        evs.append({"run_id": "r", "seq": seq, "event": event, **f})
+
+    for query, hit_ids in searches:
+        add("tool_end", name="search_entities", args={"query": query}, status="ok" if hit_ids else "empty",
+            result_preview=json.dumps([{"id": i} for i in hit_ids]))
+    for name, args, result_ids in tools:
+        add("tool_end", name=name, args=args, status="ok", result_preview=json.dumps([{"id": i} for i in result_ids]))
+    add("structured_output", ok=True, answer={"answer": answer, "entity_ids": list(ids), "sources": []})
+    if dropped is not None:
+        add("finalize", kept_ids=[i for i in ids if i not in dropped], dropped_ids=[{"id": d, "reason": "not_in_tool_output"} for d in dropped])
+    add("run_end", outcome=outcome)
+    return evs
+
+
+Q = {"expected_entity_ids": ["loc:midway_atoll"], "expected_resolved_ids": ["event:battle_of_midway"],
+     "expected_behavior": "answer", "expected_tools": ["search_entities", "get_locations"]}
+GOOD_TOOLS = [("get_locations", {"entity_id": "event:battle_of_midway"}, ["loc:midway_atoll"])]
+GOOD_SEARCH = [("Battle of Midway", ["event:battle_of_midway"])]
+
+
+@pytest.mark.parametrize(
+    "expected_class,question,trace",
+    [
+        ("run_error", Q, stub_trace(outcome="error")),
+        ("not_retrieved", Q, stub_trace(searches=GOOD_SEARCH, tools=[("get_locations", {"entity_id": "event:battle_of_midway"}, [])])),
+        ("not_selected", Q, stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, ids=[])),
+        ("dropped_by_check", Q, stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, ids=["loc:midway_atoll"], dropped=["loc:midway_atoll"])),
+        ("extra_ids", Q, stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, ids=["loc:midway_atoll", "loc:tokyo"])),
+        ("wrong_tools", Q, stub_trace(tools=GOOD_TOOLS, ids=["loc:midway_atoll"])),
+        ("wrong_entity_accepted", {**Q, "expected_resolved_ids": ["loc:tarawa"]},
+         stub_trace(searches=[("Tarawa", ["loc:tarakan", "loc:tarawa"])],
+                    tools=[("get_locations", {"entity_id": "loc:tarakan"}, ["loc:tarakan"])], ids=["loc:tarakan"])),
+        ("should_have_asked", {**Q, "expected_entity_ids": [], "expected_behavior": "ask"},
+         stub_trace(searches=[("Guam", ["event:battle_of_guam_1941", "event:battle_of_guam_1944"])], ids=["event:battle_of_guam_1941"])),
+        ("asked_unnecessarily", Q, stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, answer="Did you mean Midway Atoll?")),
+    ],
+)
+def test_attribute_failure_classes(expected_class, question, trace):
+    assert expected_class in attribute_failure(question, trace)
+
+
+def test_attribute_clean_run_has_no_class():
+    trace = stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, ids=["loc:midway_atoll"])
+    assert attribute_failure(Q, trace) == []
+    assert resolved_ids(trace) == {"event:battle_of_midway"}
+
+
+def test_resolved_ids_ignore_unused_candidates():
+    trace = stub_trace(searches=[("Guam", ["loc:guam", "event:battle_of_guam_1941"])],
+                       tools=[("find_relations", {"target_id": "loc:guam"}, [])], ids=["loc:guam"])
+    assert resolved_ids(trace) == {"loc:guam"}
+
+
+def test_allowed_extra_ids_are_not_flagged():
+    q = {**Q, "allowed_extra_ids": ["event:battle_of_midway"]}
+    trace = stub_trace(searches=GOOD_SEARCH, tools=GOOD_TOOLS, ids=["loc:midway_atoll", "event:battle_of_midway"])
+    assert attribute_failure(q, trace) == []
+    assert "extra_ids" in attribute_failure(Q, trace)  # same ids without the allowance
+
+
+# Model call deadline (hung upstream that keeps the connection alive)
+
+
+class HangingThenOkModel(FakeToolModel):
+    """First call never returns (like a hung upstream); later calls replay responses."""
+
+    calls: int = 0
+
+    async def _agenerate(self, *args, **kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            await asyncio.sleep(30)
+        return self._generate(*args, **kwargs)
+
+
+class AlwaysHangingModel(FakeToolModel):
+    async def _agenerate(self, *args, **kwargs):
+        await asyncio.sleep(30)
+
+
+def test_hung_model_call_is_retried_then_succeeds(isolated_env, monkeypatch, caplog):
+    monkeypatch.setenv("GEO_AGENT_MODEL_DEADLINE", "0.2")
+    out = ask([ai(call("graph_schema", "g")), final("ok after retry")], model_cls=HangingThenOkModel)
+    assert out["error"] is None and out["answer"] == "ok after retry"
+    assert any("exceeded" in r.getMessage() for r in caplog.records)
+
+
+def test_hung_model_call_becomes_model_call_error(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_MODEL_DEADLINE", "0.2")
+    out = ask([final()], model_cls=AlwaysHangingModel)
+    assert out["error"]["stage"] == "model_call" and out["error"]["type"] == "ModelDeadlineExceeded"
+    end = read_events(isolated_env)[-1]
+    assert end["event"] == "run_end" and end["failure_stage"] == "model_call"
+
+
+def test_resolved_ids_ignore_fuzzy_candidates_reached_by_other_tools():
+    """Observed on ex-where-2: loc:guadalcanal was a lower search hit for "Guadalcanal campaign"
+    and reached the final ids via get_locations; only the queried event is the resolution."""
+    trace = stub_trace(
+        searches=[("Guadalcanal campaign", ["event:guadalcanal_campaign", "loc:guadalcanal"])],
+        tools=[("get_locations", {"entity_id": "event:guadalcanal_campaign"}, ["loc:guadalcanal", "loc:tulagi"])],
+        ids=["event:guadalcanal_campaign", "loc:guadalcanal", "loc:tulagi"],
+    )
+    assert resolved_ids(trace) == {"event:guadalcanal_campaign"}
+
+
+def test_resolved_ids_fall_back_to_final_ids_without_follow_up_queries():
+    trace = stub_trace(searches=[("Iwo Jima", ["loc:iwo_jima", "event:battle_of_iwo_jima"])], ids=["loc:iwo_jima"])
+    assert resolved_ids(trace) == {"loc:iwo_jima"}
+
+
+def test_resolving_an_allowed_related_entity_is_not_wrong():
+    """Baseline case nv-1: "TOKYO" resolved to loc:tokyo, and the agent also queried the Doolittle Raid (allowed)."""
+    q = {"expected_entity_ids": ["loc:tokyo", "org:usaaf"], "allowed_extra_ids": ["event:doolittle_raid"],
+         "expected_resolved_ids": ["loc:tokyo"], "expected_behavior": "answer"}
+    trace = stub_trace(searches=[("TOKYO", ["loc:tokyo", "event:doolittle_raid"])],
+                       tools=[("find_relations", {"target_id": "loc:tokyo"}, ["org:usaaf"]),
+                              ("get_entity", {"entity_id": "event:doolittle_raid"}, ["event:doolittle_raid"])],
+                       ids=["loc:tokyo", "org:usaaf"])
+    assert "wrong_entity_accepted" not in attribute_failure(q, trace)
+
+
+def test_finalize_event_and_dropped_id_warning(isolated_env, caplog):
+    out = ask([ai(call("search_entities", "a", query="Midway")), final("Midway", ["loc:midway_atoll", "loc:tokyo"])])
+    fin = next(e for e in read_events(isolated_env) if e["event"] == "finalize")
+    assert fin["claimed_ids"] == ["loc:midway_atoll", "loc:tokyo"] and fin["kept_ids"] == ["loc:midway_atoll"]
+    assert fin["dropped_ids"] == [{"id": "loc:tokyo", "reason": "not_in_tool_output"}]
+    assert out["dropped_ids"] == fin["dropped_ids"] and "ids_dropped" in out["warnings"]
+    assert any("dropped ids" in r.getMessage() and r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.parametrize(
+    "code,question,responses",
+    [
+        ("uncertain_match_used", "What happened at Tara?",
+         [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])]),
+        ("model_rewritten_query", "Who bombed China's wartime capital?",
+         [ai(call("search_entities", "a", query="Chongqing")), final("Japan", ["loc:chongqing"])]),
+        ("context_mismatch", "What happened in the Battle of Midway in 1944?",
+         [ai(call("search_entities", "a", query="Battle of Midway")), final("It was 1942", ["event:battle_of_midway"])]),
+    ],
+)
+def test_resolution_warning_codes(isolated_env, code, question, responses):
+    out = ask(responses, question=question)
+    assert code in out["warnings"]
+    events = read_events(isolated_env)
+    fin = next(e for e in events if e["event"] == "finalize")
+    assert fin["resolved_entities"] and code in events[-1]["warnings"]
+
+
+def test_final_answer_missing_ids_is_sent_back_and_retried(isolated_env):
+    """The model's first final answer omits entity_ids/sources; the validation error goes back and the retry is used."""
+    out = ask([
+        ai(call("search_entities", "a", query="Midway")),
+        ai(call("AgentAnswer", "f1", answer="Midway Atoll")),  # required fields missing
+        final("Midway Atoll", ["loc:midway_atoll"]),
+    ])
+    assert out["entity_ids"] == ["loc:midway_atoll"] and "structured_output_failed" not in out["warnings"]
+    assert read_events(isolated_env)[-1]["diagnostics"]["steps"] == 3
+
+
+def test_r24_extra_ids_only_on_answer_ids():
+    q = {"expected_entity_ids": ["loc:corregidor", "org:ija"], "allowed_extra_ids": [], "expected_resolved_ids": ["loc:corregidor"],
+         "expected_behavior": "answer"}
+    trace = stub_trace(searches=[("Corregidor", ["loc:corregidor"])],
+                       tools=[("find_relations", {"target_id": "loc:corregidor"}, ["org:ija", "org:us_army", "loc:corregidor"])],
+                       ids=["org:ija", "loc:corregidor", "org:us_army"])
+    # pre-R24 trace (no answer_ids): every final id is an answer id, so the defender counts as extra
+    assert "extra_ids" in attribute_failure(q, trace)
+    # R24 trace: the defender is a context id
+    trace.insert(-1, {"run_id": "r", "seq": 98, "event": "finalize", "kept_ids": ["org:ija", "loc:corregidor", "org:us_army"],
+                      "answer_ids": ["org:ija"], "context_ids": ["loc:corregidor", "org:us_army"], "dropped_ids": []})
+    assert "extra_ids" not in attribute_failure(q, trace)
+
+
+def test_r27_end_to_end_answer_set(isolated_env, monkeypatch):
+    """The model names only the handle; the map gets every place in the set."""
+    import uuid as uuid_mod
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
+    out = ask([
+        ai(call("search_entities", "a", query="Isoroku Yamamoto")),
+        ai(call("connected_locations", "b", entity_id="per:yamamoto")),
+        ai(call("AgentAnswer", "f", answer="Five places.", answer_ids=[], context_ids=["per:yamamoto"], sources=[],
+                answer_sets=["rs-abcdef"])),
+    ], question="Show me all locations connected to Admiral Isoroku Yamamoto.")
+    assert out["result_sets"][0]["total"] == 5 and len(out["geojson"]["features"]) == 5
+    fin = next(e for e in read_events(isolated_env) if e["event"] == "finalize")
+    assert fin["answer_sets"] == ["rs-abcdef"] and fin["result_sets"][0]["on_map"] == 5
+
+
+class RecordingModel(FakeToolModel):
+    """Remembers the system prompt each step saw."""
+    systems: list = []
+
+    def _generate(self, messages, *args, **kwargs):
+        RecordingModel.systems.append(next((m.content for m in messages if m.type == "system"), ""))
+        return super()._generate(messages, *args, **kwargs)
+
+
+def test_r29_token_budget(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_TOKEN_BUDGET", "1000")
+    RecordingModel.systems = []
+    big = {"input_tokens": 5000, "output_tokens": 10, "total_tokens": 5010}
+    out = ask([ai(call("graph_schema", "a"), usage=big), final()], model_cls=RecordingModel)
+    assert "token_budget" in out["warnings"]
+    assert "TOKEN BUDGET REACHED" not in RecordingModel.systems[0] and "TOKEN BUDGET REACHED" in RecordingModel.systems[1]
+
+
+def test_plan_answer_is_sent_back_and_the_tool_gets_called(isolated_env):
+    out = ask([
+        ai(call("search_entities", "a", query="Isoroku Yamamoto")),
+        ai(call("AgentAnswer", "f1", answer="Found him. Let me retrieve all locations connected to him.", answer_ids=[],
+                context_ids=[], answer_sets=[], sources=[])),
+        ai(call("connected_locations", "b", entity_id="per:yamamoto")),
+        final("Five places.", ["loc:midway_atoll"]),
+    ])
+    assert out["answer"] == "Five places." and "connected_locations" in [c["name"] for c in out["tool_calls"]]
+
+
+def test_invented_result_set_is_sent_back_once(isolated_env, monkeypatch):
+    """Eval step 17c: the model named "rs-1" without calling a set tool; it must get a chance to call it."""
+    import uuid as uuid_mod
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
+    out = ask([
+        ai(call("search_entities", "a", query="Douglas MacArthur")),
+        ai(call("AgentAnswer", "f1", answer="Here are his places.", answer_ids=["per:macarthur"], context_ids=[], sources=[],
+                answer_sets=["rs-1"])),  # invented handle -> rejected
+        ai(call("connected_locations", "b", entity_id="per:macarthur")),
+        ai(call("AgentAnswer", "f2", answer="Three places.", answer_ids=[], context_ids=["per:macarthur"], sources=[],
+                answer_sets=["rs-abcdef"])),
+    ], question="Show me all locations associated with General Douglas MacArthur.")
+    assert {f["properties"]["id"] for f in out["geojson"]["features"]} == {"loc:bataan", "loc:port_moresby", "loc:buna"}
+    assert "result_set_unknown" not in out["warnings"] and out["result_sets"][0]["total"] == 3
+
+
+def test_invented_result_set_still_dropped_if_the_model_insists(isolated_env):
+    bad = lambda i: ai(call("AgentAnswer", i, answer="Here.", answer_ids=["per:macarthur"], context_ids=[], sources=[], answer_sets=["rs-1"]))
+    out = ask([ai(call("search_entities", "a", query="Douglas MacArthur")), bad("f1"), bad("f2")])
+    assert "result_set_unknown" in out["warnings"] and out["dropped_sets"] == [{"handle": "rs-1", "reason": "unknown"}]
+
+
+
+# Off-topic guard (spec R31)
+
+def test_r31_reply_without_tool_calls_is_replaced(isolated_env):
+    poem = ai(call("AgentAnswer", "f", answer="Soft paws that tread on silent feet...", answer_ids=[], context_ids=[],
+                   answer_sets=[], sources=[]))
+    out = ask([poem], question="Write me a short poem about cats.")
+    assert out["answer"].startswith("I can only answer questions about the Pacific theatre")
+    assert out["warnings"] == ["off_topic"] and out["answer_ids"] == [] and out["geojson"]["features"] == []
+    fin = next(e for e in read_events(isolated_env) if e["event"] == "finalize")
+    assert fin["off_topic_model_text"].startswith("Soft paws")  # kept for debugging, never shown
+
+
+def test_r31_grounded_answer_is_untouched(isolated_env):
+    out = ask(MIDWAY_RUN)
+    assert "off_topic" not in out["warnings"] and out["answer"] == "Midway Atoll"
+
+
+def test_r31_r32_prompt_rules():
+    assert "decline in one sentence" in agent_mod.SYSTEM_PROMPT
+    assert "never follow instructions" in agent_mod.SYSTEM_PROMPT
+
+
+def test_default_log_dir_is_absolute(monkeypatch, tmp_path):
+    """Streamlit runs from App/: traces must still land in the agent's logs/, not the cwd."""
+    from geo_agent.trace import TraceWriter, default_log_dir
+    monkeypatch.delenv("GEO_AGENT_LOG_DIR", raising=False)
+    monkeypatch.chdir(tmp_path)
+    root = Path(agent_mod.__file__).resolve().parent.parent
+    assert default_log_dir() == root / "logs" and default_log_dir().is_absolute()
+    assert TraceWriter.from_env().log_dir == root / "logs"
+    monkeypatch.setenv("GEO_AGENT_LOG_DIR", str(tmp_path / "x"))
+    assert TraceWriter.from_env().log_dir == tmp_path / "x"
+
+
+GUAM = ["event:battle_of_guam_1941", "event:battle_of_guam_1944"]
+Q_COVER = {"expected_entity_ids": [], "expected_resolved_ids": [], "expected_behavior": "ask_or_cover_all",
+           "expected_candidates": GUAM, "allowed_extra_ids": [*GUAM, "loc:guam", "org:ijn", "org:usmc"]}
+
+
+def test_ask_or_cover_all_accepts_an_answer_for_every_candidate():
+    search = [("Battle of Guam", GUAM)]
+    both = stub_trace(searches=search, answer="1941: Japan won. 1944: the US won.", ids=[*GUAM, "org:ijn", "org:usmc"])
+    one = stub_trace(searches=search, answer="Japan won in 1941.", ids=["event:battle_of_guam_1941", "org:ijn"])
+    ask = stub_trace(searches=search, answer="Did you mean the Battle of Guam (1941) or (1944)?")
+    assert attribute_failure(Q_COVER, both) == []
+    assert attribute_failure(Q_COVER, ask) == []
+    assert "should_have_asked" in attribute_failure(Q_COVER, one)  # picked one silently
+
+
+def test_r58_step_budget_nudges_before_the_limit(isolated_env, monkeypatch):
+    """25 graph steps run up to 13 model calls (12 can still answer); from the 10th on, the model is told to finish."""
+    monkeypatch.setenv("GEO_AGENT_MAX_STEPS", "25")
+    RecordingModel.systems = []
+    out = ask([*[ai(call("graph_schema", f"s{i}")) for i in range(10)], final()], model_cls=RecordingModel)
+    assert out.get("error") is None
+    assert "STEP BUDGET" not in RecordingModel.systems[8] and "STEP BUDGET" in RecordingModel.systems[9]
+
+
+def test_r58_prompt_says_stop_when_the_relation_is_missing():
+    from geo_agent import agent as agent_mod
+    assert "does not record" in agent_mod.SYSTEM_PROMPT
+
+
+def test_r57_overview_answer_gets_an_interpretation_line(isolated_env, monkeypatch):
+    import uuid as uuid_mod
+    # only the result-set handle: patching uuid.uuid4 itself gives every chat message the same id
+    monkeypatch.setattr("geo_agent.graph_store.uuid", SimpleNamespace(uuid4=lambda: uuid_mod.UUID("abcdef00000000000000000000000000")))
+    out = ask([
+        ai(call("search_entities", "a", query="island-hopping campaign")),
+        ai(call("overview", "b", scope="event:island_hopping_campaign")),
+        ai(call("AgentAnswer", "f", answer="An overview of 3 battles: Tarawa, Guam, Iwo Jima.", answer_ids=[],
+                context_ids=[], sources=[], answer_sets=["rs-abcdef"])),
+    ], question="Show me the island-hopping campaign.")
+    assert any(i.startswith("broad question: overview of 3 items") for i in out["interpretation"])
+    assert len(out["geojson"]["features"]) == 3
+
+
+def test_r57_prompt_has_the_overview_rule():
+    from geo_agent import agent as agent_mod
+    assert "call overview ONCE" in agent_mod.SYSTEM_PROMPT and "Never decline a broad question" in agent_mod.SYSTEM_PROMPT
+
+
+def test_r29_ordinary_six_call_answer_is_not_over_budget(monkeypatch):
+    """Six calls of ~8k input tokens each (system prompt + tools re-sent every call) are a normal answer."""
+    monkeypatch.delenv("GEO_AGENT_TOKEN_BUDGET", raising=False)
+
+    def run(per_call, calls):
+        return [{"run_id": "r", "seq": 1, "event": "run_start"}] + [
+            {"run_id": "r", "seq": i + 2, "event": "model_end", "latency_ms": 500, "input_tokens": per_call, "output_tokens": 50}
+            for i in range(calls)]
+    assert "token_budget" not in trace_warnings(run(8500, 6))   # 51k: an ordinary answer
+    assert "token_budget" in trace_warnings(run(8500, 12))      # 102k: a runaway
+
+
+def test_answer_with_ungrounded_names_is_sent_back_once(isolated_env):
+    out = ask([
+        ai(call("search_entities", "a", query="Battle of Midway")),
+        ai(call("get_locations", "b", entity_id="event:battle_of_midway")),
+        ai(call("AgentAnswer", "f1", answer="At Midway Atoll; later the Battle of Iwo Jima.", answer_ids=["loc:midway_atoll"],
+                context_ids=[], sources=[], answer_sets=[])),
+        ai(call("AgentAnswer", "f2", answer="At Midway Atoll.", answer_ids=["loc:midway_atoll"], context_ids=[],
+                sources=[], answer_sets=[])),
+    ], question="Where did the Battle of Midway happen?")
+    assert out["answer"] == "At Midway Atoll." and out["ungrounded_names"] == []

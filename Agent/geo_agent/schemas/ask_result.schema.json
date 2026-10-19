@@ -1,0 +1,780 @@
+{
+  "$defs": {
+    "Center": {
+      "additionalProperties": true,
+      "properties": {
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "Center",
+      "type": "object"
+    },
+    "Confidence": {
+      "additionalProperties": true,
+      "properties": {
+        "level": {
+          "description": "Support label; not a probability",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "basis": {
+          "$ref": "#/$defs/ConfidenceBasis"
+        }
+      },
+      "required": [
+        "level",
+        "basis"
+      ],
+      "title": "Confidence",
+      "type": "object"
+    },
+    "ConfidenceBasis": {
+      "additionalProperties": true,
+      "properties": {
+        "max_edge_count": {
+          "description": "Highest mention count of a relation supporting the answer",
+          "title": "Max Edge Count",
+          "type": "number"
+        },
+        "n_source_pages": {
+          "description": "Distinct verified source pages",
+          "title": "N Source Pages",
+          "type": "integer"
+        },
+        "n_providers": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Distinct source providers (Wikidata, EventKG, Wikipedia, ...) behind the evidence",
+          "title": "N Providers"
+        },
+        "uncertain_match_used": {
+          "description": "A weak or ambiguous name match was used",
+          "title": "Uncertain Match Used",
+          "type": "boolean"
+        },
+        "text_based_approximation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Present (true) when a concept was found only through text mentions",
+          "title": "Text Based Approximation"
+        }
+      },
+      "required": [
+        "max_edge_count",
+        "n_source_pages",
+        "uncertain_match_used"
+      ],
+      "title": "ConfidenceBasis",
+      "type": "object"
+    },
+    "ContextMismatch": {
+      "additionalProperties": true,
+      "properties": {
+        "question_year": {
+          "title": "Question Year",
+          "type": "integer"
+        },
+        "start_date": {
+          "title": "Start Date",
+          "type": "string"
+        },
+        "end_date": {
+          "title": "End Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question_year",
+        "start_date",
+        "end_date"
+      ],
+      "title": "ContextMismatch",
+      "type": "object"
+    },
+    "DroppedId": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "unknown",
+            "not_in_tool_output"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "title": "DroppedId",
+      "type": "object"
+    },
+    "DroppedSet": {
+      "additionalProperties": true,
+      "properties": {
+        "handle": {
+          "title": "Handle",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "unknown",
+            "not_in_tool_output"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "handle",
+        "reason"
+      ],
+      "title": "DroppedSet",
+      "type": "object"
+    },
+    "ErrorInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "description": "Exception class name",
+          "title": "Type",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "stage": {
+          "description": "model_call, tool_call, step_limit, post_processing, unknown; from AgentRunner: timeout (stopped after the time limit), cancelled, busy (another question of the same thread_id was still running; this one did not run)",
+          "enum": [
+            "model_call",
+            "tool_call",
+            "step_limit",
+            "structured_output",
+            "post_processing",
+            "unknown",
+            "timeout",
+            "cancelled",
+            "busy"
+          ],
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "message",
+        "stage"
+      ],
+      "title": "ErrorInfo",
+      "type": "object"
+    },
+    "Feature": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "const": "Feature",
+          "title": "Type",
+          "type": "string"
+        },
+        "geometry": {
+          "$ref": "#/$defs/Geometry"
+        },
+        "properties": {
+          "$ref": "#/$defs/FeatureProperties"
+        }
+      },
+      "required": [
+        "type",
+        "geometry",
+        "properties"
+      ],
+      "title": "Feature",
+      "type": "object"
+    },
+    "FeatureCollection": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "const": "FeatureCollection",
+          "title": "Type",
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "$ref": "#/$defs/Feature"
+          },
+          "title": "Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "features"
+      ],
+      "title": "FeatureCollection",
+      "type": "object"
+    },
+    "FeatureProperties": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "description": "Graph id; matches entity_ids",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Display name",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "description": "Node type, `location` today",
+          "title": "Type",
+          "type": "string"
+        },
+        "role": {
+          "description": "`answer` when the feature (or the entity it is drawn for) answers the question",
+          "enum": [
+            "answer",
+            "context"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "related_to": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Present when the place is drawn on behalf of a non-spatial entity (event, org, person)",
+          "title": "Related To"
+        },
+        "geometry_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "'direct' when the entity's own geometry is drawn, 'related' when it is drawn at a linked place",
+          "title": "Geometry Source"
+        },
+        "via": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set questions: the path that connects the place",
+          "title": "Via"
+        },
+        "strength": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set questions: how well supported that path is (higher is stronger)",
+          "title": "Strength"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "role"
+      ],
+      "title": "FeatureProperties",
+      "type": "object"
+    },
+    "Geometry": {
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "enum": [
+            "Point",
+            "MultiPoint",
+            "LineString",
+            "MultiLineString",
+            "Polygon",
+            "MultiPolygon"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "coordinates": {
+          "description": "GeoJSON coordinates, [longitude, latitude] order",
+          "items": {},
+          "title": "Coordinates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "coordinates"
+      ],
+      "title": "Geometry",
+      "type": "object"
+    },
+    "ResolvedEntity": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "typed": {
+          "description": "The text the agent searched",
+          "title": "Typed",
+          "type": "string"
+        },
+        "matched_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matched Label"
+        },
+        "match": {
+          "anyOf": [
+            {
+              "enum": [
+                "name",
+                "alias",
+                "fuzzy"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "quality": {
+          "enum": [
+            "clear",
+            "uncertain"
+          ],
+          "title": "Quality",
+          "type": "string"
+        },
+        "model_rewritten_query": {
+          "title": "Model Rewritten Query",
+          "type": "boolean"
+        },
+        "context_mismatch": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContextMismatch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "typed",
+        "quality",
+        "model_rewritten_query"
+      ],
+      "title": "ResolvedEntity",
+      "type": "object"
+    },
+    "ResultSetInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "handle": {
+          "title": "Handle",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "total": {
+          "description": "Members in the set; show this count",
+          "title": "Total",
+          "type": "integer"
+        },
+        "on_map": {
+          "title": "On Map",
+          "type": "integer"
+        },
+        "map_truncated": {
+          "title": "Map Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "handle",
+        "label",
+        "total",
+        "on_map",
+        "map_truncated"
+      ],
+      "title": "ResultSetInfo",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": true,
+      "properties": {
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source system, e.g. 'Wikidata', 'EventKG', 'Wikipedia'",
+          "title": "Provider"
+        },
+        "record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Id of the source assertion (never a Wikipedia page title)",
+          "title": "Record Id"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Link to the source record or page",
+          "title": "Url"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wikipedia page title, when the source is a Wikipedia page",
+          "title": "Page"
+        }
+      },
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "args": {
+          "description": "Tool arguments, usually an object",
+          "title": "Args"
+        }
+      },
+      "required": [
+        "name",
+        "args"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "One reply of the agent. Every key is present in every reply, including errors.",
+  "properties": {
+    "schema_version": {
+      "description": "Version of this contract, e.g. '1.0'",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "answer": {
+      "description": "Chat text; may contain Markdown. Untrusted: render sanitized, never as raw HTML. Empty on error.",
+      "title": "Answer",
+      "type": "string"
+    },
+    "answer_ids": {
+      "description": "Entities that answer the question; highlight these",
+      "items": {
+        "type": "string"
+      },
+      "title": "Answer Ids",
+      "type": "array"
+    },
+    "context_ids": {
+      "description": "Other entities the answer mentions; show more quietly",
+      "items": {
+        "type": "string"
+      },
+      "title": "Context Ids",
+      "type": "array"
+    },
+    "entity_ids": {
+      "description": "answer_ids followed by context_ids",
+      "items": {
+        "type": "string"
+      },
+      "title": "Entity Ids",
+      "type": "array"
+    },
+    "sources": {
+      "description": "Wikipedia page titles the answer relies on (never record ids)",
+      "items": {
+        "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "source_refs": {
+      "description": "Structured provenance of the answer's evidence (at most 25); [] when none",
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Source Refs",
+      "type": "array"
+    },
+    "geojson": {
+      "$ref": "#/$defs/FeatureCollection"
+    },
+    "bbox": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "[min_lon, min_lat, max_lon, max_lat] around the map features; null without features. min_lon > max_lon means the box crosses the 180° meridian (for Leaflet fit_bounds, add 360 to max_lon).",
+      "title": "Bbox"
+    },
+    "center": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Center"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Middle of bbox, for the initial map view; null without features"
+    },
+    "tool_calls": {
+      "items": {
+        "$ref": "#/$defs/ToolCall"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+    },
+    "run_id": {
+      "description": "Trace id: `uv run geo-agent --trace <run_id>`",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "warnings": {
+      "description": "Warning codes; open set, see README",
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "dropped_ids": {
+      "items": {
+        "$ref": "#/$defs/DroppedId"
+      },
+      "title": "Dropped Ids",
+      "type": "array"
+    },
+    "unverified_sources": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Unverified Sources",
+      "type": "array"
+    },
+    "unverified_numbers": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Unverified Numbers",
+      "type": "array"
+    },
+    "ungrounded_names": {
+      "description": "Graph entities the answer names although no tool returned them (the model added them from its own knowledge); warning ungrounded_names",
+      "items": {
+        "type": "string"
+      },
+      "title": "Ungrounded Names",
+      "type": "array"
+    },
+    "resolved_entities": {
+      "items": {
+        "$ref": "#/$defs/ResolvedEntity"
+      },
+      "title": "Resolved Entities",
+      "type": "array"
+    },
+    "interpretation": {
+      "description": "How names were read when not literal; show to the user",
+      "items": {
+        "type": "string"
+      },
+      "title": "Interpretation",
+      "type": "array"
+    },
+    "confidence": {
+      "$ref": "#/$defs/Confidence"
+    },
+    "result_sets": {
+      "items": {
+        "$ref": "#/$defs/ResultSetInfo"
+      },
+      "title": "Result Sets",
+      "type": "array"
+    },
+    "dropped_sets": {
+      "items": {
+        "$ref": "#/$defs/DroppedSet"
+      },
+      "title": "Dropped Sets",
+      "type": "array"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null on success"
+    }
+  },
+  "required": [
+    "schema_version",
+    "answer",
+    "answer_ids",
+    "context_ids",
+    "entity_ids",
+    "sources",
+    "source_refs",
+    "geojson",
+    "bbox",
+    "center",
+    "tool_calls",
+    "run_id",
+    "warnings",
+    "dropped_ids",
+    "unverified_sources",
+    "unverified_numbers",
+    "ungrounded_names",
+    "resolved_entities",
+    "interpretation",
+    "confidence",
+    "result_sets",
+    "dropped_sets",
+    "error"
+  ],
+  "title": "AskResult",
+  "type": "object",
+  "$id": "geo_agent/ask_result/1.3"
+}

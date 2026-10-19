@@ -1,0 +1,96 @@
+{
+  "question": "Tarawa",
+  "after": "clarification_tara",
+  "reply": {
+    "schema_version": "1.3",
+    "answer": "The **Battle of Tarawa** (20-23 November 1943) was fought at Tarawa Atoll, as part of the island-hopping campaign.",
+    "answer_ids": [
+      "event:battle_of_tarawa"
+    ],
+    "context_ids": [
+      "loc:tarawa"
+    ],
+    "entity_ids": [
+      "event:battle_of_tarawa",
+      "loc:tarawa"
+    ],
+    "sources": [
+      "Battle of Tarawa"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa",
+        "page": "Battle of Tarawa"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              172.98,
+              1.42
+            ]
+          },
+          "properties": {
+            "id": "loc:tarawa",
+            "name": "Tarawa",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_tarawa",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      172.98,
+      1.42,
+      172.98,
+      1.42
+    ],
+    "center": {
+      "lat": 1.42,
+      "lon": 172.98
+    },
+    "tool_calls": [
+      {
+        "name": "get_entity",
+        "args": {
+          "entity_id": "event:battle_of_tarawa"
+        }
+      },
+      {
+        "name": "get_locations",
+        "args": {
+          "entity_id": "event:battle_of_tarawa"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 4,
+        "n_source_pages": 1,
+        "n_providers": 1,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

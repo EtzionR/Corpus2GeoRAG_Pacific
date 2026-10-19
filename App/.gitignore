@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.idea/
+
+# Agent run traces (written to logs/ in the folder Streamlit runs from)
+logs/
+.pytest_cache/
+# Local secrets: never commit
+.env
+.streamlit/secrets.toml
