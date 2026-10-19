@@ -82,13 +82,19 @@ POLL_INTERVAL_S = 0.2
 DEFAULT_CENTER = [15.0, 150.0]
 DEFAULT_ZOOM = 3
 
-# The questions the agent's mock mode has recorded replies for, so they also work without a key.
+# Suggestions with the real agent. In mock mode the buttons come from the agent's recorded
+# questions instead (Agent/geo_agent/mock_fixtures/*.json), so every one has a reply.
 SUGGESTED_QUESTIONS = [
     ("📍 Where was the Battle of Midway?", "Where did the Battle of Midway happen?"),
     ("⚔️ Who attacked Guadalcanal in 1942?", "Who attacked Guadalcanal in 1942?"),
     ("🧭 Yamamoto's locations", "Show me all locations connected to Admiral Yamamoto"),
     ("🗺️ Major Pacific battles", "Show me major battles in the Pacific War on the map"),
 ]
+SUGGESTIONS_PER_ROW = 4
+
+# Button icon by the fixture file's prefix (answer_midway.json -> "answer").
+FIXTURE_ICONS = {"answer": "📍", "both": "⚖️", "clarification": "❓", "followup": "↩️", "overview": "🗺️",
+                 "set": "🧭", "off": "🚫", "error": "💥"}
 
 WARNING_LABELS = {
     "low_confidence": "Low confidence",
@@ -386,6 +392,33 @@ def entity_label(res: Dict[str, Any], entity_id: str) -> str:
     return entity_id
 
 
+def _same_question(a: str, b: str) -> bool:
+    return re.sub(r"\W+", " ", a).strip().lower() == re.sub(r"\W+", " ", b).strip().lower()
+
+
+def recorded_questions() -> List[Tuple[str, str]]:
+    """In mock mode: (label, question) for every recorded question in Agent/geo_agent/mock_fixtures.
+
+    The mock loaded those JSON files (key -> {question, after, reply}). A follow-up such as
+    "Tarawa" only has a reply right after its first question on the same conversation,
+    so it is offered only then. Empty outside mock mode.
+    """
+    fixtures = getattr(runner.agent, "fixtures", None) if runner is not None and agent["mode"] == "mock" else None
+    if not isinstance(fixtures, dict):
+        return []
+    last_user = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "user"), "")
+    out = []
+    for key, fx in fixtures.items():
+        question = fx.get("question")
+        if not question:
+            continue
+        parent = fixtures.get(fx.get("after")) if fx.get("after") else None
+        if fx.get("after") and not (parent and _same_question(last_user, parent.get("question", ""))):
+            continue
+        out.append((f"{FIXTURE_ICONS.get(key.split('_')[0], '💬')} {question}", question))
+    return out
+
+
 def render_entity_card(entity_id: str):
     """Details of one entity from the loaded graph. The excerpt is source text: shown as plain text."""
     card = runner.get_entity_feature(entity_id) if runner else None
@@ -581,11 +614,23 @@ with st.container(border=True):
 
     st.caption("Pipeline: `Pacific Wikipedia Corpus → NER → Geocoding → KG → Agentic RAG → Folium`")
 
-st.markdown("##### 💡 Suggested questions:")
-for col, (label, question) in zip(st.columns(len(SUGGESTED_QUESTIONS)), SUGGESTED_QUESTIONS):
-    with col:
-        if st.button(label, use_container_width=True, disabled=busy or runner is None):
-            submit_question(question)
+recorded = recorded_questions()
+if recorded:
+    st.markdown("##### 🧪 Recorded demo questions (mock mode):")
+    st.caption("Questions and answers from the agent's `Agent/geo_agent/mock_fixtures` JSON files. "
+               "Any other question gets a \"no recorded reply\" message.")
+    suggestions = recorded
+else:
+    st.markdown("##### 💡 Suggested questions:")
+    suggestions = SUGGESTED_QUESTIONS
+
+for row_start in range(0, len(suggestions), SUGGESTIONS_PER_ROW):
+    row = suggestions[row_start:row_start + SUGGESTIONS_PER_ROW]
+    for i, (col, (label, question)) in enumerate(zip(st.columns(SUGGESTIONS_PER_ROW), row), start=row_start):
+        with col:
+            if st.button(label, key=f"suggestion_{i}_{question}", use_container_width=True,
+                         disabled=busy or runner is None):
+                submit_question(question)
 
 # ==========================================
 # CHAT (LEFT) & INTERACTIVE FOLIUM MAP (RIGHT)
@@ -596,11 +641,11 @@ CHAT_HEIGHT = MAP_HEIGHT - 70  # leaves room for the input box under the message
 col_chat, col_map = st.columns([5, 7])
 
 with col_chat:
-    st.markdown("#### 💬 Ask the Pacific GeoAI Agent")
+    st.markdown("#### 💬 Ask the GeoAI Agent")
     chat_box = st.container(height=CHAT_HEIGHT, border=True)
     with chat_box:
         if not st.session_state.messages:
-            st.caption("Ask a question below or pick a suggestion. Answers appear here, and their places on the map.")
+            st.caption("Ask a question in English below or pick a suggestion. Answers appear here, and their places on the map.")
         # Message history: user text and agent answers are rendered as Markdown, never as raw HTML
         for msg in st.session_state.messages[-20:]:
             if msg["role"] == "user":
@@ -611,7 +656,7 @@ with col_chat:
                     render_reply(msg.get("data") or {})
 
     user_input = st.chat_input(
-        "Ask about World War II... (e.g., 'Where did the Battle of Midway happen?')",
+        "Ask in English about World War II... (e.g., 'Where did the Battle of Midway happen?')",
         disabled=busy or runner is None,
     )
     if user_input:
@@ -620,8 +665,17 @@ with col_chat:
 with col_map:
     st.markdown("#### 🗺️ Interactive Geospatial Knowledge Map")
     folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice)
-    st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, returned_objects=[])
-    st.caption("🔴 Answer · ⚪ Context · dashed outline: drawn at a linked place")
+    map_state = st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, key="agent_map",
+                          returned_objects=["last_active_drawing"])
+    st.caption("🔴 Answer · ⚪ Context · dashed outline: drawn at a linked place · click a place for its details")
+
+    # A click on a map feature opens it in the entity details panel below. The feature's
+    # properties were HTML-escaped for the map, so the id is unescaped back.
+    clicked = ((map_state or {}).get("last_active_drawing") or {}).get("properties") or {}
+    clicked_id = html.unescape(str(clicked.get("id") or ""))
+    if clicked_id and clicked_id != st.session_state.get("map_clicked_id"):
+        st.session_state.map_clicked_id = clicked_id
+        st.session_state.entity_choice = clicked_id
 
 # ==========================================
 # AGENTIC REASONING & CONTEXT (UNDER THE CHAT AND THE MAP)
@@ -630,7 +684,7 @@ st.markdown("---")
 st.markdown("#### 🧠 Agentic Reasoning & Context")
 last = st.session_state.last_reply
 if not last:
-    st.markdown("Ready for natural-language Pacific War questions.")
+    st.markdown("Ready for natural-language questions about World War II (in English).")
 else:
     col_reason, col_entity = st.columns([3, 2])
     with col_reason:
@@ -659,11 +713,20 @@ else:
                 st.json(last["resolved_entities"], expanded=False)
 
     with col_entity:
-        entity_ids = list(dict.fromkeys(last.get("entity_ids") or []))[:50]
+        # The reply's entities plus the places on the map (they can come from an earlier reply).
+        map_ids = [str((f.get("properties") or {}).get("id")) for f in reply_features(st.session_state.map_reply)
+                   if (f.get("properties") or {}).get("id")]
+        entity_ids = list(dict.fromkeys((last.get("entity_ids") or []) + map_ids))[:100]
         if entity_ids and runner is not None:
             st.markdown("##### 🔍 Entity details")
-            chosen = st.selectbox("Entity", entity_ids, format_func=lambda i: entity_label(last, i),
-                                  label_visibility="collapsed")
+            # No widget key: a new map click changes `index`, which makes a fresh widget showing it.
+            focus = st.session_state.get("entity_choice")
+            map_reply = st.session_state.map_reply or {}
+            labels = {i: entity_label(last, i) if entity_label(last, i) != i else entity_label(map_reply, i)
+                      for i in entity_ids}
+            chosen = st.selectbox("Entity", entity_ids,
+                                  index=entity_ids.index(focus) if focus in entity_ids else 0,
+                                  format_func=labels.get, label_visibility="collapsed")
             render_entity_card(chosen)
 
 # The running question: show progress in the chat until it's done. This runs last so the
