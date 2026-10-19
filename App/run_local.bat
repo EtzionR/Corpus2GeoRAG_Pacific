@@ -13,4 +13,5 @@ rem The model provider sometimes stalls a request until the agent's 60 s retry, 
 rem answers take 70-90 s; 240 s per question avoids cutting those off (the agent's default is 120).
 if not defined GEO_AGENT_RUN_TIMEOUT set GEO_AGENT_RUN_TIMEOUT=240
 
-".venv\Scripts\python.exe" -m streamlit run app.py %*
+rem Listen on this computer only: with a real key, anyone who can reach the App can spend it.
+".venv\Scripts\python.exe" -m streamlit run app.py --server.address localhost %*
