@@ -28,6 +28,12 @@ The **Streamlit** front end of the project. You ask a question in English, the G
    streamlit run app.py
    ```
 
+**Tests** (mock mode, no key needed; they also run on GitHub for every PR that touches `App/` or `Agent/`):
+```bash
+pip install pytest
+pytest tests -q
+```
+
 Useful agent settings (environment or Streamlit Secrets): `GEO_AGENT_MODEL`, `GRAPH_PATH` (the graph JSON; default: the sample graph), `GEO_AGENT_RUN_TIMEOUT` (seconds per question, default 120), `GEO_AGENT_MOCK`.
 
 ## Notes
