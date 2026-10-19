@@ -1,7 +1,5 @@
-# precision_recovery: 40 of 500 recovery include-Overrides, seed 3, drawn by
-# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.
 # Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
-# neighbour; only precision_recovery may measure Overrides). Labels can be set in the app's Evaluation tab; drafts are in
+# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
 # reports/eval_log.tsv, so the agreement between the two is measured too.
 #   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
 #   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
@@ -10,6 +8,9 @@
 # e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
 # Drawn by Processing/eval_sample.py (seed 1) from the pipeline output of 2026-10-17 22:07.
 # Labels: second, independent Claude session on 2026-10-17, blind to the drafts in reports/eval_log.tsv — not yet verified by a person.
+# Exception: precision_recovery titles are Overrides by construction (they measure Overrides), but are never calibration labels or kNN neighbours.
+# precision_recovery: 40 of 500 recovery include-Overrides, seed 3, drawn by
+# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.
 # precision_recovery labels: GPT via opencode on 2026-10-19, blind, not verified by a person; filled from reports/eval_log_gpt.tsv.
 precision_rules:
   135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: wrong

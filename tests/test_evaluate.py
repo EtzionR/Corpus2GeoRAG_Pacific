@@ -37,6 +37,43 @@ def test_recovery_overrides_have_their_own_weight(monkeypatch):
     assert unlabelled["recovery_labelled"] == 0
 
 
+def test_recovery_population_is_fixed_before_recovery(monkeypatch):
+    run = {t: {"in_scope": False, "decided_by": "rules"} for t in ("A", "B", "C", "D")}
+    run["C"] = {"in_scope": True, "decided_by": "e5"}
+    run["original"] = {"in_scope": True, "decided_by": "override"}
+    run["rule"] = {"in_scope": True, "decided_by": "rules"}
+    monkeypatch.setattr(evaluate.eval_sample, "rows", lambda _: run)
+    monkeypatch.setattr(evaluate.eval_sample, "recovery_includes", lambda: {"A", "B", "C", "D"})
+    monkeypatch.setattr(evaluate, "BOOTSTRAP", 20)
+    lab = {"A": ("precision_recovery", "keep"), "B": ("precision_recovery", "keep"),
+           "rule": ("precision_rules", "wrong")}
+    res = evaluate.evaluate("baseline", lab, {"precision_rules": 10})
+    assert res["classification_recall"] == pytest.approx(1 / 5)  # original 1, missed recovery 4
+    assert res["wrong_rate"] == pytest.approx(10 / 11)  # original Override was not subtracted
+    assert res["recovery_includes"] == 0  # C got in by e5, not Override
+
+
+def test_append_recovery_preserves_header_and_labels(tmp_path, monkeypatch):
+    import yaml
+
+    path = tmp_path / "eval_set.yaml"
+    header = evaluate.eval_sample.HEADER.format(seed=1, stamp="2026-10-17 22:07")
+    original = {"precision_rules": {"rule": "keep"}}
+    path.write_text(header + yaml.safe_dump(original))
+    monkeypatch.setattr(evaluate.eval_sample, "EVAL_PATH", path)
+    monkeypatch.setattr(evaluate.eval_sample, "recovery_includes", lambda: {f"R{i}" for i in range(50)})
+    evaluate.eval_sample.append_recovery()
+    text = path.read_text()
+    sections = yaml.safe_load(text)
+    assert text.startswith(header + evaluate.eval_sample.RECOVERY_EXCEPTION + "# precision_recovery:")
+    assert sections["precision_rules"] == original["precision_rules"]
+    assert len(sections["precision_recovery"]) == 40
+    assert all(label is None for label in sections["precision_recovery"].values())
+    with pytest.raises(SystemExit, match="already exists"):
+        evaluate.eval_sample.append_recovery()
+    assert path.read_text() == text
+
+
 @pytest.mark.parametrize("votes,set_label,expected", [
     (["keep", "marginal", "wrong"], "wrong", "keep"),
     (["wrong", "wrong", "keep"], "keep", "wrong"),

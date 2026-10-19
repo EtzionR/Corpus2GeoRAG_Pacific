@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from knn_neighbours import recovery_overrides
 
 ROOT = Path(__file__).resolve().parent.parent
 INTERIM = ROOT / "Data" / "interim"
@@ -54,5 +55,13 @@ def test_eval_set_never_used_for_tuning():
     used |= {t for titles in load("knn_neighbours.yaml").values() for t in titles}
     assert not eval_titles & used, sorted(eval_titles & used)[:10]
     ordinary = {t for s, titles in sections.items() if s != "precision_recovery" for t in titles}
+    recovery = set(sections.get("precision_recovery") or {})
+    assert recovery <= recovery_overrides() & set(overrides.get("include") or [])
+    assert not recovery & ordinary
     overrides = set(overrides.get("include") or []) | set(overrides.get("exclude") or [])
     assert not ordinary & overrides, sorted(ordinary & overrides)[:10]
+
+
+def test_frozen_knn_neighbours_exclude_all_recovery_overrides():
+    neighbours = {t for titles in load("knn_neighbours.yaml").values() for t in titles}
+    assert not neighbours & recovery_overrides()

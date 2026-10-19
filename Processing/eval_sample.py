@@ -41,7 +41,7 @@ USER_AGENT = "Corpus2GeoRAG_Pacific/0.2 (https://github.com/NivGreenstein/Corpus
 
 HEADER = """\
 # Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
-# neighbour; only precision_recovery may measure Overrides). Labels can be set in the app's Evaluation tab; drafts are in
+# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
 # reports/eval_log.tsv, so the agreement between the two is measured too.
 #   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
 #   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
@@ -50,6 +50,8 @@ HEADER = """\
 # e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
 # Drawn by Processing/eval_sample.py (seed {seed}) from the pipeline output of {stamp}.
 """
+RECOVERY_EXCEPTION = ("# Exception: precision_recovery titles are Overrides by construction (they measure Overrides), "
+                      "but are never calibration labels or kNN neighbours.\n")
 
 
 def rows(run_dir=INTERIM):
@@ -89,7 +91,11 @@ def append_recovery():
     picked = sorted(random.Random(3).sample(population, 40))
     header = (f"# precision_recovery: 40 of {len(population)} recovery include-Overrides, seed 3, drawn by\n"
               "# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.\n")
-    EVAL_PATH.write_text(header + text.rstrip() + "\n"
+    # Preserve the original header and labels; put recovery provenance after the main header.
+    lines = text.splitlines(keepends=True)
+    split = next((i for i, line in enumerate(lines) if line.strip() and not line.startswith("#")), len(lines))
+    EVAL_PATH.write_text("".join(lines[:split]) + RECOVERY_EXCEPTION + header
+                         + "".join(lines[split:]).rstrip() + "\n"
                          + yaml.safe_dump({"precision_recovery": {t: None for t in picked}},
                                           allow_unicode=True, sort_keys=False))
     print(f"precision_recovery: 40 of {len(population)}; existing sections preserved")

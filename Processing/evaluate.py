@@ -119,11 +119,14 @@ def evaluate(run_dir, lab, w):
     run = eval_sample.rows(run_dir)
     n_override_in = sum(1 for r in run.values() if r["in_scope"] and r["decided_by"] == "override")
     sample = [(t, s, l) for t, (s, l) in lab.items()]
-    n_recovery = sum(bool(run.get(t, {}).get("in_scope")) for t in eval_sample.recovery_includes())
+    recovery = eval_sample.recovery_includes()
+    n_recovery = sum(bool(run.get(t, {}).get("in_scope")) and run[t]["decided_by"] == "override"
+                     for t in recovery)
     n_labelled = sum(s == "precision_recovery" for _, s, _ in sample)
     w = dict(w)
     if n_labelled:
-        w["precision_recovery"] = n_recovery / n_labelled
+        # The same population must count toward recall even before its recovery.
+        w["precision_recovery"] = len(recovery) / n_labelled
         n_override_in -= n_recovery
     point = measure(run, sample, w, n_override_in)
     by_section = collections.defaultdict(list)
@@ -199,6 +202,8 @@ def main():
     if not lab:
         raise SystemExit("no labels yet: verify them in the app's Evaluation tab, or pass --drafts")
     w = weights()
+    n_unmeasured = len(eval_sample.recovery_overrides() - eval_sample.recovery_includes())
+    print(f"  note: classification recall excludes {n_unmeasured} unmeasured recovery exclude-Overrides.")
     results = {"labels": agreement, "label_source": args.labels, "drafts_used": args.drafts, "runs": []}
     if args.compare:
         results["runs"].append(evaluate(Path(args.compare), lab, w))
