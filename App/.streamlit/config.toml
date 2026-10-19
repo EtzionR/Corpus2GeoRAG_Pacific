@@ -1,0 +1,11 @@
+# Local Streamlit settings for the App (used when Streamlit runs from App/, e.g. run_local.bat).
+# Secrets never go here: the API key stays in ../Agent/.env, and .streamlit/secrets.toml is git-ignored.
+
+[theme]
+base = "dark"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+runOnSave = true

@@ -18,12 +18,15 @@ The **Streamlit** front end of the project. You ask a question in English, the G
 - Agent text and data from the graph are untrusted: they are rendered as Markdown or plain text, never as raw HTML, and map labels are HTML-escaped.
 
 ## Quick start 🚀
+**Windows:** in the `App` folder, run `setup_local.bat` once (it creates `App\.venv` and installs everything), then `run_local.bat` to start the App. `run_local.bat` allows 240 s per question, because a model request sometimes stalls and is retried.
+
+**Any system:**
 1. **Install the dependencies** (the App's and the agent's) in a virtual environment:
    ```bash
    pip install -r requirements.txt
    ```
-2. **Optional, for the real agent:** create `Agent/.env` with `OPENROUTER_API_KEY=...`. Without it the App runs in mock mode.
-3. **Run the App:**
+2. **Optional, for the real agent:** create `Agent/.env` with `OPENROUTER_API_KEY=...` (copy `Agent/.env.example`). Without it the App runs in mock mode. The file is git-ignored; never commit it.
+3. **Run the App** from the `App` folder:
    ```bash
    streamlit run app.py
    ```
