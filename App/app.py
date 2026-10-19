@@ -1,12 +1,14 @@
-import asyncio
 import copy
 import html
+import importlib.util
+import os
 import re
 import sys
-import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+from urllib.parse import quote, urlsplit
 
 import folium
 import streamlit as st
@@ -20,7 +22,7 @@ st.set_page_config(
     page_title="Corpus2GeoRAG: Pacific Theater (WWII) 🌊",
     page_icon="🌊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS matching the presentation's dark starry & sleek aesthetic.
@@ -67,22 +69,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# AGENT CONTRACT (see Agent/README.md -> "Output schema (for the UI)")
+# AGENT CONTRACT (see Agent/README.md -> "Output schema" and "Using the agent from the UI",
+# and Agent/docs/UI_TEAM.md)
 # ==========================================
 AGENT_DIR = Path(__file__).resolve().parent.parent / "Agent"
-AGENT_CREATE_TIMEOUT_S = 180
-# The agent bounds itself (model deadline x retries x steps); this only stops the UI from hanging forever.
-AGENT_ASK_TIMEOUT_S = 600
+
+# Settings the agent reads from the environment; on Streamlit Cloud they come from st.secrets.
+SECRET_ENV_KEYS = ("OPENROUTER_API_KEY", "GEO_AGENT_MODEL", "GEO_AGENT_MOCK", "GRAPH_PATH", "GEO_AGENT_RUN_TIMEOUT")
+
+POLL_INTERVAL_S = 0.2
 
 DEFAULT_CENTER = [15.0, 150.0]
 DEFAULT_ZOOM = 3
 
-# The agent's fixed scope message; the mock reuses it so the UI sees the real text.
-OFF_TOPIC_MESSAGE = (
-    "I can only answer questions about the Pacific theatre of World War II, using the knowledge graph "
-    "built from Wikipedia: places, battles, people and organizations, and how they are connected. "
-    "For example: \"Where did the Battle of Midway happen?\" or \"Show me all locations connected to Admiral Yamamoto.\""
-)
+# The questions the agent's mock mode has recorded replies for, so they also work without a key.
+SUGGESTED_QUESTIONS = [
+    ("📍 Where was the Battle of Midway?", "Where did the Battle of Midway happen?"),
+    ("⚔️ Who attacked Guadalcanal in 1942?", "Who attacked Guadalcanal in 1942?"),
+    ("🧭 Yamamoto's locations", "Show me all locations connected to Admiral Yamamoto"),
+    ("🗺️ Major Pacific battles", "Show me major battles in the Pacific War on the map"),
+]
 
 WARNING_LABELS = {
     "low_confidence": "Low confidence",
@@ -94,13 +100,21 @@ WARNING_LABELS = {
     "text_coordinates_unverified": "Coordinates in the text could not be verified",
     "approximation_used": "A kind, country or concept was approximated",
     "result_set_unknown": "A result set could not be found",
-    "off_topic": "Off-topic question",
     "instruction_text_removed": "Instruction-like text was removed from the sources",
     "structured_output_failed": "The agent replied without structured output",
     "repeated_tool_call": "The agent repeated a graph query",
     "empty_resolution": "The first name lookup found nothing",
     "many_steps": "The agent needed many steps",
-    "token_budget": "The question used more tokens than the budget",
+    "token_budget": "The question used more tokens than the budget; the answer may be incomplete",
+    "mock_no_fixture": "Mock mode has no recorded reply for this question",
+}
+# Shown in their own way, not in the generic warning line.
+SPECIAL_WARNINGS = {"off_topic", "low_confidence", "nothing_on_map", "ungrounded_names"}
+
+ERROR_MESSAGES = {
+    "busy": "Another question is still running in this conversation. Wait for its answer.",
+    "timeout": "The question took too long and was stopped. The conversation continues without its earlier context.",
+    "cancelled": "The question was stopped. The conversation continues without its earlier context.",
 }
 
 CONFIDENCE_COLORS = {"high": "green", "medium": "orange", "low": "red"}
@@ -114,252 +128,58 @@ ROLE_STYLES = {
 CLUSTER_THRESHOLD = 30
 
 
-def blank_reply(**fields: Any) -> Dict[str, Any]:
-    """A reply with every contract key present, as the agent guarantees."""
-    reply: Dict[str, Any] = {
-        "answer": "",
-        "answer_ids": [],
-        "context_ids": [],
-        "sources": [],
-        "geojson": {"type": "FeatureCollection", "features": []},
-        "tool_calls": [],
-        "run_id": uuid.uuid4().hex,
-        "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "uncertain_match_used": False}},
-        "interpretation": [],
-        "resolved_entities": [],
-        "dropped_ids": [],
-        "unverified_sources": [],
-        "unverified_numbers": [],
-        "warnings": [],
-        "result_sets": [],
-        "dropped_sets": [],
-        "error": None,
-    }
-    reply.update(fields)
-    reply["entity_ids"] = list(reply["answer_ids"]) + list(reply["context_ids"])
-    return reply
-
-
-def error_reply(exc_type: str, message: str, stage: str) -> Dict[str, Any]:
-    return blank_reply(error={"type": exc_type, "message": message, "stage": stage})
-
-
 # ==========================================
-# TEMPORARY MOCK AGENT
-# Stand-in until the real Agent is ready. It returns the Agent's exact output schema
-# (GeoJSON in [lon, lat]) so every UI path can be tested. Delete this section once
-# the Agent loads; nothing else in the App depends on it.
+# AGENT CONNECTION
+# The agent ships its own runner (geo_agent.runner.AgentRunner): one background event loop,
+# per-question timeout, one question at a time per conversation, progress events, and a
+# mock mode with replies recorded from the real code. The app only picks the mode.
 # ==========================================
-MOCK_PLACES: Dict[str, Dict[str, Any]] = {
-    "loc:pearl_harbor": {"name": "Pearl Harbor", "aliases": ["pearl harbor"], "geometry": {"type": "Point", "coordinates": [-157.9492, 21.3649]}},
-    "loc:midway_atoll": {"name": "Midway Atoll", "aliases": ["midway"], "geometry": {"type": "Point", "coordinates": [-177.3735, 28.2072]}},
-    "loc:guadalcanal": {"name": "Guadalcanal", "aliases": ["guadalcanal"], "geometry": {"type": "Polygon", "coordinates": [[[159.6, -9.2], [160.9, -9.2], [160.9, -10.0], [159.6, -10.0], [159.6, -9.2]]]}},
-    "loc:henderson_field": {"name": "Henderson Field", "aliases": ["henderson field"], "geometry": {"type": "Point", "coordinates": [160.05, -9.43]}},
-    "loc:leyte_gulf": {"name": "Leyte Gulf", "aliases": ["leyte"], "geometry": {"type": "Point", "coordinates": [125.4167, 10.8333]}},
-    "loc:okinawa": {"name": "Okinawa", "aliases": ["okinawa"], "geometry": {"type": "Point", "coordinates": [127.8056, 26.3344]}},
-    "loc:iwo_jima": {"name": "Iwo Jima", "aliases": ["iwo jima"], "geometry": {"type": "Point", "coordinates": [141.3167, 24.7833]}},
-    "loc:coral_sea": {"name": "Coral Sea", "aliases": ["coral sea"], "geometry": {"type": "Point", "coordinates": [152.0, -16.0]}},
-    "loc:saipan": {"name": "Saipan", "aliases": ["saipan"], "geometry": {"type": "Point", "coordinates": [145.7480, 15.1789]}},
-    "loc:manila": {"name": "Manila", "aliases": ["manila"], "geometry": {"type": "Point", "coordinates": [120.9842, 14.5995]}},
-    "loc:tokyo": {"name": "Tokyo", "aliases": ["tokyo"], "geometry": {"type": "Point", "coordinates": [139.6503, 35.6762]}},
-    "loc:hiroshima": {"name": "Hiroshima", "aliases": ["hiroshima"], "geometry": {"type": "Point", "coordinates": [132.4553, 34.3853]}},
-    "loc:nagasaki": {"name": "Nagasaki", "aliases": ["nagasaki"], "geometry": {"type": "Point", "coordinates": [129.8779, 32.7503]}},
-}
-
-MOCK_BATTLES = [
-    ("event:battle_of_midway", "Battle of Midway", "loc:midway_atoll"),
-    ("event:guadalcanal_campaign", "Guadalcanal campaign", "loc:guadalcanal"),
-    ("event:battle_of_leyte_gulf", "Battle of Leyte Gulf", "loc:leyte_gulf"),
-    ("event:battle_of_okinawa", "Battle of Okinawa", "loc:okinawa"),
-    ("event:battle_of_iwo_jima", "Battle of Iwo Jima", "loc:iwo_jima"),
-    ("event:battle_of_the_coral_sea", "Battle of the Coral Sea", "loc:coral_sea"),
-    ("event:battle_of_saipan", "Battle of Saipan", "loc:saipan"),
-    ("event:battle_of_manila", "Battle of Manila", "loc:manila"),
-]
-
-MOCK_WAR_WORDS = ["war", "battle", "attack", "bomb", "where", "who", "located", "connected", "campaign", "invasion", "fleet", "navy", "army"]
+def _load_secrets_into_env():
+    try:
+        for key in SECRET_ENV_KEYS:
+            if key in st.secrets and key not in os.environ:
+                os.environ[key] = str(st.secrets[key])
+    except Exception:  # no secrets file: environment / Agent/.env only
+        pass
 
 
-def _mock_feature(loc_id: str, role: str, related_to: Optional[str] = None,
-                  via: Optional[str] = None, strength: Optional[int] = None) -> Dict[str, Any]:
-    place = MOCK_PLACES[loc_id]
-    props: Dict[str, Any] = {"id": loc_id, "name": place["name"], "type": "location", "role": role}
-    if related_to:
-        props["related_to"] = related_to
-    if via:
-        props["via"] = via
-        props["strength"] = strength or 1
-    return {"type": "Feature", "geometry": place["geometry"], "properties": props}
-
-
-def _mock_fc(features: List[Dict[str, Any]]) -> Dict[str, Any]:
-    return {"type": "FeatureCollection", "features": features}
-
-
-def _mock_confidence(level: str, edges: int, pages: int) -> Dict[str, Any]:
-    return {"level": level, "basis": {"max_edge_count": edges, "n_source_pages": pages, "uncertain_match_used": False}}
-
-
-class MockAgent:
-    """Mimics GeoAgent.ask(); same signature, same output keys."""
-
-    async def ask(self, question: str, thread_id: str = "default") -> Dict[str, Any]:
-        q = question.lower()
-
-        if "simulate error" in q:
-            return error_reply("ModelDeadlineExceeded", "model call exceeded 90s deadline 2 times", "model_call")
-
-        if "xss test" in q:
-            # Untrusted text in the answer and in a place name: both must show as plain text.
-            evil = "<img src=x onerror=alert('xss')>"
-            feature = _mock_feature("loc:midway_atoll", "answer")
-            feature["properties"]["name"] = evil
-            return blank_reply(answer=f"Escaping test: {evil} <script>alert('xss')</script> **bold stays Markdown**",
-                               answer_ids=["loc:midway_atoll"], geojson=_mock_fc([feature]),
-                               confidence=_mock_confidence("low", 1, 1))
-
-        if "guam" in q:
-            return blank_reply(
-                answer="Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?",
-                tool_calls=[{"name": "search_entities", "args": {"query": "Battle of Guam"}}],
-            )
-
-        if "yamamoto" in q:
-            paths = [
-                ("loc:pearl_harbor", "Isoroku Yamamoto -COMMANDED-> Attack on Pearl Harbor -OCCURRED_AT-> Pearl Harbor", 6),
-                ("loc:midway_atoll", "Isoroku Yamamoto -COMMANDED-> Battle of Midway -OCCURRED_AT-> Midway Atoll", 8),
-                ("loc:guadalcanal", "Isoroku Yamamoto -COMMANDED-> Guadalcanal campaign -OCCURRED_AT-> Guadalcanal", 3),
-            ]
-            ids = [p[0] for p in paths]
-            return blank_reply(
-                answer=("**3 locations** are connected to Admiral Isoroku Yamamoto, through the operations he commanded: "
-                        "Pearl Harbor (1941), Midway Atoll (1942) and Guadalcanal (1942-43)."),
-                answer_ids=ids, context_ids=["per:yamamoto"], sources=["Isoroku Yamamoto", "Battle of Midway"],
-                geojson=_mock_fc([_mock_feature(i, "answer", "per:yamamoto", v, s) for i, v, s in paths]),
-                tool_calls=[{"name": "search_entities", "args": {"query": "Yamamoto"}},
-                            {"name": "connected_locations", "args": {"entity_id": "per:yamamoto"}}],
-                confidence=_mock_confidence("high", 8, 2),
-                interpretation=["'Admiral Yamamoto' read as Isoroku Yamamoto"],
-                result_sets=[{"handle": "rs-mock01", "label": "locations connected to Isoroku Yamamoto",
-                              "total": 3, "on_map": 3, "map_truncated": False}],
-            )
-
-        if "guadalcanal" in q and "attack" in q:
-            return blank_reply(
-                answer=("The **US Marine Corps** attacked Guadalcanal from 7 August 1942; the **Imperial Japanese Army** "
-                        "attacked Henderson Field in September-October 1942."),
-                answer_ids=["org:usmc", "org:ija"], context_ids=["loc:guadalcanal", "loc:henderson_field"],
-                sources=["Guadalcanal campaign"],
-                geojson=_mock_fc([_mock_feature("loc:guadalcanal", "answer", "org:usmc"),
-                                  _mock_feature("loc:henderson_field", "answer", "org:ija")]),
-                tool_calls=[{"name": "search_entities", "args": {"query": "Guadalcanal"}},
-                            {"name": "find_relations", "args": {"target_id": "loc:guadalcanal", "relation_type": "ATTACKED", "year": 1942}}],
-                confidence=_mock_confidence("high", 5, 2),
-            )
-
-        if "battle" in q and any(w in q for w in ["major", "battles", "all"]):
-            features = [_mock_feature(loc, "answer", ev, f"{name} -OCCURRED_AT-> {MOCK_PLACES[loc]['name']}", 5)
-                        for ev, name, loc in MOCK_BATTLES]
-            return blank_reply(
-                answer=("The graph has **8 major battles** of the Pacific War. The most important: the Battle of Midway, "
-                        "the Guadalcanal campaign and the Battle of Leyte Gulf. All of them are on the map."),
-                answer_ids=[ev for ev, _, _ in MOCK_BATTLES], sources=["Pacific War"],
-                geojson=_mock_fc(features),
-                tool_calls=[{"name": "find_entities", "args": {"type": "event", "kind": "battle"}}],
-                confidence=_mock_confidence("medium", 4, 1),
-                warnings=["approximation_used"],
-                interpretation=["'major' ranked by how much the graph says about each battle (no importance attribute)"],
-                result_sets=[{"handle": "rs-mock02", "label": "major battles of the Pacific War",
-                              "total": 8, "on_map": 8, "map_truncated": False}],
-            )
-
-        found = [loc for loc, place in MOCK_PLACES.items() if any(a in q for a in place["aliases"])]
-        if found:
-            battle = next(((ev, name) for ev, name, loc in MOCK_BATTLES if loc in found and "battle" in q), None)
-            related = battle[0] if battle else None
-            names = ", ".join(MOCK_PLACES[f]["name"] for f in found)
-            interpretation = (["'Midway' read as Midway Atoll (alias)"]
-                              if "loc:midway_atoll" in found and "midway atoll" not in q else [])
-            return blank_reply(
-                answer=(f"The {battle[1]} happened at **{names}**." if battle else f"Found in the graph: **{names}**."),
-                answer_ids=found + ([related] if related else []),
-                sources=[battle[1]] if battle else [MOCK_PLACES[f]["name"] for f in found],
-                geojson=_mock_fc([_mock_feature(f, "answer", related) for f in found]),
-                tool_calls=[{"name": "search_entities", "args": {"query": names}}],
-                confidence=_mock_confidence("high" if battle else "medium", 3, 1),
-                interpretation=interpretation,
-            )
-
-        if any(w in q for w in MOCK_WAR_WORDS):
-            return blank_reply(answer="I couldn't find this in the knowledge graph.",
-                               tool_calls=[{"name": "search_source_text", "args": {"query": question}}])
-
-        return blank_reply(answer=OFF_TOPIC_MESSAGE, warnings=["off_topic"])
-
-
-# ==========================================
-# AGENT RUNNER (one long-lived event loop per process)
-# The agent is async and its model client is bound to the loop it was created on,
-# so every call goes through the same background loop instead of asyncio.run().
-# ==========================================
-class AgentRunner:
-    def __init__(self):
-        self.mode = "mock"
-        self.reason = ""
-        self.graph_stats: Optional[Dict[str, Any]] = None
-        self._loop = asyncio.new_event_loop()
-        self._thread = threading.Thread(target=self._loop.run_forever, name="geo-agent-loop", daemon=True)
-        self._thread.start()
-        try:
-            self.agent = self._run(self._create_agent(), AGENT_CREATE_TIMEOUT_S)
-            self.mode = "agent"
-            self.graph_stats = self._read_graph_stats()
-        except Exception as exc:
-            self.agent = MockAgent()
-            self.reason = f"{type(exc).__name__}: {exc}"
-
-    @staticmethod
-    async def _create_agent():
-        if str(AGENT_DIR) not in sys.path:
-            sys.path.insert(0, str(AGENT_DIR))
-        from geo_agent.agent import GeoAgent
-        try:
-            return await GeoAgent.create()
-        except SystemExit as exc:
-            # create() calls sys.exit() when OPENROUTER_API_KEY is missing; a SystemExit
-            # escaping a task would stop the background loop, so turn it into an error.
-            raise RuntimeError(str(exc)) from None
-
-    def _run(self, coro, timeout: float):
-        return asyncio.run_coroutine_threadsafe(coro, self._loop).result(timeout=timeout)
-
-    def _read_graph_stats(self) -> Optional[Dict[str, Any]]:
-        try:
-            store = self.agent.store
-            schema = store.schema()
-            return {"nodes": schema["node_count"], "edges": schema["edge_count"],
-                    "node_types": schema["node_types"], "geocoded": len(store.geoms)}
-        except Exception:
-            return None
-
-    def ask(self, question: str, thread_id: str) -> Dict[str, Any]:
-        future = asyncio.run_coroutine_threadsafe(self.agent.ask(question, thread_id=thread_id), self._loop)
-        try:
-            return future.result(timeout=AGENT_ASK_TIMEOUT_S)
-        except TimeoutError:
-            future.cancel()
-            return error_reply("UITimeout", f"no reply within {AGENT_ASK_TIMEOUT_S}s", "unknown")
-        except Exception as exc:  # ask() returns errors as data; this is only a safety net
-            return error_reply(type(exc).__name__, str(exc), "unknown")
-
-    def close(self):
-        self._loop.call_soon_threadsafe(self._loop.stop)
+def _ensure_agent_importable():
+    """Use the installed geo_agent package, or the Agent folder next to the App in this repo."""
+    if importlib.util.find_spec("geo_agent") is None and AGENT_DIR.is_dir():
+        sys.path.insert(0, str(AGENT_DIR))
 
 
 @st.cache_resource(show_spinner="Loading the GeoRAG agent…")
-def get_runner() -> AgentRunner:
-    return AgentRunner()
+def load_agent() -> Dict[str, Any]:
+    """One runner per process. mode: "agent", "mock" or "unavailable"; reason says why it isn't "agent"."""
+    _load_secrets_into_env()
+    try:
+        _ensure_agent_importable()
+        from geo_agent.agent import AgentConfigError
+        from geo_agent.runner import AgentRunner
+    except Exception as exc:
+        return {"runner": None, "mode": "unavailable",
+                "reason": f"the agent package could not be imported ({type(exc).__name__}: {exc})"}
 
+    try:
+        runner = AgentRunner()
+        if runner.mock:
+            return {"runner": runner, "mode": "mock", "reason": "GEO_AGENT_MOCK is set"}
+        return {"runner": runner, "mode": "agent", "reason": ""}
+    except AgentConfigError as exc:
+        reason = str(exc)
+    except Exception as exc:
+        reason = f"the agent failed to start ({type(exc).__name__}: {exc})"
+
+    try:
+        return {"runner": AgentRunner(mock=True), "mode": "mock", "reason": reason}
+    except Exception as exc:
+        return {"runner": None, "mode": "unavailable",
+                "reason": f"{reason}; mock mode also failed ({type(exc).__name__}: {exc})"}
+
+
+agent = load_agent()
+runner = agent["runner"]
 
 # ==========================================
 # SESSION STATE
@@ -376,12 +196,37 @@ if "last_reply" not in st.session_state:
 if "map_reply" not in st.session_state:
     st.session_state.map_reply = None  # latest reply that had map features
 
+if "pending" not in st.session_state:
+    # The running question's PendingAnswer. Kept here so a click while the agent works
+    # (which reruns the script) doesn't lose the answer: every run checks it.
+    st.session_state.pending = None
+
+
+def finish_pending():
+    res = st.session_state.pending.result()
+    st.session_state.pending = None
+    st.session_state.messages.append({"role": "assistant", "data": res})
+    st.session_state.last_reply = res
+    if reply_features(res):
+        st.session_state.map_reply = res
+
+
+def submit_question(question: str):
+    if runner is None or st.session_state.pending is not None:
+        return
+    st.session_state.messages.append({"role": "user", "content": question})
+    st.session_state.pending = runner.submit(question, st.session_state.thread_id)
+    st.rerun()
+
 
 def reset_conversation():
+    if st.session_state.pending is not None:
+        st.session_state.pending.cancel()
     st.session_state.thread_id = uuid.uuid4().hex
     st.session_state.messages = []
     st.session_state.last_reply = None
     st.session_state.map_reply = None
+    st.session_state.pending = None
 
 
 # ==========================================
@@ -412,6 +257,45 @@ def md_text(value: Any) -> str:
     return _MD_SPECIAL.sub(r"\\\1", str(value))
 
 
+def safe_url(url: Any) -> Optional[str]:
+    """The URL if it is http(s), percent-encoded so it can't break out of a Markdown link."""
+    if not isinstance(url, str):
+        return None
+    parts = urlsplit(url.strip())
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return None
+    return quote(url.strip(), safe=":/?#@!$&'*+,;=%~-._")
+
+
+def md_link(label: Any, url: Any) -> str:
+    target = safe_url(url)
+    return f"[{md_text(label)}]({target})" if target else md_text(label)
+
+
+def wikipedia_url(title: str) -> str:
+    return "https://en.wikipedia.org/wiki/" + quote(title.replace(" ", "_"), safe="")
+
+
+def source_links(res: Dict[str, Any]) -> List[str]:
+    """Wikipedia pages (`sources`) plus other provenance records (`source_refs`), as safe links."""
+    links, seen = [], set()
+    for ref in res.get("source_refs") or []:
+        page = ref.get("page") or ""
+        label = page or f"{ref.get('provider', 'record')} {ref.get('record_id', '')}".strip()
+        provider = (ref.get("provider") or "").lower()
+        if provider and provider != "wikipedia":
+            label = f"{ref.get('provider')}: {label}"
+        key = (label, ref.get("url"))
+        if key not in seen:
+            seen.add(key)
+            links.append(md_link(label, ref.get("url")))
+    ref_pages = {ref.get("page") for ref in res.get("source_refs") or [] if (ref.get("provider") or "").lower() == "wikipedia"}
+    for title in res.get("sources") or []:
+        if title not in ref_pages:
+            links.append(md_link(title, wikipedia_url(title)))
+    return links
+
+
 def confidence_line(res: Dict[str, Any]) -> Optional[str]:
     level = ((res.get("confidence") or {}).get("level") or "").lower()
     if level not in CONFIDENCE_COLORS:
@@ -430,21 +314,25 @@ def result_set_lines(res: Dict[str, Any]) -> List[str]:
 
 
 def warning_labels(res: Dict[str, Any]) -> List[str]:
-    return [WARNING_LABELS.get(w, w) for w in res.get("warnings") or [] if w not in ("off_topic", "low_confidence")]
+    return [WARNING_LABELS.get(w, w) for w in res.get("warnings") or [] if w not in SPECIAL_WARNINGS]
 
 
 def render_reply(res: Dict[str, Any]):
     """Render one agent reply inside a chat message. The answer is untrusted Markdown: never raw HTML."""
     kind = reply_kind(res)
+    if res.get("mock"):
+        st.caption("🧪 Recorded demo reply (mock mode)")
 
     if kind == "error":
         err = res.get("error") or {}
-        st.error("The agent couldn't answer this question. Please try again or rephrase it.")
-        st.caption(f"Stage: {md_text(err.get('stage', 'unknown'))} · run\\_id: `{res.get('run_id', '')}`")
+        stage = err.get("stage", "unknown")
+        message = ERROR_MESSAGES.get(stage, "The agent couldn't answer this question. Please try again or rephrase it.")
+        (st.warning if stage in ERROR_MESSAGES else st.error)(message)
+        st.caption(f"Stage: {md_text(stage)} · run\\_id: `{res.get('run_id', '')}`")
         return
 
     if kind == "off_topic":
-        st.info(res.get("answer") or OFF_TOPIC_MESSAGE)
+        st.info(res.get("answer") or "")
         return
 
     st.markdown(res.get("answer") or "")
@@ -459,8 +347,16 @@ def render_reply(res: Dict[str, Any]):
     if meta:
         st.markdown(" · ".join(meta))
 
-    if res.get("sources"):
-        st.caption("📚 Sources: " + ", ".join(md_text(s) for s in res["sources"]))
+    if "nothing_on_map" in (res.get("warnings") or []):
+        st.caption("🗺️ No location in the graph for this answer.")
+
+    if res.get("ungrounded_names"):
+        st.caption("❔ Not from the graph (the model's own knowledge): "
+                   + ", ".join(md_text(n) for n in res["ungrounded_names"]))
+
+    links = source_links(res)
+    if links:
+        st.caption("📚 Sources: " + " · ".join(links))
 
     labels = warning_labels(res)
     if res.get("unverified_numbers"):
@@ -469,22 +365,37 @@ def render_reply(res: Dict[str, Any]):
         st.caption("⚠️ " + " · ".join(md_text(l) for l in labels))
 
     with st.expander("How I found this"):
-        st.caption(f"run\\_id: `{res.get('run_id', '')}`")
+        st.caption(f"run\\_id: `{res.get('run_id', '')}` · schema {md_text(res.get('schema_version', '?'))}")
         st.json(res.get("tool_calls") or [], expanded=False)
         if res.get("dropped_ids") or res.get("unverified_sources"):
             st.json({"dropped_ids": res.get("dropped_ids") or [],
                      "unverified_sources": res.get("unverified_sources") or []}, expanded=False)
 
 
-def handle_question(question: str):
-    with st.spinner("The agent is searching the knowledge graph…"):
-        res = get_runner().ask(question, st.session_state.thread_id)
-    st.session_state.messages.append({"role": "user", "content": question})
-    st.session_state.messages.append({"role": "assistant", "data": res})
-    st.session_state.last_reply = res
-    if reply_features(res):
-        st.session_state.map_reply = res
-    st.rerun()
+def entity_label(res: Dict[str, Any], entity_id: str) -> str:
+    """A display name for an id, from this reply's features or resolved names."""
+    for f in reply_features(res):
+        props = f.get("properties") or {}
+        if props.get("id") == entity_id:
+            return str(props.get("name") or entity_id)
+    for ent in res.get("resolved_entities") or []:
+        if ent.get("id") == entity_id:
+            return str(ent.get("name") or entity_id)
+    return entity_id
+
+
+def render_entity_card(entity_id: str):
+    """Details of one entity from the loaded graph. The excerpt is source text: shown as plain text."""
+    card = runner.get_entity_feature(entity_id) if runner else None
+    if not card:
+        st.caption("No details in the graph for this entity.")
+        return
+    st.markdown(f"**{md_text(card.get('name', entity_id))}** · {md_text(card.get('type', ''))}")
+    if card.get("excerpt"):
+        st.text(card["excerpt"])
+    sources = [md_link(s.get("page") or "source", s.get("url")) for s in card.get("sources") or []]
+    if sources:
+        st.caption("📚 " + " · ".join(sources))
 
 
 # ==========================================
@@ -531,11 +442,12 @@ def prepare_geojson(fc: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[List[L
         props = f.get("properties") or {}
         role = props.get("role") if props.get("role") in ROLE_STYLES else "context"
         strength = props.get("strength")
+        related = props.get("geometry_source") == "related"
         f["properties"] = {key: html.escape(str(value)) for key, value in props.items()}
-        f["properties"].setdefault("name", "")
-        f["properties"].setdefault("via", "")
-        f["properties"].setdefault("related_to", "")
+        for key in ("name", "via", "related_to", "geometry_source"):
+            f["properties"].setdefault(key, "")
         f["properties"]["role"] = role  # whitelisted, used by the style function
+        f["properties"]["_dash"] = "6 4" if related else ""
         f["properties"]["_radius"] = 6 + min(int(strength), 10) if isinstance(strength, (int, float)) else 8
 
     lats = [p[1] for p in positions]
@@ -547,6 +459,8 @@ def _feature_style(feature: Dict[str, Any]) -> Dict[str, Any]:
     props = feature.get("properties") or {}
     style = dict(ROLE_STYLES.get(props.get("role"), ROLE_STYLES["context"]))
     style["radius"] = props.get("_radius", 8)
+    if props.get("_dash"):  # drawn at a linked place, not the entity's own geometry
+        style["dashArray"] = props["_dash"]
     return style
 
 
@@ -572,8 +486,8 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.M
         style_function=_feature_style,
         highlight_function=lambda _: {"weight": 4, "fillOpacity": 0.7},
         tooltip=folium.GeoJsonTooltip(fields=["name"], labels=False),
-        popup=folium.GeoJsonPopup(fields=["name", "role", "related_to", "via"],
-                                  aliases=["Name", "Role", "Drawn for", "Connected via"]),
+        popup=folium.GeoJsonPopup(fields=["name", "role", "related_to", "geometry_source", "via"],
+                                  aliases=["Name", "Role", "Drawn for", "Geometry", "Connected via"]),
     )
     n_points = sum(1 for f in fc["features"] if f["geometry"].get("type") == "Point")
     if n_points > CLUSTER_THRESHOLD:
@@ -589,59 +503,11 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.M
     return m
 
 
-# ==========================================
-# SIDEBAR CONTROLS & GRAPH STATS
-# ==========================================
-runner = get_runner()
+# A question that finished while the script wasn't watching (e.g. during a rerun) is collected here.
+if st.session_state.pending is not None and st.session_state.pending.done():
+    finish_pending()
 
-with st.sidebar:
-    st.image("https://img.icons8.com/isometric/100/globe.png", width=64)
-    st.markdown("### 🌊 Corpus2GeoRAG_Pacific")
-    st.markdown("**Pacific & Asian Theaters (WWII)**")
-    st.caption("Geospatial RAG on Wikipedia Pacific War & Maritime Datasets")
-
-    st.divider()
-
-    st.markdown("#### ⚙️ Map Configuration")
-    tile_choice = st.selectbox(
-        "Map Theme:",
-        [
-            "OpenStreetMap (Standard)",
-            "CartoDB Positron (Minimal)",
-            "CartoDB Dark Matter (Dark)"
-        ],
-        index=0
-    )
-
-    st.divider()
-
-    st.markdown("#### 🤖 Agent Engine")
-    if runner.mode == "agent":
-        st.success("🟢 GeoRAG Agent connected")
-    else:
-        st.warning("🟠 Demo mode — the real Agent is not loaded. Answers come from a local mock.")
-        st.caption(f"Reason: {md_text(runner.reason)}")
-        if st.button("🔌 Retry Agent connection", use_container_width=True):
-            runner.close()
-            get_runner.clear()
-            st.rerun()
-
-    if runner.graph_stats:
-        st.markdown("#### 📊 Knowledge Graph")
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            st.metric("Entities", f"{runner.graph_stats['nodes']:,}")
-            st.metric("Geocoded", f"{runner.graph_stats['geocoded']:,}")
-        with col_g2:
-            st.metric("Relations", f"{runner.graph_stats['edges']:,}")
-        with st.expander("Entity types"):
-            st.json(runner.graph_stats["node_types"])
-
-    st.info("Pipeline: `Pacific Wikipedia Corpus → NER → Geocoding → KG → Agentic RAG → Folium`")
-
-    if st.button("🔄 New conversation & reset map", use_container_width=True):
-        reset_conversation()
-        st.rerun()
+busy = st.session_state.pending is not None or (runner is not None and runner.is_busy(st.session_state.thread_id))
 
 # ==========================================
 # MAIN PAGE HEADER
@@ -649,38 +515,123 @@ with st.sidebar:
 st.markdown('<div class="main-title">Corpus2GeoRAG: Pacific Theater (WWII) 🌊</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Transforms unstructured Wikipedia Pacific War corpora into a geographically-aware knowledge graph and interactive GeoRAG exploration</div>', unsafe_allow_html=True)
 
-# Suggested questions: the Agent's example questions, same path as the chat input
-SUGGESTED_QUESTIONS = [
-    ("📍 Where was the Battle of Midway?", "Show me places where the Battle of Midway happened"),
-    ("⚔️ Who attacked Guadalcanal in 1942?", "Who attacked Guadalcanal in 1942?"),
-    ("🧭 Yamamoto's locations", "Show me all locations connected to Admiral Yamamoto"),
-    ("🗺️ Major Pacific battles", "Show me major battles in the Pacific War on the map"),
-]
+# ==========================================
+# TOP BAR: MAP CONFIGURATION, AGENT STATUS & GRAPH STATS
+# ==========================================
+with st.container(border=True):
+    col_cfg, col_agent, col_stats, col_actions = st.columns([2, 4, 3, 2])
+
+    with col_cfg:
+        st.markdown("**⚙️ Map theme**")
+        tile_choice = st.selectbox(
+            "Map Theme:",
+            [
+                "OpenStreetMap (Standard)",
+                "CartoDB Positron (Minimal)",
+                "CartoDB Dark Matter (Dark)"
+            ],
+            index=0,
+            label_visibility="collapsed",
+        )
+
+    with col_agent:
+        st.markdown("**🤖 Agent engine**")
+        health = runner.health() if runner else {}
+        if agent["mode"] == "agent":
+            if health.get("ok"):
+                st.success("🟢 GeoRAG Agent connected")
+            else:
+                st.warning("🟠 GeoRAG Agent loaded, but its health check failed")
+        elif agent["mode"] == "mock":
+            st.warning("🟠 Mock mode — recorded demo replies on the sample graph, no model calls.")
+        else:
+            st.error("🔴 Agent unavailable — questions can't be answered.")
+        if agent["reason"]:
+            st.caption(f"Reason: {md_text(agent['reason'])}")
+        if health:
+            st.caption(f"Model: `{md_text(health.get('model') or '—')}` · agent {md_text(health.get('version') or '?')}"
+                       f" · schema {md_text(health.get('schema_version') or '?')}")
+
+    with col_stats:
+        st.markdown("**📊 Knowledge graph**")
+        if runner is not None:
+            stats = runner.stats()
+            col_g1, col_g2, col_g3 = st.columns(3)
+            col_g1.metric("Entities", f"{stats['nodes']:,}")
+            col_g2.metric("Relations", f"{stats['edges']:,}")
+            col_g3.metric("Geocoded", f"{stats['geocoded']:,}")
+            with st.expander("Entity types"):
+                st.json(stats["node_types"])
+        else:
+            st.caption("No graph loaded.")
+
+    with col_actions:
+        st.markdown("**🔧 Actions**")
+        if st.button("🔄 New conversation", use_container_width=True):
+            reset_conversation()
+            st.rerun()
+        if agent["mode"] != "agent":
+            if st.button("🔌 Retry Agent", use_container_width=True, disabled=busy):
+                if runner is not None:
+                    runner.close()
+                load_agent.clear()
+                st.rerun()
+
+    st.caption("Pipeline: `Pacific Wikipedia Corpus → NER → Geocoding → KG → Agentic RAG → Folium`")
 
 st.markdown("##### 💡 Suggested questions:")
 for col, (label, question) in zip(st.columns(len(SUGGESTED_QUESTIONS)), SUGGESTED_QUESTIONS):
     with col:
-        if st.button(label, use_container_width=True):
-            handle_question(question)
+        if st.button(label, use_container_width=True, disabled=busy or runner is None):
+            submit_question(question)
 
 # ==========================================
-# INTERACTIVE FOLIUM MAP DISPLAY
+# CHAT (LEFT) & INTERACTIVE FOLIUM MAP (RIGHT)
 # ==========================================
-st.markdown("---")
-col_map, col_info = st.columns([7, 3])
+MAP_HEIGHT = 530
+CHAT_HEIGHT = MAP_HEIGHT - 70  # leaves room for the input box under the messages
+
+col_chat, col_map = st.columns([5, 7])
+
+with col_chat:
+    st.markdown("#### 💬 Ask the Pacific GeoAI Agent")
+    chat_box = st.container(height=CHAT_HEIGHT, border=True)
+    with chat_box:
+        if not st.session_state.messages:
+            st.caption("Ask a question below or pick a suggestion. Answers appear here, and their places on the map.")
+        # Message history: user text and agent answers are rendered as Markdown, never as raw HTML
+        for msg in st.session_state.messages[-20:]:
+            if msg["role"] == "user":
+                with st.chat_message("user"):
+                    st.text(msg["content"])
+            else:
+                with st.chat_message("assistant", avatar="🤖"):
+                    render_reply(msg.get("data") or {})
+
+    user_input = st.chat_input(
+        "Ask about World War II... (e.g., 'Where did the Battle of Midway happen?')",
+        disabled=busy or runner is None,
+    )
+    if user_input:
+        submit_question(user_input)
 
 with col_map:
-    st.markdown("#### 🗺️ Interactive Geospatial Knowledge Map (Pacific Theater)")
+    st.markdown("#### 🗺️ Interactive Geospatial Knowledge Map")
     folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice)
-    st_folium(folium_map_obj, width="100%", height=530, returned_objects=[])
-    st.caption("🔴 Answer · ⚪ Context")
+    st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, returned_objects=[])
+    st.caption("🔴 Answer · ⚪ Context · dashed outline: drawn at a linked place")
 
-with col_info:
-    st.markdown("#### 🧠 Agentic Reasoning & Context")
-    last = st.session_state.last_reply
-    if not last:
-        st.markdown("Ready for natural-language Pacific War questions. Ask below or pick a suggestion.")
-    else:
+# ==========================================
+# AGENTIC REASONING & CONTEXT (UNDER THE CHAT AND THE MAP)
+# ==========================================
+st.markdown("---")
+st.markdown("#### 🧠 Agentic Reasoning & Context")
+last = st.session_state.last_reply
+if not last:
+    st.markdown("Ready for natural-language Pacific War questions.")
+else:
+    col_reason, col_entity = st.columns([3, 2])
+    with col_reason:
         kind = reply_kind(last)
         st.markdown(f"**Reply type:** `{kind}`")
         conf = confidence_line(last)
@@ -695,7 +646,9 @@ with col_info:
         n_features = len(reply_features(last))
         st.markdown(f"**Answer entities:** {len(last.get('answer_ids') or [])} · "
                     f"**Context:** {len(last.get('context_ids') or [])} · **On map:** {n_features}")
-        if kind in ("answer", "clarification") and not n_features and st.session_state.map_reply:
+        if "nothing_on_map" in (last.get("warnings") or []):
+            st.caption("No location in the graph for this answer.")
+        elif kind in ("answer", "clarification") and not n_features and st.session_state.map_reply:
             st.caption("This reply has nothing to draw; the map still shows the previous answer.")
         if last.get("tool_calls"):
             st.markdown("**Graph queries:** " + " ➔ ".join(f"`{md_text(t.get('name', '?'))}`" for t in last["tool_calls"]))
@@ -703,22 +656,30 @@ with col_info:
             with st.expander("Resolved entities"):
                 st.json(last["resolved_entities"], expanded=False)
 
-# ==========================================
-# CHAT & PROMPT INTERACTION BAR
-# ==========================================
-st.markdown("---")
-st.markdown("#### 💬 Ask the Pacific GeoAI Agent")
+    with col_entity:
+        entity_ids = list(dict.fromkeys(last.get("entity_ids") or []))[:50]
+        if entity_ids and runner is not None:
+            st.markdown("##### 🔍 Entity details")
+            chosen = st.selectbox("Entity", entity_ids, format_func=lambda i: entity_label(last, i),
+                                  label_visibility="collapsed")
+            render_entity_card(chosen)
 
-# Message history: user text and agent answers are rendered as Markdown, never as raw HTML
-for msg in st.session_state.messages[-6:]:
-    if msg["role"] == "user":
-        with st.chat_message("user"):
-            st.text(msg["content"])
-    else:
+# The running question: show progress in the chat until it's done. This runs last so the
+# rest of the page is already drawn. A click meanwhile reruns the script, and the next run
+# picks the question up again from session state.
+pending = st.session_state.pending
+if pending is not None:
+    with chat_box:
         with st.chat_message("assistant", avatar="🤖"):
-            render_reply(msg.get("data") or {})
-
-user_input = st.chat_input("Ask anything about the Pacific War... (e.g., 'Where did the Battle of Midway happen?', 'Who attacked Guadalcanal in 1942?')")
-
-if user_input:
-    handle_question(user_input)
+            if st.button("⏹ Stop", key="stop_question"):
+                pending.cancel()
+            events = pending.progress
+            with st.status(events[-1].get("label", "Working…") if events else "The agent is working…") as status:
+                while not pending.done():
+                    for event in pending.poll_progress():
+                        if event.get("label"):
+                            status.update(label=event["label"])
+                    time.sleep(POLL_INTERVAL_S)
+                status.update(label="Done", state="complete")
+    finish_pending()
+    st.rerun()

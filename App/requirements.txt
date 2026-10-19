@@ -2,3 +2,14 @@ streamlit>=1.35.0
 folium>=0.16.0
 streamlit-folium>=0.20.0
 branca>=0.6.0
+
+# GeoRAG agent (imported in-process from ../Agent); keep in sync with Agent/pyproject.toml
+langchain>=1.0
+langchain-openai>=1.0
+langchain-mcp-adapters>=0.1
+pydantic>=2
+shapely>=2
+numpy>=1.24
+rapidfuzz>=3
+rank-bm25>=0.2
+python-dotenv>=1
