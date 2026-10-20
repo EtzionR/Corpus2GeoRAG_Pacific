@@ -737,3 +737,14 @@ def test_answer_with_ungrounded_names_is_sent_back_once(isolated_env):
                 sources=[], answer_sets=[])),
     ], question="Where did the Battle of Midway happen?")
     assert out["answer"] == "At Midway Atoll." and out["ungrounded_names"] == []
+
+
+def test_no_answer_reply_with_outside_facts_is_sent_back_once(isolated_env):
+    out = ask([
+        ai(call("search_entities", "a", query="Big Red One")),
+        ai(call("AgentAnswer", "f1", answer="The graph records the 1st Infantry Division but no battles; it fought at Normandy.",
+                answer_ids=[], context_ids=["org:1st_infantry_division"], sources=[], answer_sets=[])),
+        ai(call("AgentAnswer", "f2", answer="The graph records the 1st Infantry Division but no battles for it.",
+                answer_ids=[], context_ids=["org:1st_infantry_division"], sources=[], answer_sets=[])),
+    ], question="Where did the Big Red One fight?")
+    assert "Normandy" not in out["answer"] and out["ungrounded_names"] == []
