@@ -124,7 +124,8 @@ How to work:
 - List tools return {total, shown, truncated, results}. If truncated is true, the list is incomplete: say how many there are in total and never present the shown rows as all of them.
 - Only put entity_ids and sources in the final answer that appeared in tool results; anything else is dropped.
 - Quote coordinates only as returned by tools, in decimal degrees (e.g. 28.21, -177.37). Never estimate them.
-- If the graph does not contain the answer, say so plainly. Never fill gaps from general knowledge.
+- If the graph does not contain the answer, say so plainly. Never fill gaps from general knowledge: don't add
+  what you know instead (e.g. where a unit fought, if the graph links it to no battle).
 - If after about 6 tool calls you still have no relation of the kind the question asks about (e.g. no attacker
   linked to the battle), stop searching: answer with what you found and say that the graph does not record the rest.
 - Coordinates are decimal degrees; a user's "(x, y)" is usually (lat, lon); state the interpretation you used.
@@ -135,7 +136,10 @@ Final answer fields (all required):
   * "who attacked/bombed/captured X": only the side that did it (the attackers), never the defenders. Include
     every attacker in the relation results, also those that attacked places inside X (e.g. an airfield on X).
   * "where did X happen" / "which places ...": the places.
-  * "what happened at (lat, lon)" / "what happened in X": the events.
+  * Location first (this is a geo agent): when a question could be about an event or its place ("where was
+    the Long Lance used", "what happened in Ironbottom Sound / on Guam in 1944"), the PLACE goes in answer_ids;
+    name the events too (in context_ids, or also in answer_ids for "what happened").
+  * "what happened at (lat, lon)": the events at that point.
 - context_ids: ids of other entities your answer mentions that help on the map: the place asked about,
   defenders, commanders, the battle behind a relation.
 - sources: Wikipedia page titles you relied on (the `sources` values in tool results). Record ids such as Q12345 or
@@ -422,6 +426,9 @@ class GroundingGuard(AgentMiddleware):
             turn = turn_messages(msgs)
             question = next((str(m.content) for m in reversed(msgs) if m.type == "human"), "")
             names = ungrounded_names(self.store, parsed.answer, turn, question)
+            if not parsed.answer_ids and not parsed.answer_sets and any(m.type == "tool" for m in turn):
+                # "not in the graph", or a question: only what the run showed (an off-topic reply is rewritten by code)
+                names += [n for n in outside_names(parsed.answer, known_text(self.store, turn, question)) if n not in names]
             if not names:
                 return response
             ai = response.result[0]
@@ -429,7 +436,7 @@ class GroundingGuard(AgentMiddleware):
             rejection = ToolMessage(
                 content=(f"Rejected: your answer names {', '.join(names)}, which no tool returned for this question. "
                          "Look them up with the tools and use what the graph says, or remove them. Never answer from "
-                         "general knowledge."),
+                         "general knowledge: when the graph has nothing, say so and add nothing you know yourself."),
                 tool_call_id=call_id or "answer", name=AgentAnswer.__name__)
             log.info("final answer named ungrounded entities %s; sending it back once", names)
             request = request.override(messages=[*msgs, ai, rejection])
@@ -733,6 +740,100 @@ def search_hits(turn: list[Any]) -> list[dict[str, Any]]:
     return hits
 
 
+# Capitalized words that open sentences or name no specific fact (outside_names skips them)
+COMMON_CAPITALIZED = frozenset("""
+the this that these those it its i if in on at for no yes so however based according note there here also but and or a an
+as while although because since graph knowledge did do does would could should please sorry unfortunately instead only
+one two three four five six seven eight nine ten all both neither none which what who where when why how not nor my we
+you they he she his her their our
+january february march april may june july august september october november december
+jan feb mar apr jun jul aug sep sept oct nov dec
+japanese american americans allied allies axis us u s usa japan america united states wwii ww2
+wikipedia wikidata ill im ive id youre dont cant wont isnt
+battle battles atoll island islands isle sea bay river mount field airfield harbor harbour strait gulf sound ocean
+point city campaign theatre theater
+""".split())
+ABBREVIATIONS = ("U.S.", "St.", "Lt.", "Gen.", "Adm.", "Capt.", "Col.", "Maj.", "Sgt.", "Mt.", "No.", "Jr.", "Sr.")
+_TOKEN = re.compile(r"[\w][\w'\u2019.\-]*")
+_CONNECTORS = {"of", "the", "and"}
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"\w+", normalize_name(text))
+
+
+def _name_spans(text: str) -> list[tuple[str, bool]]:
+    """(span, opens_a_sentence) for runs of capitalized words ("North Africa", "Battle of the Bulge").
+    A span ends at a sentence end; "of / the / and" may join two capitalized words."""
+    spans: list[tuple[list[str], bool]] = []
+    cur: list[str] = []
+    cur_opens, at_start, prev_end = False, True, 0
+    for m in _TOKEN.finditer(text):
+        tok = m.group(0)
+        gap = text[prev_end:m.start()]
+        prev_end = m.end()
+        if gap.strip():  # punctuation between words ends a name: "North Africa, Sicily"
+            if cur:
+                spans.append((cur, cur_opens))
+                cur = []
+            if re.search(r"[.!?:;\n]", gap):
+                at_start = True
+        word = re.sub(r"['\u2019]s$", "", tok.rstrip("."))
+        if word[:1].isupper() or (word[:1].isdigit() and any(c.isalpha() for c in word)):
+            if not cur:
+                cur_opens = at_start
+            cur.append(word)
+        elif cur and tok.lower() in _CONNECTORS:
+            cur.append(tok)
+        elif cur:
+            spans.append((cur, cur_opens))
+            cur = []
+        after = text[m.end():m.end() + 1]
+        ends_sentence = (tok.endswith(".") and tok not in ABBREVIATIONS and not re.fullmatch(r"[A-Z]\.", tok)) \
+            or after in ("!", "?", ":", ";", "\n")
+        if ends_sentence and cur:
+            spans.append((cur, cur_opens))
+            cur = []
+        at_start = ends_sentence
+    if cur:
+        spans.append((cur, cur_opens))
+    out = []
+    for words, opens in spans:
+        while words and words[-1].lower() in _CONNECTORS:
+            words = words[:-1]
+        if words:
+            out.append((" ".join(words), opens))
+    return out
+
+
+def outside_names(answer: str, known_text: str) -> list[str]:
+    """Capitalized names in a reply that neither the question, nor a tool result, nor the graph's scope
+    contains: facts from the model's own knowledge (user decision 2026-10-19: a "not in the graph" reply
+    says only what the graph records). Skipped: common words, a single word opening a sentence, one- or
+    two-letter tokens (compass points), months, and the war's main sides (Japan, the United States)."""
+    known = f" {' '.join(_words(known_text))} "
+    found = []
+    for span, sentence_start in _name_spans(answer):
+        words = span.split()
+        while words and _words(words[0]) and _words(words[0])[0] in COMMON_CAPITALIZED:
+            words, sentence_start = words[1:], False
+        span = " ".join(words)
+        content = [w for w in _words(span) if w not in COMMON_CAPITALIZED and not w.isdigit() and len(w) > 2]
+        if not content or (sentence_start and len(words) == 1):
+            continue
+        if f" {' '.join(_words(span))} " in known or all(f" {w} " in known or f" {w.rstrip('s')} " in known
+                                                          for w in content):
+            continue
+        found.append(span)
+    return list(dict.fromkeys(found))
+
+
+def known_text(store: GraphStore, turn: list[Any], question: str) -> str:
+    """What a reply may name without a tool returning it: the question, this turn's tool results, the scope."""
+    tools = " ".join(str(m.content) for m in turn if m.type == "tool")
+    return f"{question} {tools} {scope_label(store) or DEFAULT_SCOPE}"
+
+
 def ungrounded_names(store: GraphStore, answer: str, turn: list[Any], question: str) -> list[str]:
     """Graph entities the answer names although no tool returned them this turn and the user didn't
     name them: facts the model added from its own knowledge (local UI test, run c2cc1e3a)."""
@@ -951,6 +1052,15 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
 
     question = next((str(m.content) for m in reversed(messages) if m.type == "human"), "")
     resolved = resolution_records(store, kept, turn, question)
+    # R24a location first: an answer made only of events about a place the user named ("what happened in Tokyo")
+    # has that place as its answer too. A "who" or a set answer is left as it is.
+    if answer_ids and not used_sets and all(store.nodes[i].type == "event" for i in answer_ids):
+        # the places the question names (by name or alias), however the agent found them
+        named_places = [i for i in context_ids if store.nodes[i].type == "location" and store.named_in(i, question)]
+        if named_places:
+            answer_ids = named_places + answer_ids
+            context_ids = [i for i in context_ids if i not in named_places]
+            kept = answer_ids + context_ids
     interpretation = [f"'{r['typed']}' read as {r['name']} ({r['match']}" + (f"; {r['evidence']}" if r.get("evidence") else "") + ")"
                       for r in resolved if r["typed"] and normalize_name(r["typed"]) != normalize_name(r["name"])]
     interpretation += [f"{r['name']}: the model's reading of the question; the graph doesn't record the name used"
@@ -990,6 +1100,8 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
     if uncertain_used:
         warnings.append("uncertain_match_used")
     ungrounded = ungrounded_names(store, parsed.answer, turn, question)
+    if not answer_ids and not used_sets:  # "not in the graph" or a question: only what this run showed
+        ungrounded += [n for n in outside_names(parsed.answer, known_text(store, turn, question)) if n not in ungrounded]
     if ungrounded:
         warnings.append("ungrounded_names")
     if any(r["model_rewritten_query"] for r in resolved):

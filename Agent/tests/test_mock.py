@@ -47,7 +47,7 @@ def test_all_reply_kinds(runner):
     clar = runner.ask_sync("What happened in the battle at Tara?", thread_id="b")
     assert clar["answer"].startswith("Did you mean") and clar["answer_ids"] == []
     follow = runner.ask_sync("Tarawa", thread_id="b")
-    assert follow["answer_ids"] == ["event:battle_of_tarawa"] and follow["geojson"]["features"]
+    assert follow["answer_ids"] == ["loc:tarawa", "event:battle_of_tarawa"] and follow["geojson"]["features"]  # R24a
 
     both = runner.ask_sync("Who won the Battle of Guam?", thread_id="f")  # R4 amendment: both battles, separated
     assert {"event:battle_of_guam_1941", "event:battle_of_guam_1944"} <= set(both["context_ids"])

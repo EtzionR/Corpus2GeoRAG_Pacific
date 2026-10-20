@@ -5,14 +5,13 @@
     "schema_version": "1.4",
     "answer": "The **Battle of Tarawa** (20-23 November 1943) was fought at Tarawa Atoll, as part of the island-hopping campaign.",
     "answer_ids": [
+      "loc:tarawa",
       "event:battle_of_tarawa"
     ],
-    "context_ids": [
-      "loc:tarawa"
-    ],
+    "context_ids": [],
     "entity_ids": [
-      "event:battle_of_tarawa",
-      "loc:tarawa"
+      "loc:tarawa",
+      "event:battle_of_tarawa"
     ],
     "sources": [
       "Battle of Tarawa"
@@ -23,6 +22,12 @@
         "record_id": null,
         "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa",
         "page": "Battle of Tarawa"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Tarawa",
+        "page": "Tarawa"
       }
     ],
     "geojson": {
@@ -41,8 +46,7 @@
             "id": "loc:tarawa",
             "name": "Tarawa",
             "type": "location",
-            "geometry_source": "related",
-            "related_to": "event:battle_of_tarawa",
+            "geometry_source": "direct",
             "role": "answer"
           }
         }
