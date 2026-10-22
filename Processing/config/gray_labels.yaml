@@ -1,0 +1,150 @@
+# Hand labels for Gray-zone Articles: true = directly involved in US–Japan engagement.
+# calibration: sets the e5 Relevance thresholds. holdout: only measures them (never used to set them).
+# Labelled 2026-10-05 from each Article's war-related sentences; ambiguous Articles were left out.
+# Gray-zone decisions in overrides.yaml are added to calibration automatically.
+calibration:
+  1939 Japanese expedition to Tibet: false
+  Raffaello Kobayashi: false
+  SS Tai Hing: true
+  Guo Huaruo: false
+  Military Medal of Honor: false
+  USS Tang (SS-306): true
+  Fleet Radio Unit, Melbourne: true
+  Royal Sussex Regiment: false
+  Wilbur C. Sze: true
+  SS Sapulpa Victory: true
+  Wang Youping: false
+  Charles F. B. Price: true
+  Kanichiro Tashiro: false
+  Liu Chi-Sheng: false
+  Shin Tae-young: false
+  USS Blackfish: true
+  Liu Shaoqi: false
+  45th Infantry Regiment (Imperial Japanese Army): true
+  161st Indian Infantry Brigade: false
+  Takeshige Hamada: false
+  Tang Shengzhi: false
+  Bidadari Resolutions: false
+  Brymaroo Airfield: true
+  Watari Handa: true
+  Ji Xingwen: false
+  Huang Shaohong: false
+  North China Type 19 handgun: false
+  Hundred man killing contest: false
+  Tan Chong Tee: false
+  Zhengding Missionary Murder: false
+  Edgar Peacock: false
+  Chang Chun-ha: false
+  Rita (chimpanzee): false
+  Mongolia in World War II: false
+  Type 98 Ko-Hi: false
+  Yang Yongsong: false
+  Heisuke Yanagawa: false
+  Pingfang, Harbin: false
+  Chilean battleship Almirante Latorre: false
+  Thomas Welsby Clark: false
+  USS Glendale: true
+  Mahlon Tisdale: true
+  USS Roche: true
+  Oro Bay Airfield: true
+  USS R-1: false
+  Japanese escort ship No.23: true
+  USS Lipan: true
+  USS Saipan (CVL-48): false
+  Federated Malay States Railways: false
+  Japanese cruiser Ibuki (1943): false
+  USS Mills: false
+  Leslie Groves: true
+  Samuel Murray Robinson: false
+  USS Density: true
+  USS Brownson (DD-518): true
+  USS Feland: true
+  Edward H. Brooks: false
+  Gregory J. Weissenberger: true
+  Japanese landing craft carrier Kumano Maru: true
+  Mitsuru Yoshida: true
+  Royal Malay Regiment: false
+  HMAS Voyager (D31): false
+  USS Telfair: true
+  USS LST-936: true
+  USS Majaba: true
+  Enewetak Atoll: true
+  Tadji Airport: true
+  Manton S. Eddy: false
+  Santa Cruz Bridge: false
+  USS Tippecanoe (AO-21): true
+  USS Andromeda: true
+  USS Wyoming (BB-32): false
+  USS Gherardi: true
+  Hiroyuki Agawa: false
+  USS Devilfish: true
+  USS Floyd B. Parks: false
+holdout:
+  Liu Huaqing: false
+  Zhu Rui: false
+  64th Indian Infantry Brigade: false
+  Chen Lifu: false
+  William S. Anderson: false
+  St Patrick's College, Townsville: false
+  Proclamation of the People's Republic of China: false
+  Morningside Air Raid Shelter: false
+  USS Sunfish (SS-281): true
+  Pak Il-u: false
+  Zhao Hong Wenguo: false
+  Hatsuo Hidaka: true
+  Command responsibility: false
+  Yang Huimin: false
+  29th Infantry Brigade (United Kingdom): false
+  British Commonwealth Air Training Plan: false
+  Chen Liting: false
+  Marshall Parker: true
+  William Henry Donald: false
+  Chiang Kai-shek rifle: false
+  Yang Enze: false
+  Chiang Ching-kuo: false
+  Hong Xuezhi: false
+  Ishirō Honda: false
+  Li Zhimin: false
+  Xu Yuanquan: false
+  Type 99 cannon: true
+  72nd Indian Infantry Brigade: false
+  Cui Xingwu: false
+  Tan Furen: false
+  Northamptonshire Regiment: false
+  Eighth Route Army: false
+  Kiyoshi Katsuki: false
+  Gongxian Arsenal: false
+  USS LSM(R)-194: true
+  Ayatosan Maru: true
+  Senninbari: false
+  USS Cinchona: true
+  George Nelmark: false
+  Pacific Proving Grounds: false
+  USS Raleigh (CL-7): true
+  German submarine U-537: false
+  USS Tekesta (AT-93): true
+  USS La Vallette (DD-448): true
+  Albert W. Waldron: true
+  46th Indian Infantry Brigade: false
+  Jack Sanders (American football): true
+  USS Marion County: true
+  Almirante Latorre-class battleship: false
+  USS Sederstrom: true
+  Geoanna: true
+  USS Shark (SS-174): true
+  George W. D'Artois: true
+  USS Stafford: true
+  USS Philip (DD-498): true
+  Leyburn Airfield: true
+  USS LST-179: true
+  Air General Army: true
+  Bill Greason: true
+  Hiroko Takenishi: false
+  USS Lamar (APA-47): true
+  Ruperto Kangleon: true
+  USS LST-970: true
+  William Penney, Baron Penney: true
+  USS Briscoe (APA-65): true
+  Santa Cruz Church (Manila): false
+  9th Gorkha Rifles: false
+  USS Ballard (DD-267): true

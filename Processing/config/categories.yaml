@@ -1,0 +1,104 @@
+# Category discovery config. Edit this file during the review loop:
+#   1. Run the notebook; read Data/interim/category_review.csv.
+#   2. Add noisy categories to `blocked` (exact) or `blocked_patterns` (regex, case-insensitive).
+#   3. Add seeds suggested by the reverse-discovery cell.
+#   4. Re-run with FORCE = {"discover", ...} until the gold recall check passes and the review table is clean.
+
+default_depth: 3
+
+seeds:
+  - name: Category:Pacific War
+  - name: Category:Pacific Ocean theater of World War II
+  - name: Category:South West Pacific theatre of World War II
+  - name: Category:Japan–United States military relations
+    depth: 2
+  - name: Category:United States Marine Corps in World War II
+    depth: 2
+  - name: Category:Military history of Japan during World War II
+    depth: 2
+  - name: Category:Naval battles of World War II involving Japan
+    depth: 1
+  - name: Category:Battles of World War II involving Japan
+    depth: 1
+  - name: Category:Atomic bombings of Hiroshima and Nagasaki
+    depth: 2
+  # Equipment, command and intelligence: these live outside the event-oriented Pacific War tree.
+  # Broad on purpose (they include Atlantic/Europe articles); the Anchored check filters them.
+  - name: Category:World War II naval ships of Japan
+    depth: 2
+  - name: Category:World War II ships of the United States
+    depth: 2
+  - name: Category:Aircraft carrier classes
+    depth: 1
+  - name: Category:Battleship classes
+    depth: 1
+  - name: Category:1940s United States fighter aircraft
+    depth: 0
+  - name: Category:1940s United States bomber aircraft
+    depth: 0
+  - name: Category:Carrier-based aircraft
+    depth: 0
+  - name: Category:World War II weapons of Japan
+    depth: 1
+  - name: Category:World War II weapons of the United States
+    depth: 1
+  - name: Category:Imperial Japanese Navy
+    depth: 2
+  - name: Category:Military of the Empire of Japan
+    depth: 1
+  - name: Category:Imperial Japanese Navy admirals
+    depth: 0
+  - name: Category:Imperial Japanese Army generals of World War II
+    depth: 0
+  - name: Category:United States Navy World War II admirals
+    depth: 0
+  - name: Category:United States Army generals of World War II
+    depth: 0
+  - name: Category:Signals intelligence of World War II
+    depth: 1
+
+# Exact category names whose subtree is never entered.
+blocked:
+  # From the category review table (pass rate < 5%), 2026-10-05.
+  - Category:Liberty ships
+  - Category:Australian military personnel of World War II
+  - Category:Imperial Japanese Navy ship names
+  - Category:Airports of the British Commonwealth Air Training Plan
+  - Category:Chinese collaborators with the Empire of Japan
+  - Category:Buildings and structures in Japan destroyed during World War II
+  - Category:Comfort women
+  - Category:Ceylonese military personnel of World War II
+  - Category:Bletchley Park
+  - Category:Enigma machine
+  - Category:Pacific theatre World War II board wargames
+  - Category:Military operations of World War II involving Australia
+  - Category:Prelude to the Second Sino-Japanese War
+  - Category:Military units and formations of Ceylon in World War II
+  - Category:Australian women in World War II
+  - Category:Battle of Crete
+  - Category:Australian World War II stubs
+  - Category:Indian Ocean U-Boats
+  - Category:Venona project
+
+# Regexes (case-insensitive) matched against category names; matching subtrees are never entered.
+blocked_patterns:
+  - films?\b
+  - novels?
+  - video games?
+  - television
+  - \bsongs?\b
+  - books?\b
+  - comics
+  - anime|manga
+  - fiction
+  - in popular culture
+  - documentar
+  - memorials?|monuments?|museums?
+  - cemeter|burials
+  - \bbirths\b|\bdeaths\b
+  - alumni
+  - people from
+  - descent
+  - veterans'? organi[sz]ations
+  - Korean War|Vietnam War|World War I\b|Cold War
+  - European theatre|Eastern Front|North African|Mediterranean|Western Front

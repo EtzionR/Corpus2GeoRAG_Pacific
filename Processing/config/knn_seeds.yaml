@@ -1,0 +1,55 @@
+# Seeds for the kNN relevance experiment (Processing/knn_classifier.ipynb).
+# related   = Articles directly involved in US–Japan engagement.
+# unrelated = close look-alikes that are NOT in scope, plus clearly unrelated Articles.
+# The holdout labels in gray_labels.yaml are never used as seeds (the notebook enforces this).
+
+related:
+  include_gold_set: true            # gold_set.yaml (55)
+  include_calibration_labels: true  # gray_labels.yaml calibration entries labelled true (32)
+  extra: []
+
+unrelated:
+  include_calibration_labels: true  # gray_labels.yaml calibration entries labelled false (44)
+  # Hand-picked look-alikes: Japan fighting someone other than the US, or the US fighting someone other than Japan.
+  close:
+    - Battle of Kohima
+    - Battle of Imphal
+    - Battle of Sittang Bridge
+    - Battle of the Admin Box
+    - Battle of Kampar
+    - Battle of Hong Kong
+    - Sinking of Prince of Wales and Repulse
+    - Indian Ocean raid
+    - Bombing of Rangoon in World War II
+    - Japanese invasion of Thailand
+    - Operation Zipper
+    - Chindits
+    - William Slim, 1st Viscount Slim
+    - Royal Leicestershire Regiment
+    - Battle of Shaggy Ridge
+    - Battle of Beaufort (1945)
+    - Battle of Wareo
+    - Operation Semut
+    - Battle of Shanghai
+    - Battle of Wuhan
+    - Battle of Taierzhuang
+    - Hundred Regiments Offensive
+    - Marco Polo Bridge incident
+    - Nanjing Massacre
+    - Unit 731
+    - Manchukuo
+    - Kenkichi Ueda
+    - Yu Jishi
+    - Zhu De
+    - Chiang Kai-shek
+    - Mao Zedong
+    - Soviet–Japanese War
+    - Battles of Khalkhin Gol
+    - Dwight D. Eisenhower
+    - George S. Patton
+    - Operation Dragoon
+    - Battle of Crete
+    - Yasujirō Ozu
+  # Random sample of Articles the rules tied to no In-scope Battle (or media).
+  far_sample: 100
+  far_seed: 0

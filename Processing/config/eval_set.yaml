@@ -1,0 +1,384 @@
+# Evaluation set: measures the pipeline, never tunes it (no title here may become a calibration label, kNN
+# neighbour or Override). Labels are set by a person in the app's Evaluation tab; Claude's drafts and reasons are in
+# reports/eval_log.tsv, so the agreement between the two is measured too.
+#   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
+#   marginal: tied to it, but only in passing; counts as correct (decision of 2026-10-17)
+#   wrong:    not about US–Japan fighting
+# precision_*: random Corpus Articles by how they got in · classification_recall: left out but tied or close to the
+# e5 cut-off · discovery_recall: linked from the lists in DISCOVERY_LISTS (source per title in reports/eval_sources.tsv)
+# Drawn by Processing/eval_sample.py (seed 1) from the pipeline output of 2026-10-17 22:07.
+# Labels: second, independent Claude session on 2026-10-17, blind to the drafts in reports/eval_log.tsv — not yet verified by a person.
+# Exception: precision_recovery titles are Overrides by construction (they measure Overrides), but are never calibration labels or kNN neighbours.
+# precision_recovery: 40 of 500 recovery include-Overrides, seed 3, drawn by
+# Processing/eval_sample.py --recovery; labels null. Only this section may measure Overrides.
+# precision_recovery labels: GPT via opencode on 2026-10-19, blind, not verified by a person; filled from reports/eval_log_gpt.tsv.
+precision_rules:
+  135th (East Anglian) (Hertfordshire Yeomanry) Field Regiment, Royal Artillery: wrong
+  18th Brigade (Australia): marginal
+  2/9th Armoured Regiment (Australia): wrong
+  201st Fighter Squadron: keep
+  26th Battalion (Australia): wrong
+  2nd Marine Aircraft Wing: keep
+  2nd Marine Logistics Group: marginal
+  33rd Division (Imperial Japanese Army): wrong
+  45 cm naval rocket: keep
+  Aleutian Islands World War II National Monument: wrong
+  Battle for Cebu City: keep
+  Battle of Corregidor (1945): keep
+  Battle of Enogai: keep
+  Battle of Tinian: keep
+  Battle of Wickham Anchorage: keep
+  Bombing of Kuala Lumpur: keep
+  Daihatsu-class landing craft: keep
+  Du Yuming: wrong
+  Ed Bearss: marginal
+  Flying Tigers: keep
+  Frank Fujita: keep
+  Franklin Sousley: keep
+  Frederick T. Weber: keep
+  George O. Van Orden: keep
+  George Wesley Griner Jr.: keep
+  Girua Airport: keep
+  HMS Engadine (1911): marginal
+  Harry B. Liversedge: keep
+  Henry T. Elrod: keep
+  Iba Airfield: keep
+  Interim Committee: marginal
+  J. Lawton Collins: keep
+  James L. Bradley: keep
+  Japanese cruiser Atago: keep
+  Japanese destroyer Fumizuki (1926): keep
+  Japanese destroyer Naganami: keep
+  Japanese landing craft carrier Shinshū Maru: keep
+  Japanese submarine I-158: marginal
+  Japanese submarine I-17: keep
+  Japanese submarine I-53 (1925): wrong
+  Japanese submarine I-8: keep
+  Japanese submarine tender Komahashi: marginal
+  John E. Wilkes: keep
+  John H. Hoover: keep
+  John W. Antonelli: keep
+  Kaneyoshi Muto: keep
+  Keisuke Matsuo: marginal
+  Kiyohide Shima: keep
+  Korechika Anami: keep
+  Lend-Lease Sherman tanks: wrong
+  List of territories acquired by the Empire of Japan: wrong
+  MS Sea Witch: keep
+  Marine Air, West Coast: marginal
+  Matanikau Offensive: keep
+  Mateo M. Capinpin: keep
+  Melvin Maas: marginal
+  Merwin H. Silverthorn: keep
+  Mitchell Paige: keep
+  Mohammad Ali Dimaporo: marginal
+  Niigata (city): wrong
+  Ondonga Airfield: keep
+  Operation PX: marginal
+  Osamu Kudō: marginal
+  Paramarines: keep
+  Piva Airfield: keep
+  Richard E. Fleming: keep
+  Richard L. Conolly: keep
+  Ro-100-class submarine: keep
+  Ryuichi Itaya: keep
+  Savo Island order of battle: keep
+  Si Rat Malai: wrong
+  Special Naval Landing Forces: keep
+  Stanley S. Hughes: keep
+  Takeo Takagi: keep
+  Tassafaronga Point: keep
+  Tetsuzō Iwamoto: keep
+  Thirty-Seventh Army (Japan): wrong
+  Tsubame-class minelayer: keep
+  US Naval Base Solomons: keep
+  USS Altair (AD-11): wrong
+  USS Barrow: keep
+  USS Bolivar: keep
+  USS Brock: marginal
+  USS Burke: marginal
+  USS Clemson (DD-186): keep
+  USS Coronado (PF-38): keep
+  USS Cowell (DD-547): keep
+  USS Flusser (DD-368): keep
+  USS Franklin (CV-13): keep
+  USS Gamble: keep
+  USS Guest: keep
+  USS Hoel (DD-533): keep
+  USS Joseph E. Connolly: keep
+  USS LST-205: keep
+  USS LST-446: keep
+  USS LST-448: keep
+  USS Leonard Wood: keep
+  USS Mackinac (AVP-13): keep
+  USS Marias: keep
+  USS Mobile (CL-63): keep
+  USS Monrovia: keep
+  USS New York (BB-34): keep
+  USS Palisade: wrong
+  USS Sailfish (SS-192): keep
+  USS San Felipe: keep
+  USS San Francisco (CA-38): keep
+  USS Sumter (APA-52): keep
+  USS Talladega: keep
+  USS Tisdale (DE-33): keep
+  USS Walter C. Wann: keep
+  USS William C. Cole: keep
+  USS Zaurak: keep
+  United States Army Forces in the Far East: keep
+  W-7-class minesweeper: keep
+  Walter Short: keep
+  Wei Lihuang: wrong
+  William A. Glassford: keep
+  William J. Whaling: keep
+  Yoshimi Minami: keep
+  Yukio Araki: keep
+precision_e5:
+  Aikoku Maru (1940): keep
+  Carney Airfield: keep
+  Fusaki Tsutsumi: wrong
+  Japanese destroyer Momi (1944): keep
+  Japanese gunboat Futami: wrong
+  Kanichi Kashimura: keep
+  Koli Airfield: keep
+  Landing at Saidor order of battle: keep
+  Pete Stout: marginal
+  SS Yoshida Maru: keep
+  Shojiro Hayashi: wrong
+  USS Conklin: keep
+  USS Facility: keep
+  USS Gantner: wrong
+  USS Haas: keep
+  USS Hansford: keep
+  USS John Q. Roberts: marginal
+  USS Jordan: wrong
+  USS LSM(R)-193: keep
+  USS Lark (AM-21): keep
+  USS Okaloosa: keep
+  USS Purdy: keep
+  USS Robert F. Keller: keep
+  USS S-26: wrong
+  USS San Carlos: keep
+  USS Searaven: keep
+  USS Stack: keep
+  USS Tench: keep
+  USS YP-422: wrong
+  USS Yokes: keep
+classification_recall:
+  122 mm gun M1931/37 (A-19): wrong
+  193rd Mechanized Infantry Brigade: wrong
+  28th Battalion (Australia): wrong
+  32nd Indian Infantry Brigade: wrong
+  63rd Infantry Regiment (PA): keep
+  763 Naval Air Squadron: wrong
+  842 Naval Air Squadron: wrong
+  BRP Sultan Kudarat: wrong
+  Blackburn Dart: wrong
+  Blanton Winship: wrong
+  Charles L. Scott (U.S. Army general): wrong
+  Comfort-class hospital ship: keep
+  Edmund L. Coombs: marginal
+  Eugene Reybold: wrong
+  Gangut-class battleship: wrong
+  Hanaoka mine: marginal
+  Hidemi Kon: wrong
+  Hikoroku Arimoto: wrong
+  Imperial Guard (Japan): wrong
+  Ishimoto Shinroku: wrong
+  JS Kurihama: wrong
+  Japanese invasion money: wrong
+  Japanese submarine Ha-210: wrong
+  John M. Devine: wrong
+  Kutsumi Tsuneo: wrong
+  Leven Cooper Allen: wrong
+  Levi Oakes: keep
+  Loyal Regiment (North Lancashire): wrong
+  Luis de Florez: wrong
+  MV Herstein: wrong
+  Masamoto Nasu: wrong
+  Motoo Furushō: wrong
+  Naval Base Abemama: keep
+  Operation Opossum: wrong
+  Petropavlovsk-class battleship: wrong
+  Raymond Park (West) Air Raid Shelter: wrong
+  Russian cruiser Bayan (1900): wrong
+  SMS Babenberg: wrong
+  SS Iron Crown: wrong
+  SS Santa Paula (1916): marginal
+  Slamet Rijadi: wrong
+  Type 4 Ka-Tsu: marginal
+  Type 92 torpedo: keep
+  USNS Milford: wrong
+  USS Breckinridge: wrong
+  USS Bronx: wrong
+  USS Caddo Parish: wrong
+  USS Callisto: wrong
+  USS Conflict (AM-85): keep
+  USS Cythera (PY-31): wrong
+  USS Dennis J. Buckley (DD-808): wrong
+  USS Favorite: wrong
+  USS George E. Davis: keep
+  USS Habersham: wrong
+  USS Hinsdale: keep
+  USS Kansas (BB-21): wrong
+  USS LST-222: keep
+  USS LST-314: wrong
+  USS LST-766: keep
+  USS LST-884: keep
+  USS LST-903: marginal
+  USS La Moure County (LST-883): marginal
+  USS Ludlow (DD-438): wrong
+  USS Mendocino: keep
+  USS Ohio (BB-12): wrong
+  USS Pilgrim II: wrong
+  USS Raeo: wrong
+  USS Restorer: wrong
+  USS Scania (AKA-40): wrong
+  USS Sea Fox: keep
+  USS St. Regis River: wrong
+  USS Tuluran: marginal
+  USS Waterman: keep
+  USS Whippoorwill (AM-35): keep
+  Warren Gulley: marginal
+discovery_recall:
+  Allied invasion of Sicily: wrong
+  Arthur J. Jackson: keep
+  Battle of Driniumor River: keep
+  Beryl Newman: wrong
+  Cannon-class destroyer escort: marginal
+  Captain (United States O-6): wrong
+  Carl J. Luksic: wrong
+  Carroll W. McColpin: wrong
+  Chesley G. Peterson: wrong
+  Chuck Yeager: wrong
+  Clayton Kelly Gross: wrong
+  Clinton M. Hedrick: wrong
+  Corsica: wrong
+  Distinguished Flying Cross (United Kingdom): wrong
+  Distinguished Service Cross (United States): wrong
+  Donald M. McPherson: keep
+  Farragut-class destroyer (1934): keep
+  Felix D. Williamson: wrong
+  First lieutenant: wrong
+  Frank L. Gailer Jr.: wrong
+  George Andrew Davis Jr.: keep
+  Harold E. Comstock: wrong
+  Henry William Brown: wrong
+  Herschel Green: wrong
+  Hershel W. Williams: keep
+  Invasion of Poland: wrong
+  James K. Okubo: wrong
+  Japanese aircraft carrier Jun'yō: keep
+  Japanese cruiser Tone (1937): keep
+  Japanese destroyer Hasu: marginal
+  Japanese destroyer Hatsushimo (1933): keep
+  Japanese destroyer Karukaya: keep
+  Japanese destroyer Kawakaze (1936): keep
+  Japanese destroyer Kaya (1944): keep
+  Japanese destroyer Kiku (1920): keep
+  Japanese destroyer Natsugumo (1937): keep
+  Japanese destroyer Sagiri: wrong
+  Japanese destroyer Tade: keep
+  Japanese destroyer Warabi: wrong
+  Japanese escort ship CD-202: wrong
+  Japanese minelayer Sarushima: keep
+  Japanese submarine Ro-66: keep
+  Japanese submarine Ro-67: keep
+  Japanese submarine Yu 17: wrong
+  Japanese submarine Yu 3003: wrong
+  Japanese submarine chaser Cha-13: keep
+  Japanese submarine chaser Cha-156: keep
+  Japanese submarine chaser Cha-203: wrong
+  John L. Wirth: keep
+  Kamikaze-class destroyer (1905): wrong
+  Killed in action: wrong
+  Lawn, Newfoundland and Labrador: wrong
+  Lieutenant commander: wrong
+  Lieutenant commander (United States): wrong
+  Lingayen Gulf: keep
+  Loren D. Everton: keep
+  M1 Garand: marginal
+  M1917 Browning machine gun: marginal
+  Magdalena Bay: wrong
+  Maynard Harrison Smith: wrong
+  Midget submarine: wrong
+  Missing in action: wrong
+  Momo-class destroyer: marginal
+  Morotai Island Regency: marginal
+  Mortar (weapon): wrong
+  Mutsuki-class destroyer: keep
+  Norfolk Island: wrong
+  Norman E. Olson: wrong
+  Pappy Boyington: keep
+  Papua New Guinea: wrong
+  Patrol boat: wrong
+  Patrol torpedo boat PT-34: keep
+  Ray Crawford (racing driver): wrong
+  Ray E. Eubanks: keep
+  Raymond L. Knight: wrong
+  Richard G. Candelaria: wrong
+  Robert A. Owens: keep
+  Robert Craig (Medal of Honor): wrong
+  Robert D. Maxwell: wrong
+  Robert J. Rankin: wrong
+  Robert R. Scott: keep
+  Swede Vejtasa: keep
+  Target ship: wrong
+  USCGC Bedloe: wrong
+  USS Barton (DD-599): keep
+  USS Colhoun (DD-85): keep
+  USS Helena (CL-50): keep
+  USS Hutchins: keep
+  USS Mahan (DD-364): keep
+  USS Pickerel (SS-177): keep
+  USS Porter (DD-356): keep
+  USS Solar: wrong
+  USS Tanager (AM-5): keep
+  USS Vandalia (IX-191): marginal
+  USS Ward: keep
+  United States Army Air Forces: marginal
+  United States Navy: wrong
+  Virgil K. Meroney: wrong
+  Wayne Morris: marginal
+  William H. Wilbur: wrong
+precision_recovery:
+  HMAS Mallina: keep
+  Ha-101-class submarine: wrong
+  Japanese submarine Ro-45: keep
+  Japanese survey ship Hakuyo Maru: keep
+  Tamahoko Maru: keep
+  USCGC McLane: marginal
+  USS Achilles (ARL-41): keep
+  USS Ammonusuc: keep
+  USS Bandera: marginal
+  USS Barnstable: keep
+  USS Beaverhead: marginal
+  USS Bridge (AF-1): keep
+  USS Enceladus: keep
+  USS Fleming (DE-32): keep
+  USS Freestone: keep
+  USS Holland (AS-3): keep
+  USS Hydrographer (AGS-2): keep
+  USS Jerauld: keep
+  USS LST-16: marginal
+  USS LST-767: keep
+  USS LST-794: keep
+  USS LST-826: keep
+  USS LST-828: keep
+  USS Lagarto: keep
+  USS Las Vegas Victory: keep
+  USS Lesuth: keep
+  USS Leyte (ARG-8): marginal
+  USS Mallard (AMCU-30): keep
+  USS McCracken: keep
+  USS Megrez: keep
+  USS Oahu (ARG-5): keep
+  USS Pelias: keep
+  USS Polana: marginal
+  USS Rockbridge: keep
+  USS Shaula: keep
+  USS Steelhead: keep
+  USS Suisun: keep
+  USS Toro: keep
+  USS Trego: keep
+  USS Tuscana: keep

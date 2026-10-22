@@ -1,0 +1,14 @@
+requests
+pyyaml
+mwparserfromhell
+tqdm
+ipykernel
+nbclient
+nbformat
+sentence-transformers
+torch
+numpy
+streamlit
+altair
+pandas
+pytest

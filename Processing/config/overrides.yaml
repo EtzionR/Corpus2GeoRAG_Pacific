@@ -1,0 +1,1836 @@
+# Hand-made decisions that beat every rule and the e5 Relevance check.
+# Use canonical article titles. Review Data/interim/gray_zone.csv and excluded.jsonl to find candidates.
+include:
+- 17th Marine Regiment (United States)
+- 20 cm naval rocket launcher
+- 22nd Operations Group
+- 2nd Maizuru Special Naval Landing Force
+- 3d Antiaircraft Artillery Battalion (Composite)
+- 3rd Battalion, 187th Infantry Regiment
+- 431st Expeditionary Reconnaissance Squadron
+- 45th Infantry Regiment (Imperial Japanese Army)
+- 9th Amphibian Tractor Battalion
+- Adirondack-class command ship
+- Admiralty Islands campaign order of battle
+- Air General Army
+- Alan McCullough (architect)
+- Alejandro Suarez (constabulary)
+- Alex Wizbicki
+- Alexander Kreiser
+- Allen Dorfman
+- Allen M. Sumner-class destroyer
+- Allied Intelligence Bureau
+- Allied landing craft in World War II
+- Amphibious cargo ship
+- Angaur Airstrip
+- Angelo Bertelli
+- Anthony Dryden Marshall
+- Anthony R. Cucci
+- Appalachian-class command ship
+- Aquilla J. Dyess
+- Aratama Maru
+- Archie F. Howard
+- Arisaka
+- Arthur Dewey Struble
+- Arthur Middleton-class attack transport
+- Ayatosan Maru
+- Babo Airfield
+- 'Battle of Buna–Gona: Allied forces and order of battle'
+- 'Battle of Buna–Gona: Japanese forces and order of battle'
+- Battle of Milne Bay order of battle
+- Bayug Airfield
+- Bennie M. Bunn
+- Bernard Waldman
+- Berry Airfield
+- Bill Binder
+- Bill Combs
+- Bonner Fellers
+- Bonriki International Airport
+- Bryant Moore
+- Buka Airport
+- Bull Benini
+- Bum Phillips
+- Bus Bergman
+- Canton Island Airport
+- Cape Gloucester Airport
+- Central Field (Iwo Jima)
+- Chapel of the Most Blessed Sacrament
+- Charles D. Barrett
+- Charles D. Mize
+- Charles Donald Albury
+- Charles F. Passel
+- Charles I. Murray
+- Charles M. Cooke Jr.
+- Charles Momsen
+- Charles R. Jackson (USMC)
+- Charlie Conerly
+- Chester Nez
+- Chichijima incident
+- Chick Maggioli
+- Chinese cruiser Ping Hai
+- Christian F. Schilt
+- Cimarron-class oiler (1939)
+- Claude C. Bloch
+- Clement L. Hirsch
+- Cornelius Cole Smith Jr.
+- Crater-class cargo ship
+- César Basa
+- Dan Boisture
+- Daniel Z. Romualdez Airport
+- Davao Prison and Penal Farm
+- Dave Schreiner
+- David A. Stafford
+- Don Adams
+- Don Galo Bridge
+- Donald N. Aldrich
+- Doyen-class attack transport
+- Durand Airfield
+- Eagle Farm Airport
+- Earl S. Piper
+- East Field (Saipan)
+- Edogawa Maru
+- Edward DeSaulnier
+- Edward H. Ahrens
+- Enewetak Atoll
+- Enoura Maru
+- Evarts-class destroyer escort
+- Faha Massacre Site
+- Fenton Airfield
+- Finschhafen Airport
+- Fisheries II
+- Fishermans Airfield
+- Fleet Radio Unit, Melbourne
+- Florida-class battleship
+- Forrest Sherman
+- Fort Santiago
+- Frank B. Baldwin
+- Frank G. Fahrion
+- Frank P. Witek
+- Frank Tsosie Thompson
+- Franklin E. Sigler
+- Frederick C. Bock
+- Frederick R. Payne Jr.
+- French cruiser Lamotte-Picquet
+- Fukuoka 17
+- Gates of Intramuros
+- George A. Percy
+- George C. Axtell
+- George Elder (baseball)
+- George F. Hussey Jr.
+- George Morris (halfback)
+- George S. Bowman Jr.
+- George W. Smith (USMC)
+- Gilbert Horn Sr.
+- Gordon Warner
+- Gregory J. Weissenberger
+- Grumman J2F Duck
+- Guam Insular Force Guard
+- Gurney Airport
+- Gusap Airport
+- HMAS Mallina
+- HMS Howe (32)
+- HMS Indomitable (92)
+- HMS Jupiter (F85)
+- HNLMS Woendi
+- Ha-101-class submarine
+- Ha. 62-76 Japanese Midget Attack Submarine
+- Hanford MacNider
+- Harmon Air Force Base
+- Harold C. Train
+- Harold Keith Johnson
+- Harry Jackson (artist)
+- Harry Pregerson
+- Hawaii Maru
+- Henry R. Paige
+- Hi convoys
+- Hiratsuka Navy Ammunitions Arsenal
+- Horn Island Airport
+- Hugh Gallarneau
+- Hōfuku Maru
+- Hōkoku Maru
+- I-351-class submarine
+- Ice cream barge
+- Imperial Japanese Armed Forces
+- Imperial Japanese Army General Staff Office
+- Imperial Japanese Navy land forces
+- Interstate TDR
+- Isaac C. Kidd
+- Italian auxiliary cruiser Ramb II
+- Jack Chevigny
+- Jack Eskridge
+- Jack Sanders (American football)
+- Jack Williams (Medal of Honor)
+- Jacklyn H. Lucas
+- James D. Hittle
+- James D. La Belle
+- James F. Prendergast
+- James I. Hopkins Jr.
+- James O'Dea Jr.
+- James Rube Garrett Jr.
+- Japanese Village (Dugway Proving Ground)
+- Japanese aircraft carrier Chūyō
+- Japanese destroyer Kaede (1944)
+- Japanese destroyer Kaki (1944)
+- Japanese destroyer Matsu (1944)
+- Japanese escort ship Mikura
+- Japanese fleet oiler Kazahaya
+- Japanese holdout
+- Japanese minesweeper W-26
+- Japanese seaplane tender Kamoi
+- Japanese submarine Ha-103
+- Japanese submarine Ha-104
+- Japanese submarine Ha-105
+- Japanese submarine I-176
+- Japanese submarine I-362
+- Japanese submarine I-364
+- Japanese submarine I-365
+- Japanese submarine I-371
+- Japanese submarine I-41
+- Japanese submarine I-42
+- Japanese submarine Ro-112
+- Japanese submarine Ro-35
+- Japanese submarine Ro-45
+- Japanese submarine Ro-49
+- Japanese survey ship Hakuyo Maru
+- Japanese transport ship Buyo Maru
+- Japanese transport ship Gyoun Maru (1890)
+- Japanese transport ship Hayataka Maru
+- Jefferson J. DeBlanc
+- Jeremiah O'Leary
+- Jerry Atkinson
+- Joe Foss
+- Joe Hale (producer)
+- Joe Morris Sr.
+- John Brown Jr. (Navajo code talker)
+- John F. Laboon
+- John H. Brown Jr.
+- John H. Hester
+- John H. Miller
+- John Harlan Willis
+- John Henry Towers
+- John J. Ballentine
+- John Koniszewski
+- John L. Hall Jr.
+- John Petercuskie
+- John R. Redman
+- John Smith (flying ace)
+- Johnston Island Air Force Base
+- Joichiro Sanada
+- Jose de los Reyes
+- Josef R. Sheetz
+- Joseph P. Vachon
+- Joseph R. Fisher (USMC)
+- Joseph Redman
+- Joseph S. Stiborik
+- Justice M. Chambers
+- Kaichū type submarine
+- Kaiten
+- Kashi Maru
+- Kenjiro Matsuki
+- Kenneth A. Walsh
+- Kenneth L. Reusser
+- Kenzō Okuzaki
+- Kermit Beahan
+- Kila Airfield
+- King George V-class battleship (1939)
+- Kornasoren Airport
+- Koshirō Oikawa
+- Kumaichi Teramoto
+- Kōkūtai
+- Kōtoku Maru (1937)
+- LSM(R)-188-class landing ship medium
+- Lae Airfield
+- Leo Hewlett Thebaud
+- Leonard E. Rea
+- Leonard F. Mason
+- Leonard F. Wing
+- Les Dugan
+- Leyburn Airfield
+- Light Weight Air Warning Radar
+- Lingayen Airport
+- List of Allied ships at the Japanese surrender
+- List of Japanese Navy Air Force aces (Mitsubishi A6M)
+- List of Japanese World War II navy bombs
+- List of Japanese auxiliary cruiser commerce raiders
+- List of Japanese military equipment of World War II
+- Lockheed Ventura
+- Long Airfield
+- Lorengau Airfield
+- Lou Lenart
+- MS Aramis
+- MV Anshun
+- MV Asama Maru
+- MV Kinryu Maru
+- MV Macdhui
+- Manbulloo Airfield
+- Mangaldan Airfield
+- Manila Central Post Office
+- Manuel Cabal
+- Mareeba Airfield
+- Mark 14 torpedo
+- Mark 15 torpedo
+- Mark 18 torpedo
+- Masahide Ōta
+- Maurice H. Rindskopf
+- Melvin Alvah Traylor Jr.
+- Merril Sandoval
+- Merrill B. Twining
+- Merritt B. Curtis
+- Middleburg Airfield
+- Mike Enich
+- Minekaze-class destroyer
+- Ministry of the Navy (Japan)
+- Minoru Wada
+- Minoru Yano
+- Mitsumasa Yonai
+- Mokerang Airfield
+- Mono Airport
+- Montevideo Maru
+- Nadi International Airport
+- Nagata Maru
+- Nagoya Maru
+- Naha Air Base
+- Nakajima Ki-27
+- Nashira (AK-85)
+- Naval Base Manus
+- Nestor Alampay
+- Nobuaki Iwatake
+- Okinawa ground order of battle
+- Operation Zebra
+- Oscar Wyatt
+- Otto Lessing (general)
+- Owi Airfield
+- PCE-842-class patrol craft
+- Palembang Defense Unit
+- Palikulo Bay Airfield
+- Pandel Savic
+- Patrol torpedo boat PT-105
+- Patrol torpedo boat PT-121
+- Patrol torpedo boat PT-337
+- Patrol torpedo boat PT-346
+- Patrol torpedo boat PT-490
+- Patrol torpedo boat PT-492
+- Paul Moore Jr.
+- Peter Johnson Sr.
+- Planning for the Battle of Iwo Jima
+- Porac Airfield
+- Prelude to the attack on Pearl Harbor
+- R. D. Matthews
+- RAAF Base Amberley
+- Rabaul Airfield Complex
+- Ramon Alcaraz
+- Raymond W. Ickes
+- Recoletos Church
+- Reid River Airfield
+- Richard E. Bush
+- Richard Haynes (lawyer)
+- Richard Marshall (United States Army officer)
+- Robert H. Smith-class destroyer
+- Robert M. McTureous Jr.
+- Robert S. Kennemore
+- Roebuck Bay Seaplane Base
+- Rogers Airfield
+- Ruperto Kangleon
+- Russell N. Jordahl
+- Ryōji Uehara
+- Ryūzō Sejima
+- SS Aloha State
+- SS Brazil Maru
+- SS Canada Victory
+- SS Cynthia Olson
+- SS Davidson Victory
+- SS Emidio
+- SS Hawaiian Shipper
+- SS Joplin Victory
+- SS Kembu Maru (1942)
+- SS Kuroshio Maru
+- SS Lewiston Victory
+- SS Mactan
+- SS Malama
+- SS Manhattan (1931)
+- SS Point Bonita
+- SS Rutland Victory
+- SS Sea Marlin
+- SS Sea Scamp
+- SS St. Lawrence Victory
+- SS Ural Maru
+- SS Whittier Victory
+- SS-class landing ship
+- Sadaaki Konishi
+- Saidor Airport
+- Samuel S. Jack
+- San Francisco Church (Manila)
+- Sansapor Airfield
+- Satoru Anabuki
+- Schwimmer Airfield
+- Seeadler Harbor
+- Seisho Maru
+- Sherman Miles
+- Shigenori Kuroda
+- Shimofusa Air Base
+- Shinyo (suicide motorboat)
+- Somers-class destroyer
+- South Luzon Force
+- Submarine aircraft carrier
+- Swamp Ghost
+- T3 tanker
+- TSS Waterford
+- Tachiarai Army Airfield
+- Tadji Airport
+- Takasago Volunteers
+- Tamahoko Maru
+- Tanauan Airfield
+- Tango Maru
+- Task Force 90 (United States)
+- Tasuku Okada
+- Tatsuta Maru
+- Ted Bassett (businessman)
+- Terukuni Maru-class ocean liner
+- Teruto Tsubota
+- Theodore Van Kirk
+- Third Order of the Franciscans Church (Manila)
+- Thomas A. Wornham
+- Thomas Ferebee
+- Thomas Francis Hickey (United States Army officer)
+- Tiny Tim (rocket)
+- Toa Maru
+- Tokai Maru
+- Tokyo Rose
+- Tony Butkovich
+- Torashirō Kawabe
+- Toshikazu Kase
+- Tsuken Island
+- Tsutomu Akinaga
+- Turnbull Field
+- Turtle Bay Airfield
+- Type 1 37 mm anti-tank gun
+- Type 10 grenade discharger
+- Type 2 machine gun
+- Type 21 and Type 22 rocket-bombs
+- Type 3 12 cm AA gun
+- Type 3 81 mm mortar
+- Type 3 aircraft machine gun
+- Type 30 bayonet
+- Type 35 rifle
+- Type 38 12 cm howitzer
+- Type 4 20 cm rocket launcher
+- Type 4 75 mm AA gun
+- Type 5 15 cm AA gun
+- Type 89 15 cm cannon
+- Type 91 10 cm howitzer
+- Type 92 battalion gun
+- Type 92 machine gun
+- Type 93 heavy machine gun
+- Type 94 37 mm anti-tank gun
+- Type 94 90 mm infantry mortar
+- Type 97 aircraft machine gun
+- Type 97 automatic cannon
+- Type 97 grenade
+- Type 97 heavy tank machine gun
+- Type 97 sniper rifle
+- Type 99 mine
+- Type 99 sniper rifle
+- Type B submarine
+- Type C submarine
+- Type D escort ship
+- Tōfuku Maru
+- USCGC McLane
+- USLHT Banahao
+- USLHT Cedar
+- USNS Harris County
+- USNS Victoria
+- USS ARD-1
+- USS Accokeek
+- USS Achelous
+- USS Achilles (ARL-41)
+- USS Achomawi
+- USS Adhara
+- USS Ajax (AR-6)
+- USS Akutan
+- USS Alabaster
+- USS Alamance
+- USS Alameda (AO-10)
+- USS Alamosa
+- USS Albert T. Harris
+- USS Albireo
+- USS Alchiba
+- USS Alcona
+- USS Aldebaran
+- USS Alden
+- USS Algol (AKA-54)
+- USS Alkaid
+- USS Alkes
+- USS Allendale
+- USS Allioth
+- USS Alnitah
+- USS Altair (AK-257)
+- USS Aludra (AK-72)
+- USS Ammonusuc
+- USS Amsterdam (CL-101)
+- USS Anacapa
+- USS Anchor
+- USS Ancon (AGC-4)
+- USS Andromeda
+- USS Annoy
+- USS Antares (AG-10)
+- USS Appanoose
+- USS Appling
+- USS Ara
+- USS Arapaho (ATF-68)
+- USS Arayat
+- USS Archerfish (SS-311)
+- USS Aristaeus
+- USS Artemis (AKA-21)
+- USS Arthur Middleton
+- USS Ascella
+- USS Ash
+- USS Aspro (SS-309)
+- USS Athanasia
+- USS Auburn (AGC-10)
+- USS Autauga
+- USS Avocet (AVP-4)
+- USS Azimech
+- USS Bache (DD-470)
+- USS Baham
+- USS Bancroft (DD-598)
+- USS Bandera
+- USS Barnstable
+- USS Barnwell
+- USS Bass (SS-164)
+- USS Bates
+- USS Baxter
+- USS Bayfield
+- USS Beaverhead
+- USS Bebas
+- USS Bedford Victory
+- USS Benevolence
+- USS Bergen
+- USS Bittern (AM-36)
+- USS Bivin
+- USS Blackfish
+- USS Bland
+- USS Blount
+- USS Bluefish (SS-222)
+- USS Bollinger
+- USS Bonefish (SS-223)
+- USS Booth
+- USS Boulder Victory
+- USS Bowfin
+- USS Bowie
+- USS Bracken
+- USS Bridge (AF-1)
+- USS Broadwater
+- USS Brookings
+- USS Brooks
+- USS Brule (APA-66)
+- USS Bugara
+- USS Bulmer
+- USS Bumper
+- USS Burden R. Hastings
+- USS Burias
+- USS Burleigh
+- USS Butte (APA-68)
+- USS Cahuilla
+- USS Caledonia (AK-167)
+- USS Canopus (AS-9)
+- USS Cape Johnson (AP-172)
+- USS Capelin
+- USS Carlinville
+- USS Carondelet (IX-136)
+- USS Carteret
+- USS Cassiopeia
+- USS Castor (AKS-1)
+- USS Cavalla (SS-244)
+- USS Cecil
+- USS Celeno
+- USS Cero (SS-225)
+- USS Cetus
+- USS Chanticleer (ASR-7)
+- USS Charles E. Brannon
+- USS Charles S. Sperry
+- USS Chatham (AK-169)
+- USS Chawasha (ATF-151)
+- USS Chehalis (AOG-48)
+- USS Cheleb
+- USS Chester T. O'Brien
+- USS Chikaskia
+- USS Chilula
+- USS Chimon
+- USS Chourre
+- USS City of Dalhart
+- USS Clamp
+- USS Clearfield
+- USS Clermont
+- USS Clinton (APA-144)
+- USS Cobia
+- USS Cocopa
+- USS Cod
+- USS Collingsworth
+- USS Colusa
+- USS Comfort (AH-6)
+- USS Corbesier (DE-438)
+- USS Cottle
+- USS Coucal
+- USS Crater
+- USS Crevalle
+- USS Crittenden
+- USS Crockett (APA-148)
+- USS Crux
+- USS Culebra Island
+- USS Custer
+- USS Dade
+- USS Daring
+- USS Dash (AM-88)
+- USS Deimos (AK-78)
+- USS Deucalion
+- USS Deuel
+- USS Dewey (YFD-1)
+- USS Dionne
+- USS Douglas A. Munro
+- USS Douglas H. Fox
+- USS Dragonet
+- USS Drew
+- USS Dutchess
+- USS Eastland
+- USS Edgecombe (APA-164)
+- USS Effingham (APA-165)
+- USS Eichenberger
+- USS Elliot (DD-146)
+- USS Ellyson
+- USS Emmons
+- USS Enceladus
+- USS Endymion
+- USS English
+- USS Eridanus
+- USS Escolar
+- USS Excel (AM-94)
+- USS Exploit (AM-95)
+- USS Extractor
+- USS Fairfield (AK-178)
+- USS Fergus
+- USS Fillmore
+- USS Finch (AM-9)
+- USS Firedrake
+- USS Flagler
+- USS Fleming (DE-32)
+- USS Flier
+- USS Florence Nightingale
+- USS Florikan
+- USS Fond du Lac
+- USS Fortune (IX-146)
+- USS Frederick Funston
+- USS Freestone
+- USS Gabilan
+- USS Gallatin (APA-169)
+- USS Gar
+- USS Garrard
+- USS Gasconade
+- USS Gear
+- USS General A. E. Anderson
+- USS General John Pope
+- USS General William Weigel
+- USS George E. Badger
+- USS George F. Elliott (AP-105)
+- USS George F. Elliott (AP-13)
+- USS Gherardi
+- USS Giansar
+- USS Gillespie
+- USS Glacier (AK-183)
+- USS Goldcrest (AMCU-24)
+- USS Golet
+- USS Goshen
+- USS Gosper
+- USS Grafton (APA-109)
+- USS Grasp (ARS-24)
+- USS Grebe
+- USS Greenlet
+- USS Grenadier (SS-210)
+- USS Griggs
+- USS Grimes
+- USS Grumium
+- USS Gualala
+- USS Guam (CB-2)
+- USS Guardfish (SS-217)
+- USS Gurnard (SS-254)
+- USS Hackleback
+- USS Haddock (SS-231)
+- USS Halawa
+- USS Halibut (SS-232)
+- USS Hambleton
+- USS Hamilton County
+- USS Hamlin (AV-15)
+- USS Hank
+- USS Hardhead
+- USS Hawkbill (SS-366)
+- USS Hazelwood (DD-531)
+- USS Hecuba
+- USS Hemminger
+- USS Henrico
+- USS Henry County (LST-824)
+- USS Hercules (AK-41)
+- USS Heywood
+- USS Hillsborough County
+- USS Hitchiti
+- USS Hiwassee
+- USS Hobson
+- USS Hocking
+- USS Hoe
+- USS Holland (AS-3)
+- USS Hopping
+- USS Hunter Liggett
+- USS Hunterdon County
+- USS Hydrographer (AGS-2)
+- USS Isabel
+- USS J. Douglas Blackwood
+- USS Jallao
+- USS James C. Owens
+- USS Jarvis (DD-799)
+- USS Jeffers
+- USS Jerauld
+- USS John A. Bole
+- USS John W. Weeks
+- USS Johnnie Hutchins
+- USS Kalk (DD-611)
+- USS Kaloli
+- USS Kanawha (AO-1)
+- USS Kanawha (AOG-31)
+- USS Kenmore (AK-221)
+- USS Kenton
+- USS Keosanqua (ATA-198)
+- USS Kephart
+- USS Kern
+- USS Kershaw
+- USS Kerstin
+- USS Kestrel (AMCU-26)
+- USS Kete
+- USS Kingfish
+- USS Kingsbury
+- USS Kittaton
+- USS Kline
+- USS Kochab
+- USS Koka (ATA-185)
+- USS LCI(L)-222
+- USS LCS(L)(3)-102
+- USS LSM(R)-189
+- USS LSM(R)-190
+- USS LSM(R)-196
+- USS LSM(R)-197
+- USS LSM(R)-198
+- USS LSM-125
+- USS LSM-17
+- USS LSM-216
+- USS LSM-333
+- USS LSM-56
+- USS LSM-60
+- USS LST-1001
+- USS LST-1022
+- USS LST-119
+- USS LST-16
+- USS LST-19
+- USS LST-25
+- USS LST-340
+- USS LST-353
+- USS LST-43
+- USS LST-47
+- USS LST-50
+- USS LST-53
+- USS LST-543
+- USS LST-560
+- USS LST-562
+- USS LST-594
+- USS LST-661
+- USS LST-69
+- USS LST-724
+- USS LST-738
+- USS LST-75
+- USS LST-767
+- USS LST-779
+- USS LST-794
+- USS LST-801
+- USS LST-823
+- USS LST-826
+- USS LST-828
+- USS LST-835
+- USS LST-84
+- USS LST-842
+- USS LST-843
+- USS LST-849
+- USS LST-850
+- USS LST-851
+- USS LST-853
+- USS LST-874
+- USS LST-875
+- USS LST-900
+- USS LST-920
+- USS LST-952
+- USS LST-953
+- USS LST-960
+- USS LST-970
+- USS LST-996
+- USS LST-999
+- USS Laertes
+- USS Lagarto
+- USS Lakewood Victory
+- USS Lamar (PCE-899)
+- USS Lander
+- USS Lang (DD-399)
+- USS Lanier
+- USS Las Vegas Victory
+- USS Lauderdale
+- USS Laurens
+- USS Lavaca
+- USS Leedstown (APA-56)
+- USS Leland E. Thomas
+- USS Lenawee
+- USS Lenoir (AKA-74)
+- USS Leon
+- USS Lesuth
+- USS Leyte (ARG-8)
+- USS Liddle (DE-206)
+- USS Lincoln County
+- USS Litchfield
+- USS Livingston
+- USS Logan
+- USS Loggerhead
+- USS Long
+- USS Longspur (AMCU-28)
+- USS Lovelace
+- USS Loy
+- USS Lycoming
+- USS Lyon
+- USS Lyra
+- USS Macabi
+- USS Mack
+- USS Maddox (DD-731)
+- USS Madera County
+- USS Mahoning County
+- USS Mallard (AMCU-30)
+- USS Manlove
+- USS Mansfield
+- USS Manta (SS-299)
+- USS Marion County
+- USS Marmora (IX-189)
+- USS Marsh
+- USS Marvin H. McIntyre
+- USS Matar
+- USS Maurice J. Manuel
+- USS Mayfield Victory
+- USS McCracken
+- USS Medea
+- USS Megrez
+- USS Mellena
+- USS Melucta
+- USS Menard
+- USS Mercy (AH-8)
+- USS Meriwether
+- USS Midas
+- USS Mississinewa (AO-59)
+- USS Montauk (LSV-6)
+- USS Montour
+- USS Montrose
+- USS Moray
+- USS Mount Vernon (AP-22)
+- USS Mountrail
+- USS Muskallunge
+- USS Myrmidon
+- USS Naifeh
+- USS Nantahala (AO-60)
+- USS Napa (AT-32)
+- USS Narraguagas
+- USS Navarro
+- USS Neches (AO-47)
+- USS Neshoba
+- USS New Hanover
+- USS Newberry
+- USS Newcastle Victory
+- USS Niagara (PG-52)
+- USS Noble (APA-218)
+- USS O'Brien (DD-415)
+- USS Oahu (ARG-5)
+- USS Oahu (PR-6)
+- USS Oberon
+- USS Oceanus
+- USS Oconee
+- USS Oconto
+- USS Octans
+- USS Okanogan
+- USS Oklahoma (BB-37)
+- USS Olmsted
+- USS Ontario (AT-13)
+- USS Orange
+- USS Orange County
+- USS Oriole (AMCU-33)
+- USS Ormsby
+- USS Ortolan (AM-45)
+- USS Orvetta (IX-157)
+- USS Osage (LSV-3)
+- USS Osterhaus
+- USS Ottawa (AKA-101)
+- USS Otus
+- USS PC-1137
+- USS PC-586
+- USS PGM-10
+- USS PGM-11
+- USS PGM-17
+- USS PGM-8
+- USS Pakana
+- USS Palisana
+- USS Parche (SS-384)
+- USS Parks
+- USS Pasquotank
+- USS Patroclus
+- USS Pawnee (ATF-74)
+- USS Pelias
+- USS Pembina (AK-200)
+- USS Permit (SS-178)
+- USS Peto
+- USS Philip (DD-498)
+- USS Pickaway
+- USS Picket (ACM-8)
+- USS Picuda
+- USS Pierce
+- USS Pigeon (ASR-6)
+- USS Pike (SS-173)
+- USS Pipefish
+- USS Plaice
+- USS Planter (ACM-2)
+- USS Plumas County
+- USS Plunger (SS-179)
+- USS Pogy (SS-266)
+- USS Polana
+- USS Pollack (SS-180)
+- USS Pomfret
+- USS Pompon
+- USS Ponchatoula (AOG-38)
+- USS Pontotoc
+- USS Porcupine (IX-126)
+- USS Portunus (AGP-4)
+- USS Prentiss (AKA-102)
+- USS Preserver
+- USS Presidio
+- USS Prince Georges
+- USS Propus
+- USS Puffer (SS-268)
+- USS Queens
+- USS Quincy (CA-71)
+- USS Raleigh (CL-7)
+- USS Rall
+- USS Rankin
+- USS Rawlins
+- USS Redfish (SS-395)
+- USS Rednour
+- USS Refuge
+- USS Reid (DD-369)
+- USS Remus
+- USS Richmond (CL-9)
+- USS Riverside (APA-102)
+- USS Robalo
+- USS Roberts (DE-749)
+- USS Rochambeau
+- USS Roche
+- USS Rockbridge
+- USS Rockingham
+- USS Rocky Mount
+- USS Rodman
+- USS Rombach
+- USS Roxane
+- USS Runels
+- USS Runner (SS-275)
+- USS S-35
+- USS S-40
+- USS S-41
+- USS S-43
+- USS S-45
+- USS S-46
+- USS SC-744
+- USS Sabik
+- USS Sacandaga
+- USS Sagittarius
+- USS Saint Croix
+- USS Saint Paul (CA-73)
+- USS Sakatonchee
+- USS Salamonie
+- USS Salish
+- USS Salute (AM-294)
+- USS Sampson (DD-394)
+- USS Samuel Chase
+- USS Samuel N. Moore
+- USS Sand Lance (SS-381)
+- USS Sangay
+- USS Sargo (SS-188)
+- USS Saturn (AK-49)
+- USS Saury
+- USS Sawfish
+- USS Scabbardfish
+- USS Scribner
+- USS Sculptor
+- USS Sea Robin
+- USS Seahorse (SS-304)
+- USS Seal (SS-183)
+- USS Sealion (SS-195)
+- USS Sealion (SS-315)
+- USS Seekonk
+- USS Seginus
+- USS Selinur
+- USS Seminole (AT-65)
+- USS Sepulga
+- USS Sequatchie
+- USS Severn (AO-61)
+- USS Sevier
+- USS Shadwell
+- USS Shark (SS-314)
+- USS Shaula
+- USS Sheliak
+- USS Simon Newcomb
+- USS Sims (DE-154)
+- USS Sirius (AK-15)
+- USS Situla
+- USS Smith (DD-378)
+- USS Snapper (SS-185)
+- USS Southampton (AKA-66)
+- USS Spadefish (SS-411)
+- USS Spearfish
+- USS Spica (AK-16)
+- USS Spikefish
+- USS Spot
+- USS Springer
+- USS St. Clair County
+- USS St. George (AV-16)
+- USS Stadtfeld
+- USS Stag
+- USS Steelhead
+- USS Sterope
+- USS Storm King
+- USS Stormes
+- USS Suffolk
+- USS Suisun
+- USS Sunnadin (AT-28)
+- USS Supply (IX-147)
+- USS Swallow (AMS-36)
+- USS Tabberer
+- USS Taganak
+- USS Talita
+- USS Tanner
+- USS Tappahannock
+- USS Taurus (AF-25)
+- USS Telfair
+- USS Tensaw
+- USS Tern (AM-31)
+- USS Teton
+- USS Thornback
+- USS Threadfin
+- USS Tilefish
+- USS Tillamook (ATA-192)
+- USS Tills
+- USS Tinosa (SS-283)
+- USS Tirante
+- USS Todd
+- USS Tombigbee
+- USS Tonkawa (ATA-176)
+- USS Topeka (CL-67)
+- USS Toro
+- USS Torrance
+- USS Towner
+- USS Tracy
+- USS Trego
+- USS Triangulum
+- USS Trinity
+- USS Trutta
+- USS Tullibee (SS-284)
+- USS Tunica
+- USS Tuscana
+- USS Tyrrell
+- USS U. S. Grant
+- USS Unicoi
+- USS Utah (BB-31)
+- USS Valve
+- USS Vent
+- USS Venus
+- USS Viking (ARS-1)
+- USS Walke (DD-723)
+- USS Walton
+- USS Wampanoag (ATA-202)
+- USS Warren (APA-53)
+- USS Washakie
+- USS Wasmuth
+- USS Wateree (ATA-174)
+- USS Wateree (ATF-117)
+- USS Waupaca
+- USS Wautauga
+- USS Weaver
+- USS Weeden
+- USS Weehawken (CM-12)
+- USS Whale (SS-239)
+- USS Whipple (DD-217)
+- USS Widgeon (AM-22)
+- USS Wildcat (AW-2)
+- USS William J. Pattison
+- USS Williams (DE-372)
+- USS Woodford
+- USS Wyandot
+- USS YAG-2
+- USS Yacal
+- USS Yahara
+- USS Yuma (AT-94)
+- USS Zaniah
+- United States Navy Argus Units
+- Vincent R. Kramer
+- Vulnerability of Pearl Harbor in 1941
+- W-1-class minesweeper
+- Wakde Airfield
+- Walter N. Vernou
+- Walter Stratton Anderson
+- Wards Airfield
+- Washing Machine Charlie
+- Wewak Harbour
+- Wickes-class destroyer
+- Wilbur F. Simlik
+- William A. Foster
+- William E. Dyess
+- William Fechteler
+- William H. Whyte
+- William K. MacNulty
+- William N. Porter
+- William Perry Brown Jr.
+- William R. Munroe
+- William W. Ashurst
+- Wilson Brown (admiral)
+- Windsor-class attack transport
+- Xanthus-class repair ship
+- YFD-2
+- YP-251 (Patrol Craft)
+- Yokosuka MXY-7 Ohka
+- Yoshijirō Umezu
+- Yoshio Fukui
+- Yoshio Tachibana
+- Zenneth A. Pond
+exclude:
+- 114th Division (Imperial Japanese Army)
+- 11th Air Squadron (Japan)
+- 11th Infantry Division (India)
+- 12th Division (Imperial Japanese Army)
+- 12th Indian Infantry Brigade
+- 1837 Naval Air Squadron
+- 1838 Naval Air Squadron
+- 1942 Design Light Fleet Carrier
+- 1st Cavalry Brigade (Imperial Japanese Army)
+- 2/10th Field Regiment (Australia)
+- 2/15th Field Regiment (Australia)
+- 2/19th Battalion (Australia)
+- 2/20th Battalion (Australia)
+- 2/29th Battalion (Australia)
+- 2/30th Battalion (Australia)
+- 20 mm AA machine cannon carrier truck
+- 20th Pioneer Battalion (Australia)
+- 22nd Brigade (Australia)
+- 22nd Indian Infantry Brigade
+- 27th Brigade (Australia)
+- 28 cm howitzer L/10
+- 2nd Independent Mixed Brigade
+- 2nd New Guinea Infantry Battalion
+- 4th Cavalry Brigade (Imperial Japanese Army)
+- 54th Division (Imperial Japanese Army)
+- 721 Naval Air Squadron
+- 831 Naval Air Squadron
+- 834 Naval Air Squadron
+- 837 Naval Air Squadron
+- 98th Training Division
+- 9th Army Signal Command (United States)
+- Abdul Razak Abdul Hamid
+- Acacia Ridge Air Raid Shelter
+- Action of 13 November 1943
+- Action of 17 July 1944
+- Action of 8 June 1945
+- Adnan Saidi
+- Adolph G. Schwenk
+- Adolphus Andrews
+- Aidan MacCarthy
+- Airfield Defence Guards
+- Aitkenvale Aerodrome
+- Akira Iwasaki
+- Albert Park (North) Air Raid Shelter
+- Albert Park (South) Air Raid Shelter
+- Allison Engine Testing Stands
+- Andi Depu
+- Ariake-class destroyer
+- Armies of the Imperial Japanese Army
+- Armoured Carrier Wheeled Indian Pattern
+- Asakaze-class destroyer
+- Attacker-class escort carrier
+- Attacks on Australia during World War II
+- Augustus M. Gurney
+- Bangka Island massacre
+- Bansei Tokkō Peace Museum
+- Bat bomb
+- Battle of Borneo (1941–1942)
+- Battle of Bukit Timah
+- Battle of Changde order of battle
+- Battle of Goodenough Island order of battle
+- Battle of Hong Kong order of battle
+- Battle of Kampar
+- Battle of Kohima
+- Battle of Prachuap Khiri Khan
+- Battle of the Malacca Strait
+- Battlebox
+- Beijing Xijiao Airport
+- Bessang Pass Natural Monument
+- Bloody Ridge National Historical Park
+- Boeing XF8B
+- Bombing of Katherine
+- Bore Sight Range and Compass Swinging Platform at Charters Towers Airfield
+- Borneo campaign (1945) order of battle
+- Brisbane Airport
+- British Battalion (Malaya 1941)
+- Bruce Magruder
+- Bunzaburō Kawagishi
+- Cabinet Intelligence Bureau
+- Cairncross Dockyard
+- Camp Columbia (Wacol)
+- Camp Courtney
+- Camp Gonsalves
+- Camp Hansen
+- Camp McTureous
+- Camp Schwab
+- Carter W. Clarke
+- Cecil Plains Airfield
+- Central Area Command (RAAF)
+- Central China Area Army
+- Charleville Airport
+- Chicopee-class oiler
+- Chikahiko Koizumi
+- Chilean battleship Almirante Latorre
+- China Area Fleet
+- Chinese cruiser Chao Ho
+- Chinese cruiser Hai Chi
+- Chinese cruiser Ning Hai
+- Chinese cruiser Ying Rui
+- Chinese gunboat Zhongshan
+- Chinkai Guard District
+- Chung Il-kwon
+- Cloncurry Airport
+- Combatants of the Second Sino-Japanese War
+- Cooktown, Queensland
+- Curtiss F11C Goshawk
+- Dai Nippon fujinkai
+- Daud Beureueh
+- Derrell Palmer
+- Design B-65 cruiser
+- Dissent in the Armed Forces of the Empire of Japan
+- Dōki no Sakura
+- E-boat
+- East River Column
+- Eastern Area Command (RAAF)
+- Edward Ellsberg
+- Eiichi Matsumoto
+- Elizebeth Smith Friedman
+- Eulogio Rodriguez
+- Fairey Firefly
+- Fairey Swordfish
+- Far East Air Materiel Command
+- Far East Combined Bureau
+- Fleet problem
+- Force B
+- Force Z
+- Fort Buckner
+- Frank C. McConnell
+- Frank Fasi
+- Frederick J. Horne
+- Fuji-class battleship
+- Fujita salvage operation
+- Gander (dog)
+- Gemas
+- Genshin Takano
+- George Gosse
+- George Grunert
+- George M. Lowry
+- Gerald R. Ford-class aircraft carrier
+- German aircraft carrier Graf Zeppelin
+- German submarine U-537
+- Gilbert Johnson
+- Gilbert R. Cook
+- Goro Takeda
+- Gregory McMahon
+- Grumman F8F Bearcat
+- HMAS Diamantina (K377)
+- HMAS Sydney (D48)
+- HMS Duke of York (17)
+- HMS Foley (K474)
+- HMS Garlies
+- HMS Grasshopper (T85)
+- HMS Nabberley
+- HMS Nabbington
+- HMS Nabthorpe
+- HMS Prince of Wales (53)
+- HMS Thanet
+- HMS Vestal (J215)
+- HNLMS Bantam
+- HNLMS Gouden Leeuw
+- HNLMS Jan van Amstel
+- HNLMS Koning der Nederlanden
+- HNLMS O 16
+- HNLMS O 20
+- HNLMS Prins van Oranje
+- HNLMS Van Ghent
+- Harry E. Yarnell
+- Haven-class hospital ship
+- Heisuke Yanagawa
+- Helen Nibouar
+- Hideo Iwakuro
+- Hikari Kikan
+- Hikosuke Fukuda
+- Hilario Abellana
+- Hiro Naval Arsenal
+- Hirohara Shrine
+- Hirohide Fushimi
+- Hiromi Nakayama
+- Hiroshi Nemoto
+- Hiroshi Ohshita
+- Hiroshi Ōshima
+- Hiroshima Maidens
+- Hiroyuki Agawa
+- Honner Force
+- Howard L. Vickery
+- Huang Chin-tao
+- Hōkōkai
+- I Kikan
+- Ibrahim Ismail (general)
+- Imperial Japanese Army Academy
+- Indian National Army in Singapore
+- Indiana-class battleship
+- Investigating Committee for Preparatory Work for Independence
+- Ira P. Swift
+- Isamu Takeshita
+- Ishida Hakyō
+- Issen gorin
+- Italian minelayer Lepanto
+- Iwaichi Fujiwara
+- Izuo Anno
+- JDS Motobu
+- James A. Woodruff
+- James C. Dozier
+- James F. Moriarty (USMC)
+- James H. Stratton
+- James O. Richardson
+- Japanese Korean Army
+- Japanese cruiser Yoshino
+- Japanese destroyer Natsuzuki
+- Japanese destroyer Sakura (1944)
+- Japanese gunboat Fushimi (1906)
+- Japanese gunboat Sumida (1903)
+- Japanese gunboat Toba
+- Japanese in the Chinese resistance to the Empire of Japan
+- Japanese invasion of French Indochina order of battle
+- Japanese official war artists
+- Japanese order of battle during the Malayan campaign
+- Japanese submarine Ha-101
+- Japanese submarine Ha-107
+- Japanese submarine Ha-109
+- Japanese submarine Ha-111
+- Japanese submarine Ha-202
+- Japanese submarine I-201
+- Japanese submarine chaser Cha-196
+- Japanese submarine chaser Shonan Maru No. 7
+- Ji Xingwen
+- Jibakutai
+- Jim Hughes (1950s pitcher)
+- Jirō Chōno
+- Joe O'Donnell (photojournalist)
+- John McAuley Palmer (United States Army officer)
+- José Yulo
+- Junko Kayashige
+- Junrokurō Matsuura
+- Jūrō Gotō
+- Kahuku Army Air Field
+- Kaisenbun
+- Kanichiro Tashiro
+- Kansei Nakano
+- Kasato Maru
+- Kasman Singodimedjo
+- Keisuke Fujie
+- Kenichi Sone
+- Kenichi Yamamoto (engineer)
+- Kenkichi Ueda
+- Kesago Nakajima
+- King Edward Park Air Raid Shelter
+- Kingoro Hashimoto
+- Kiyoshi Hasegawa (admiral)
+- Kiyoshi Tanimoto
+- Kiyoyuki Terada
+- Koichi Tsukamoto
+- Koji Ariyoshi
+- Kokoda Track
+- Kokoda Track campaign order of battle
+- Korean People's Revolutionary Army
+- Koreshige Inuzuka
+- Korps Insulinde
+- Kualoa Airfield
+- Kurt Chew-Een Lee
+- Kweilin incident
+- Kōichi Shiozawa
+- Kōji Sakai
+- Leigh Vial
+- Leland Hobbs
+- Lester A. Dessez
+- Li Guang (PLA general)
+- Lions of Borneo
+- List of Eastern Fleet ships
+- List of Japanese infantry weapons used in the Second-Sino Japanese War
+- Lloyd Fredendall
+- Lobang Jepang
+- Lockhart River, Queensland
+- M Special Unit
+- MS City of Rayville
+- MS West Honaker
+- MV Joyita
+- MV Mamutu
+- Mackerel-class submarine
+- Maizuru Naval District
+- Malta-class aircraft carrier
+- Marine Corps Air Station Futenma
+- Masaji Kitano
+- Masakichi Inoue
+- Masao Nakamura
+- Masayuki Nagare
+- Merauke Force
+- Michihiko Hachiya
+- Midway (1991 game)
+- Military history of Singapore
+- Mineo Ōsumi
+- Mitsubishi B2M
+- Mitsubishi F-2
+- Mitsubishi Ki-147
+- Mitsugi Kishida
+- Mitsugi Ohno
+- Morihiro Higashikuni
+- Nakajima C3N
+- Nangō Mochifumi
+- Naokuni Nomura
+- Netherlands East Indies Forces Intelligence Service
+- New Sanno Hotel
+- New Zealand Division of the Royal Navy
+- No. 100 Squadron RAF
+- No. 119 (Netherlands East Indies) Squadron RAAF
+- No. 120 (Netherlands East Indies) Squadron RAAF
+- No. 2 Training Group RAAF
+- No. 200 Flight RAAF
+- No. 243 Squadron RAF
+- Norihide Abe
+- Northern Area Command (RAAF)
+- Nundah Air Raid Shelter
+- Operation Copper
+- Operation Crimson
+- Operation Rimau
+- Operation Tiger (Java)
+- Operation Zipper
+- Organization of Japanese forces in Southeast Asia
+- Organization of the Imperial Japanese Army
+- Osa Maliki
+- Otoemon Hiroeda
+- Pacific Missile Range Facility
+- Pacific Proving Grounds
+- Pacific Route
+- Pagoda mast
+- Panzer I
+- Pelican (bomb)
+- Peron Battery
+- Peter Buchanan (Royal Navy officer)
+- Petrie Airfield
+- Pilot training in the Imperial Japanese Navy
+- Plaine Des Gaiacs Airfield
+- Polikarpov I-16
+- Preparatory Committee for Indonesian Independence
+- Pretext
+- Prince Fushimi Hiroyasu
+- Prince Fushimi Hiroyoshi
+- Prince Kan'in Haruhito
+- Prince Kuni Asaakira
+- Prince Nagahisa Kitashirakawa
+- QF 12-pounder 12 cwt naval gun
+- RAAF Williams
+- RMS Niagara
+- Raffaello Kobayashi
+- Rapid Naval Armaments Supplement Programme
+- Rasuna Said
+- Rehe Guard Army
+- Reiji Okazaki
+- Republic P-43 Lancer
+- Robert E. Jones Jr.
+- Robert G. Marotz
+- Robert Serber
+- Robert William Rankin
+- Rokuzō Sugiyama
+- Royal Malay Regiment
+- Russell Willson
+- Russian coast defense ship General-Admiral Apraksin
+- Ryojun Guard District
+- Ryūkichi Tanaka
+- SS Auby
+- SS Augustana Victory
+- SS Automedon
+- SS British Sergeant
+- SS Drexel Victory
+- SS Fordham Victory
+- SS Fort Lee
+- SS Katoomba
+- SS Lane Victory
+- SS Nichiryu Maru
+- SS Otsego
+- SS President Cleveland (1920)
+- SS President Hoover
+- SS West Cheswald
+- Sadako Sasaki
+- Saitō Takao (politician)
+- Samuel Murray Robinson
+- Samuel Tankersley Williams
+- Sankichi Takahashi
+- Sankichi Tōge
+- Santa Cruz Bridge
+- Seiichi Kita
+- Seiichi Kuno
+- Seishirō Itagaki
+- Seizō Kobayashi
+- Setsuko Thurlow
+- Severn River Bridge
+- Shigeki Mori
+- Shigeo Hayashi
+- Shigeru Fujita
+- Shigeru Honjō
+- Shigeyasu Suzuki
+- Shinoe Shōda
+- Shiro Azuma
+- Shizuo Fukui
+- Shozo Tominaga
+- Shunkichi Kikuchi
+- Siti Sukaptinah Sunaryo Mangunpuspito
+- Snake Bay Airport
+- Snake Bay Patrol
+- Soedjono Hoemardani
+- Song Zheyuan
+- Spencer Walklate
+- Stanley Field
+- Sumiteru Taniguchi
+- Susumu Ishii
+- Suzuko Numata
+- Sydney Airport
+- T1 tanker
+- Tachikawa Airfield
+- Tadashi Kanehisa
+- Tadashi Katakura
+- Taiji Tonoyama
+- Takashi Hishikari
+- Takashi Yanase
+- Takeshi Mori (commander)
+- Takuma Nishimura
+- Takuo Godō
+- Tamiki Hara
+- Tang Shengzhi
+- Tarawa-class amphibious assault ship
+- Tatsuo Osako
+- Ted Williams
+- Teikichi Hori
+- Tengah Air Base
+- Territorial Army (Malaysia)
+- Terumi Tanaka
+- Teuku Mohammad Hasan
+- Teuku Nyak Arif
+- Third Air Army (Japan)
+- Thomas Hunter Lowe
+- Thomas M. Robins
+- Thomas Welsby Clark
+- Tokubetsu Keisatsutai
+- Tokutaro Sakurai
+- Tokyo Second Army Arsenal
+- Tomegorō Yoshizumi
+- Tomiichi Murayama
+- Toshio Fukada
+- Toshio Kuroiwa
+- Toyonishiki Kiichiro
+- Tsunamasa Shidei
+- Tsunami bomb
+- Type 11 37 mm infantry gun
+- Type 11 75 mm AA gun
+- Type 2 20 mm AA machine cannon
+- Type 4 15 cm howitzer
+- Type 4 20 mm twin AA machine cannon
+- Type 41 75 mm cavalry gun
+- Type 93 150 mm infantry mortar
+- Type 96 AA gun prime mover
+- Type 98 Ko-Hi
+- Type Hei Rifle
+- Type I rifle
+- Tōyō Mitsunobu
+- US FWS Henry O'Malley
+- USCGC Kukui (WAK-186)
+- USCGC Thetis (WPC-115)
+- USNS Aiken Victory
+- USNS David C. Shanks
+- USNS Watertown
+- USS Accelerate
+- USS Ahrens
+- USS Alarka
+- USS Ampere
+- USS Amphitrite (ARL-29)
+- USS Andres
+- USS Arlington (AP-174)
+- USS Augusta (CA-31)
+- USS Avery Island
+- USS Bainbridge (DD-246)
+- USS Baker (DE-190)
+- USS Baltimore (C-3)
+- USS Bastion
+- USS Belle Isle
+- USS Bellerophon
+- USS Bellona
+- USS Benson
+- USS Besboro
+- USS Blair
+- USS Blakeley
+- USS Bonita (SS-165)
+- USS Brough
+- USS Buckley
+- USS Burdo
+- USS Camano
+- USS Camp
+- USS Carl Vinson
+- USS Carlisle
+- USS Carroll
+- USS Challenge (ATA-201)
+- USS Clarence L. Evans
+- USS Clytie
+- USS Cochise
+- USS Codington
+- USS Conger
+- USS Crenshaw
+- USS Cusabo
+- USS Deal
+- USS Deft
+- USS Delta (AR-9)
+- USS Demeter
+- USS Donald W. Wolf
+- USS Dorchester (APB-46)
+- USS Doris Miller
+- USS Duplin
+- USS Dyess
+- USS Ebert (DE-768)
+- USS Elba
+- USS Estero (AG-134)
+- USS Eugene A. Greene
+- USS Evarts
+- USS Falgout
+- USS Fentress
+- USS Fidelity (AM-96)
+- USS Floyd B. Parks
+- USS Forster
+- USS Fowler
+- USS George H. W. Bush
+- USS George W. Ingram
+- USS Goff
+- USS Hanson
+- USS Harold J. Ellison (DD-864)
+- USS Harveson
+- USS Haverfield
+- USS Hawk (AM-133)
+- USS Hawkins
+- USS Hayter
+- USS Helios
+- USS Hennepin
+- USS Hewell
+- USS Hilary P. Jones
+- USS Indra
+- USS Interpreter
+- USS Ira Jeffery
+- USS J. Fred Talbott
+- USS Jack W. Wilke
+- USS Janssen
+- USS Jekyl
+- USS John F. Kennedy (CVN-79)
+- USS John J. Powers
+- USS John M. Bermingham
+- USS John R. Pierce
+- USS Joseph M. Auman
+- USS Joyce
+- USS Kearsarge (CV-33)
+- USS Keith (DE-241)
+- USS Kent Island
+- USS Kermit Roosevelt
+- USS Kirkpatrick
+- USS Kleinsmith
+- USS Kretchmer
+- USS LSM(R)-519
+- USS LSM-115
+- USS LSM-380
+- USS LST-1060
+- USS LST-1061
+- USS LST-1062
+- USS LST-1063
+- USS LST-1079
+- USS LST-11
+- USS LST-1108
+- USS LST-2
+- USS LST-326
+- USS LST-347
+- USS LST-348
+- USS LST-382
+- USS LST-517
+- USS LST-544
+- USS LST-546
+- USS LST-547
+- USS LST-563
+- USS LST-657
+- USS LST-869
+- USS LST-871
+- USS LST-872
+- USS LST-896
+- USS LST-906
+- USS LST-907
+- USS LST-915
+- USS LST-921
+- USS LST-964
+- USS LST-968
+- USS LST-969
+- USS LST-973
+- USS LST-974
+- USS LST-978
+- USS LST-984
+- USS LST-998
+- USS League Island (YFB-20)
+- USS Leary (DD-158)
+- USS Lehigh (AK-192)
+- USS Leonard F. Mason
+- USS Leopold
+- USS Leyte (CV-32)
+- USS Ling
+- USS Livermore (DD-429)
+- USS Lloyd Thomas (DD-764)
+- USS Locator
+- USS Lofberg
+- USS Mackerel (SS-204)
+- USS Mapiro
+- USS Martin H. Ray
+- USS McAnn
+- USS McDougal (DD-358)
+- USS Medregal
+- USS Menelaus
+- USS Menges
+- USS Menhaden (SS-377)
+- USS Menominee (AT-73)
+- USS Merrill (DE-392)
+- USS Midway (CV-41)
+- USS Mills
+- USS Milwaukee (CL-5)
+- USS Moore
+- USS Natahki
+- USS Navajo (ATA-211)
+- USS Neal A. Scott
+- USS Neunzer
+- USS Nicollet
+- USS Norris
+- USS O'Reilly
+- USS Okala
+- USS Omaha (CL-4)
+- USS Otter
+- USS Otterstetter
+- USS PC-1141
+- USS PC-815
+- USS PGM-32
+- USS PGM-9
+- USS Palmyra
+- USS Panay (PR-5)
+- USS Park County
+- USS Pentheus
+- USS Philadelphia (CL-41)
+- USS Philippine Sea (CV-47)
+- USS Poole
+- USS Power (DD-839)
+- USS Price
+- USS Pride
+- USS Princeton (CV-37)
+- USS Pueblo (PF-13)
+- USS R-1
+- USS Ramsden
+- USS Ranger (CV-61)
+- USS Rescuer
+- USS Reuben James (DD-245)
+- USS Richard B. Anderson
+- USS Robert I. Paine
+- USS Robert K. Huntington
+- USS Rogers (DD-876)
+- USS Rogers Blood (APD-115)
+- USS Romulus
+- USS Roque
+- USS Roy O. Hale
+- USS Ruchamkin
+- USS S-13
+- USS S-16
+- USS Sabalo (SS-302)
+- USS Samar (ARG-11)
+- USS Sarita
+- USS Saugus (LSV-4)
+- USS Savannah (CL-42)
+- USS Schuyler
+- USS Segwarusa
+- USS Sharps
+- USS Spangenberg
+- USS Sphinx
+- USS Sutton (DE-771)
+- USS Sylvania (AKA-44)
+- USS Tabora
+- USS Tantalus
+- USS Tarbell
+- USS Tetonkaha
+- USS Tomich
+- USS Torry
+- USS Tourmaline
+- USS Trippe (DD-403)
+- USS Troilus
+- USS Tularosa
+- USS Turquoise
+- USS Tutuila (PR-4)
+- USS Typhon
+- USS Upshur (DD-144)
+- USS Ute
+- USS Valentine
+- USS Varian
+- USS Vixen (PG-53)
+- USS Wahneta (YT-134)
+- USS Wakulla (AOG-44)
+- USS Walter S. Brown
+- USS Wampatuck
+- USS Wassuc (CMc-3)
+- USS Weiss (APD-135)
+- USS Wenonah (YT-148)
+- USS Westmoreland
+- USS Wingina
+- USS Woolsey (DD-437)
+- USS Xanthus
+- USS YP-279
+- USS YP-389
+- USS Yaupon
+- USS Yucca (IX-214)
+- United States Army Japan
+- Waichirō Sonobe
+- Wallace H. Robinson
+- Wang Mingzhang
+- Washington Heights (Tokyo)
+- Watsons Bay
+- Weldon Humble
+- Western District Army
+- Wickham Park Air Raid Shelters
+- William E. Cole
+- William Harrison Standley
+- William I. Rose (United States Army officer)
+- William Kelly Harrison Jr.
+- Windsor Air Raid Shelter
+- Women's Cavalry Corps
+- Yasuhiro Nakasone
+- Yasuhito, Prince Chichibu
+- Yokusan Sonendan
+- Yoshio Kozuki
+- Yoshio Nishina
+- Yoshito Matsushige
+- Yoshitsugu Tatekawa
+- Yue Yiqin
+- Yōsuke Yamahata
+- Zeng Sheng
+- Zengo Yoshida
+- Ōkunoshima

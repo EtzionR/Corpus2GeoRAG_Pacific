@@ -1,0 +1,41 @@
+# Umbrella conflicts: In-scope Battles so broad that a tie to them says nothing about
+# US–Japan engagement. They stay in the Corpus themselves but can never be an Article's
+# only anchor (an Article tied only through them lands in the Gray zone, decided by e5).
+umbrella_conflicts:
+  - World War II
+  - Pacific War
+  - Second Sino-Japanese War
+  - Burma campaign
+  - South-East Asian theatre of World War II
+  - China Burma India theater of World War II
+  - Indian Ocean in World War II
+  - Pacific Ocean theater of World War II
+  - South West Pacific theatre of World War II
+  - Soviet–Japanese War
+
+# e5 Relevance for the Gray zone = similarity to `in_scope` − similarity to `out_of_scope`,
+# measured against each Article's war-related sentences. This is the scope, in plain English.
+relevance_queries:
+  in_scope: >-
+    an American or Japanese ship, military unit, person, aircraft or place that took part in the
+    fighting between the United States and Japan in the Pacific during World War II
+  out_of_scope: >-
+    the war in China, Burma, Europe or the Atlantic, or civilian life, not involving combat between
+    the United States and Japan
+
+# The second key: the rules decide, and e5 and kNN can object only when they agree (Decide cell; knn.py).
+# Thresholds were checked on development labels (corpus_audit.yaml, a recovery dev sample), never on eval_set.yaml.
+second_key:
+  # A non-battle Article the rules let in only through links (no Wikidata or category tie) goes out when e5
+  # Relevance is below reject_below AND kNN is below veto_knn. On the development audit: 2 wrong removed, none
+  # correct (e5 alone: 5 wrong for 6 correct). Not for Wikidata/category ties: there both models misjudge long
+  # biographies (Douglas MacArthur); veto_knn 0.3 rather than 0.5 keeps the Gold set whole (Imperial General
+  # Headquarters scores 0.44).
+  veto: true
+  veto_knn: 0.3
+  # An Article the rules tied to no battle, with e5 Relevance ≥ accept_at and kNN ≥ recovery_knn, is a recovery
+  # candidate. "review" lists it in recovery.csv and the app's Review tab (left out until a person decides);
+  # "include" lets it in. On a 60-Article development sample it was 83% right, under the 90% bar for automatic
+  # decisions, so it is reviewed.
+  recovery: review
+  recovery_knn: 0.8

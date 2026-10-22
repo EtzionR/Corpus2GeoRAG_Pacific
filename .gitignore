@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+
+# Pipeline outputs (large; shared outside git)
+Data/interim/
+Data/corpus.json
+Data/*.partial

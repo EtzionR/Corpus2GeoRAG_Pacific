@@ -1,0 +1,161 @@
+# Corpus audit: a random sample of Articles already in the Corpus, labelled by hand in the app's Audit tab.
+# Measures how much of the Corpus is wrong or marginal, and tests any filter (e5, Laya) on Articles the
+# rules let in. Never used to tune a method: only to test it once.
+#   keep:     about US–Japan fighting in WWII (took part in it, or is directly part of it)
+#   marginal: tied to it, but only in passing (e.g. a short Pacific posting in a long career elsewhere)
+#   wrong:    not about US–Japan fighting
+# Drawn by Processing/audit_sample.py (seed 0) from the pipeline output of 2026-10-12 18:00.
+# Labels drafted by Claude on 2026-10-17 from each Article's text, following the Gray-zone review's precedents;
+# reasons in reports/audit_log.tsv. Not yet spot-checked by a person.
+rules:
+  11th Division (National Revolutionary Army): wrong
+  2/3rd Pioneer Battalion (Australia): wrong
+  2/8th Commando Squadron (Australia): wrong
+  2nd Marine Regiment: keep
+  4th Carrier Division: keep
+  801st Medical Air Evacuation Squadron: keep
+  9th Division (Imperial Japanese Army): marginal
+  Addo Bonetti: marginal
+  Air raids on Penang: keep
+  Allan Sutter: keep
+  Battle of Binalonan: keep
+  Battle of Blackett Strait: keep
+  Battle of Cape Gloucester: keep
+  Battle of Leuwiliang: keep
+  Battle of Pinwe: wrong
+  Battle of Point Judith: wrong
+  Battle of Wawa Dam: keep
+  Battle of West Hunan: marginal
+  Battle of the Santa Cruz Islands: keep
+  Bombing of Rabaul (1942): keep
+  Bombing of Toyokawa in World War II: keep
+  Bombing of Wewak: keep
+  Bombing of Yahata: keep
+  British declaration of war on Japan: wrong
+  Burma Road: wrong
+  Carrier-based aircraft: wrong
+  Charles B. McVay III: keep
+  Code Girls: marginal
+  Don Isidro: keep
+  Donald K. Ross: keep
+  Douglas A-20 Havoc: keep
+  Earl F. Ziemke: marginal
+  Elmo M. Haney: keep
+  End of World War II in Asia: keep
+  First Bombardment of Midway: keep
+  Ganap Party: marginal
+  Geno Morosi: keep
+  Gerard Bruggink: wrong
+  Guadalcanal American Memorial: keep
+  Gunichi Mikawa: keep
+  HMS Exeter (68): marginal
+  I-400-class submarine: keep
+  Japanese air raids on Australia: wrong
+  Japanese battleship Fusō: keep
+  Japanese cruiser Agano: keep
+  Japanese cruiser Haguro: keep
+  Japanese cruiser Katori: keep
+  Japanese cruiser Kumano: keep
+  Japanese destroyer Mutsuki: keep
+  Japanese destroyer Oboro (1930): keep
+  Japanese minelayer Okinoshima: keep
+  Japanese occupation of the Gilbert Islands: keep
+  Japanese oiler Irō: keep
+  Japanese submarine I-14: keep
+  Japanese submarine I-166: marginal
+  Jesselton revolt: wrong
+  John Chafee: marginal
+  John R. Hodge: keep
+  John Thach: keep
+  Johnny Stompanato: marginal
+  Katsuya Susaki: marginal
+  Kō-hyōteki-class submarine: keep
+  Landing at Aitape: keep
+  Landing at Lae: keep
+  Louis H. Wilson Jr.: keep
+  Makapili: keep
+  Malahang Mission Station, Lae: marginal
+  Masutaro Nakai: marginal
+  Mitsuru Ushijima: keep
+  Nagano Prefecture: wrong
+  Nakajima B5N: keep
+  No. 9 Operational Group RAAF: keep
+  Norman Scott (admiral): keep
+  Operation Kikusui I: keep
+  Pat Maloney Sr.: marginal
+  Patrol torpedo boat PT-30: keep
+  Penghu air raids: keep
+  Project Hula: marginal
+  Queen's Royal Regiment (West Surrey): wrong
+  Ray C. Hunt: keep
+  Richard Antrim: keep
+  Richard C. Mangrum: keep
+  Richard G. Weede: keep
+  Robert B. Carney Jr.: keep
+  Samuel R. Shaw: keep
+  Sentani International Airport: keep
+  Seymour W. Terry: keep
+  Sun Li-jen: wrong
+  Tadamichi Kuribayashi: keep
+  Torokina Airfield: keep
+  Tosa-class battleship: marginal
+  US Naval Base Australia: keep
+  US Naval Base Carolines: keep
+  USS Bang: keep
+  USS Boston (CA-69): keep
+  USS Dickens: keep
+  USS Dufilho: keep
+  USS Gambier Bay: keep
+  USS Hughes: keep
+  USS LST-1035: keep
+  USS LST-31: keep
+  USS LST-467: keep
+  USS LST-549: keep
+  USS Newcomb: keep
+  USS Paul Hamilton (DD-590): keep
+  USS Paul Jones (DD-230): keep
+  USS Pecos (AO-6): keep
+  USS S-34: keep
+  USS Sabine (AO-25): keep
+  USS Shangri-La: keep
+  USS Stringham (DD-83): keep
+  USS Swearer: keep
+  USS William C. Miller: keep
+  USS Zeus (ARB-4): keep
+  Ursula Graham Bower: wrong
+  William E. Riley: keep
+  William Frederick Harris: keep
+  William O. Eareckson: keep
+  Ysmael R. Villegas: keep
+  Émile Lemonnier: wrong
+e5:
+  Battle of Guadalcanal order of battle: keep
+  Consolidated B-32 Dominator: keep
+  Hatsuo Hidaka: keep
+  Iwo Jima-class amphibious assault ship: wrong
+  Japanese Special Attack Units: keep
+  Japanese destroyer Sumire (1944): marginal
+  Japanese gunboat Nankai: keep
+  Japanese torpedo boat Hiyodori: keep
+  Kelat (ship): marginal
+  Kugisho B3Y: wrong
+  MS Awazisan Maru: wrong
+  Makoto Ogawa (pilot): keep
+  Muroto-class collier: marginal
+  Patrol torpedo boat PT-41: keep
+  Sinkyo Maru: keep
+  USS Balduck: marginal
+  USS Dauphin: keep
+  USS Doherty: keep
+  USS Frybarger: keep
+  USS Hobby: keep
+  USS John P. Gray: marginal
+  USS LST-925: keep
+  USS LST-939: keep
+  USS LST-959: keep
+  USS Mason (DE-529): wrong
+  USS Pope (DD-225): keep
+  USS S-29: wrong
+  USS Slater: wrong
+  USS Tolland: keep
+  USS Wren: keep
