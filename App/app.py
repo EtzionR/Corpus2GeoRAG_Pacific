@@ -109,8 +109,8 @@ POLL_INTERVAL_S = 0.2
 DEFAULT_CENTER = [15.0, 150.0]
 DEFAULT_ZOOM = 3
 
-# Suggestions with the real agent. In mock mode the buttons come from the agent's recorded
-# questions instead (Agent/geo_agent/mock_fixtures/*.json), so every one has a reply.
+# The same buttons with the real agent and in mock mode: each question has a recorded
+# reply in Agent/geo_agent/mock_fixtures/*.json, so the demo answers every one.
 SUGGESTED_QUESTIONS = [
     ("📍 Where was the Battle of Midway?", "Where did the Battle of Midway happen?"),
     ("⚔️ Who attacked Guadalcanal in 1942?", "Who attacked Guadalcanal in 1942?"),
@@ -118,10 +118,6 @@ SUGGESTED_QUESTIONS = [
     ("🗺️ Major Pacific battles", "Show me major battles in the Pacific War on the map"),
 ]
 SUGGESTIONS_PER_ROW = 4
-
-# Button icon by the fixture file's prefix (answer_midway.json -> "answer").
-FIXTURE_ICONS = {"answer": "📍", "both": "⚖️", "clarification": "❓", "followup": "↩️", "overview": "🗺️",
-                 "set": "🧭", "off": "🚫", "error": "💥"}
 
 WARNING_LABELS = {
     "low_confidence": "Low confidence",
@@ -419,33 +415,6 @@ def entity_label(res: Dict[str, Any], entity_id: str) -> str:
     return entity_id
 
 
-def _same_question(a: str, b: str) -> bool:
-    return re.sub(r"\W+", " ", a).strip().lower() == re.sub(r"\W+", " ", b).strip().lower()
-
-
-def recorded_questions() -> List[Tuple[str, str]]:
-    """In mock mode: (label, question) for every recorded question in Agent/geo_agent/mock_fixtures.
-
-    The mock loaded those JSON files (key -> {question, after, reply}). A follow-up such as
-    "Tarawa" only has a reply right after its first question on the same conversation,
-    so it is offered only then. Empty outside mock mode.
-    """
-    fixtures = getattr(runner.agent, "fixtures", None) if runner is not None and agent["mode"] == "mock" else None
-    if not isinstance(fixtures, dict):
-        return []
-    last_user = next((m["content"] for m in reversed(st.session_state.messages) if m["role"] == "user"), "")
-    out = []
-    for key, fx in fixtures.items():
-        question = fx.get("question")
-        if not question:
-            continue
-        parent = fixtures.get(fx.get("after")) if fx.get("after") else None
-        if fx.get("after") and not (parent and _same_question(last_user, parent.get("question", ""))):
-            continue
-        out.append((f"{FIXTURE_ICONS.get(key.split('_')[0], '💬')} {question}", question))
-    return out
-
-
 def render_entity_card(entity_id: str):
     """Details of one entity from the loaded graph. The excerpt is source text: shown as plain text."""
     card = runner.get_entity_feature(entity_id) if runner else None
@@ -580,19 +549,18 @@ st.markdown(f'<div class="main-header"><img src="data:image/svg+xml;base64,{_LOG
 st.markdown('<div class="subtitle">Transforms unstructured Wikipedia Pacific War corpora into a geographically-aware knowledge graph and interactive GeoRAG exploration</div>', unsafe_allow_html=True)
 
 # ==========================================
-# AGENT STATUS: shown only when something is wrong (mock mode, unavailable, failed health check)
+# AGENT STATUS: shown only when something is broken (agent unavailable, failed health check).
+# Mock mode looks the same as the real agent; the chat only notes it in one line.
 # ==========================================
 tile_choice = "OpenStreetMap (Standard)"
 
 health = runner.health() if runner else {}
-if agent["mode"] != "agent" or not health.get("ok"):
+if agent["mode"] == "unavailable" or (agent["mode"] == "agent" and not health.get("ok")):
     with st.container(border=True, key="top_bar"):
         col_status, col_retry = st.columns([6, 2])
         with col_status:
             if agent["mode"] == "agent":
                 st.warning("🟠 GeoRAG Agent loaded, but its health check failed")
-            elif agent["mode"] == "mock":
-                st.warning("🟠 Mock mode — recorded demo replies on the sample graph, no model calls.")
             else:
                 st.error("🔴 Agent unavailable — questions can't be answered.")
             if agent["reason"]:
@@ -608,15 +576,8 @@ if agent["mode"] != "agent" or not health.get("ok"):
 st.markdown('<div class="pipeline-line">Pipeline: Pacific Wikipedia Corpus → NER → Geocoding → KG → Agentic RAG → Folium</div>',
             unsafe_allow_html=True)
 
-recorded = recorded_questions()
-if recorded:
-    st.markdown("##### 🧪 Recorded demo questions (mock mode):")
-    st.caption("Questions and answers from the agent's `Agent/geo_agent/mock_fixtures` JSON files. "
-               "Any other question gets a \"no recorded reply\" message.")
-    suggestions = recorded
-else:
-    st.markdown("##### 💡 Suggested questions:")
-    suggestions = SUGGESTED_QUESTIONS
+st.markdown("##### 💡 Suggested questions:")
+suggestions = SUGGESTED_QUESTIONS
 
 for row_start in range(0, len(suggestions), SUGGESTIONS_PER_ROW):
     row = suggestions[row_start:row_start + SUGGESTIONS_PER_ROW]
@@ -640,6 +601,8 @@ with col_chat:
     with chat_box:
         if not st.session_state.messages:
             st.caption("Ask a question in English below or pick a suggestion. Answers appear here, and their places on the map.")
+            if agent["mode"] == "mock":
+                st.caption("Demo mode: recorded answers to the suggested questions.")
         # Message history: user text and agent answers are rendered as Markdown, never as raw HTML
         for msg in st.session_state.messages[-20:]:
             if msg["role"] == "user":
