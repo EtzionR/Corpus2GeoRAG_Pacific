@@ -149,12 +149,53 @@ ERROR_MESSAGES = {
 CONFIDENCE_COLORS = {"high": "green", "medium": "orange", "low": "red"}
 
 ROLE_STYLES = {
-    "answer": {"color": "#B91C1C", "fillColor": "#EF4444", "fillOpacity": 0.45, "weight": 3},
+    "answer": {"color": "#991B1B", "fillColor": "#B91C1C", "fillOpacity": 0.45, "weight": 3},
     "context": {"color": "#475569", "fillColor": "#94A3B8", "fillOpacity": 0.25, "weight": 2},
 }
+ROLE_LABELS = {"answer": "Answer", "context": "Context"}
 
 # Above this many point features the map clusters them (set questions can return up to 1,000).
 CLUSTER_THRESHOLD = 30
+
+# Map icon standard: one icon per entity type. A place drawn for a person, event or org
+# (geometry_source "related") shows that entity's icon. Inner SVG of a 24x24 stroke icon.
+ENTITY_TYPES = ["location", "event", "person", "org", "other"]
+TYPE_ALIASES = {"misc": "other"}  # the 10K graph says MISC where the sample says other
+TYPE_LABELS = {"location": "Locations", "event": "Events", "person": "People", "org": "Organizations",
+               "other": "Other"}
+TYPE_SINGULAR = {"location": "Location", "event": "Event", "person": "Person", "org": "Organization",
+                 "other": "Other"}
+TYPE_ICONS = {
+    "location": '<path d="M12 21s-6-5.6-6-10.2a6 6 0 1 1 12 0C18 15.4 12 21 12 21z"/><circle cx="12" cy="10.8" r="2.2"/>',
+    "event": '<path d="M5 5l11 11"/><path d="M19 5L8 16"/><path d="M14 18l4-4"/><path d="M10 18l-4-4"/>'
+             '<path d="M17 17l2.5 2.5"/><path d="M7 17l-2.5 2.5"/>',
+    "person": '<circle cx="12" cy="8" r="3.6"/><path d="M5 20.5c0-3.9 3.1-7 7-7s7 3.1 7 7"/>',
+    "org": '<path d="M6 21V3.5"/><path d="M6 4h11.5l-2.3 4 2.3 4H6"/>',
+    "other": '<path d="M12 3.5l8.5 8.5-8.5 8.5L3.5 12z"/>',
+}
+MARKER_SIZE = 30
+
+# Styles for the type markers and the legend, added to the map's own page.
+MAP_CSS = """
+<style>
+.c2g-marker { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; border: 2.5px solid; background: transparent;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1.5px #fff); }  /* hollow; a white halo keeps it readable on any tile */
+.c2g-marker svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.4;
+  stroke-linecap: round; stroke-linejoin: round; }
+.c2g-answer { color: #B91C1C; border-color: #B91C1C; }
+.c2g-context { color: #475569; border-color: #64748B; }
+.c2g-related { border-style: dashed; }
+.c2g-legend { position: fixed; right: 10px; bottom: 26px; z-index: 1000; background: rgba(13,20,22,.92);
+  color: #E6EEEA; border-radius: 8px; padding: 8px 10px; font: 12px/1.35 system-ui, sans-serif;
+  box-shadow: 0 1px 6px rgba(0,0,0,.4); }
+.c2g-legend-row { display: flex; align-items: center; gap: 7px; margin: 3px 0; }
+.c2g-legend .c2g-marker { width: 20px; height: 20px; border-width: 1.5px; filter: none; }
+.c2g-legend .c2g-answer { color: #F87171; border-color: #F87171; }
+.c2g-legend .c2g-marker svg { width: 12px; height: 12px; }
+.c2g-legend-note { color: #8FA39B; margin-top: 5px; border-top: 1px solid #23343A; padding-top: 5px; }
+</style>
+"""
 
 
 # ==========================================
@@ -495,6 +536,28 @@ def _feature_style(feature: Dict[str, Any]) -> Dict[str, Any]:
     return style
 
 
+def _entity_type(raw: Any) -> str:
+    """One of ENTITY_TYPES for a graph type string (anything unknown is "other")."""
+    t = str(raw or "").strip().lower()
+    t = TYPE_ALIASES.get(t, t)
+    return t if t in ENTITY_TYPES else "other"
+
+
+def _marker_html(etype: str, role: str, related: bool) -> str:
+    classes = f"c2g-marker c2g-{role}" + (" c2g-related" if related else "")
+    return f'<div class="{classes}"><svg viewBox="0 0 24 24" aria-hidden="true">{TYPE_ICONS[etype]}</svg></div>'
+
+
+def _legend_html(counts: Dict[str, int], has_related: bool) -> str:
+    """Static legend: whitelisted labels, integer counts and our own icons only."""
+    rows = "".join(
+        f'<div class="c2g-legend-row">{_marker_html(t, "answer", False)}<span>{TYPE_LABELS[t]} · {counts[t]}</span></div>'
+        for t in ENTITY_TYPES if counts.get(t))
+    note = ('<div class="c2g-legend-note">Red: answer · gray: context'
+            + ("<br>Dashed: shown at a linked place" if has_related else "") + "</div>")
+    return f'<div class="c2g-legend">{rows}{note}</div>'
+
+
 def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.Map:
     tiles = {
         "OpenStreetMap (Standard)": "OpenStreetMap",
@@ -509,6 +572,76 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.M
                    control_scale=True, prefer_canvas=True, world_copy_jump=True)
     if not fc["features"]:
         return m
+
+    # Each feature gets the type of what it stands for: its own type, or, for a place drawn
+    # on behalf of a person, event or org, that entity's type and name (from the graph).
+    cards: Dict[str, Optional[Dict[str, Any]]] = {}
+    groups: Dict[str, List[Dict[str, Any]]] = {t: [] for t in ENTITY_TYPES}
+    for f in fc["features"]:
+        props = f["properties"]
+        related_id = html.unescape(props.get("related_to") or "")
+        etype = _entity_type(html.unescape(props.get("type") or ""))
+        props["drawn_for"] = "—"
+        props["type_label"] = TYPE_SINGULAR[etype]
+        if related_id:
+            if related_id not in cards:
+                cards[related_id] = runner.get_entity_feature(related_id) if runner else None
+            card = cards[related_id] or {}
+            rtype = _entity_type(card.get("type") or related_id.split(":")[0])
+            etype = rtype  # the icon shows what the place stands for
+            props["drawn_for"] = html.escape(f"{card.get('name') or related_id} ({TYPE_SINGULAR[rtype]})")
+            props["type_label"] = "Location (linked place)"
+        props["_type"] = etype
+        props["role_label"] = ROLE_LABELS[props["role"]]
+        props["via"] = props.get("via") or "—"
+        groups[etype].append(f)
+
+    n_points = sum(1 for f in fc["features"] if f["geometry"].get("type") in ("Point", "MultiPoint"))
+    tooltip_fields = dict(fields=["name"], labels=False)
+    popup_fields = dict(fields=["name", "type_label", "role_label", "drawn_for", "via"],
+                        aliases=["Name", "Type", "Role", "Shown for", "Connected via"])
+
+    # One toggleable layer per type; inside it, one GeoJson per marker look (role x linked place).
+    for etype in ENTITY_TYPES:
+        feats = groups[etype]
+        if not feats:
+            continue
+        group = folium.FeatureGroup(name=f"{TYPE_LABELS[etype]} ({len(feats)})", show=True).add_to(m)
+        parent = MarkerCluster().add_to(group) if n_points > CLUSTER_THRESHOLD else group
+        points = [f for f in feats if f["geometry"].get("type") in ("Point", "MultiPoint")]
+        shapes = [f for f in feats if f not in points]
+        for role in ROLE_LABELS:
+            for related in (False, True):
+                subset = [f for f in points if f["properties"]["role"] == role and bool(f["properties"]["_dash"]) == related]
+                if not subset:
+                    continue
+                icon = folium.DivIcon(html=_marker_html(etype, role, related),
+                                      icon_size=(MARKER_SIZE, MARKER_SIZE),
+                                      icon_anchor=(MARKER_SIZE // 2, MARKER_SIZE // 2))
+                folium.GeoJson(
+                    {"type": "FeatureCollection", "features": subset},
+                    marker=folium.Marker(icon=icon),
+                    tooltip=folium.GeoJsonTooltip(**tooltip_fields),
+                    popup=folium.GeoJsonPopup(**popup_fields),
+                ).add_to(parent)
+        if shapes:
+            folium.GeoJson(
+                {"type": "FeatureCollection", "features": shapes},
+                style_function=_feature_style,
+                highlight_function=lambda _: {"weight": 4, "fillOpacity": 0.7},
+                tooltip=folium.GeoJsonTooltip(**tooltip_fields),
+                popup=folium.GeoJsonPopup(**popup_fields),
+            ).add_to(group)
+
+    counts = {t: len(groups[t]) for t in ENTITY_TYPES}
+    has_related = any(f["properties"]["_dash"] for f in fc["features"])
+    m.get_root().header.add_child(folium.Element(MAP_CSS))
+    m.get_root().html.add_child(folium.Element(_legend_html(counts, has_related)))
+
+    if bounds and not single_point:  # a single point keeps the readable zoom set above
+        m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
+    folium.LayerControl(position="topright", collapsed=False).add_to(m)
+    return m
 
     layer = folium.GeoJson(
         fc,
@@ -626,7 +759,8 @@ with col_map:
     folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice)
     map_state = st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, key="agent_map",
                           returned_objects=["last_active_drawing"])
-    st.caption("🔴 Answer · ⚪ Context · dashed outline: drawn at a linked place · click a place for its details")
+    st.caption("Icons show what each place stands for: a place, event, person, organization or other · "
+               "click one for its details · use the box at the top right to show or hide a type")
 
     # A click on a map feature opens it in the entity details panel below. The feature's
     # properties were HTML-escaped for the map, so the id is unescaped back.
