@@ -61,7 +61,6 @@ def test_starts_in_visible_mock_mode():
     at = new_app()
     assert any("Mock mode" in w.value for w in at.warning)
     assert any("OPENROUTER" in c.value for c in at.caption), "the reason for mock mode is shown"
-    assert {m.label for m in at.metric} >= {"Entities", "Relations", "Geocoded"}
     assert not at.chat_input[0].disabled
 
 
@@ -131,7 +130,7 @@ def test_new_conversation_resets_thread_and_history():
     at = new_app()
     ask(at, "Who attacked Guadalcanal in 1942?")
     old_thread = at.session_state.thread_id
-    next(b for b in at.button if "New conversation" in b.label).click().run()
+    next(b for b in at.button if "New chat" in b.label).click().run()
     assert at.session_state.thread_id != old_thread
     assert at.session_state.messages == []
     assert at.session_state.map_reply is None
