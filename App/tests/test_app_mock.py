@@ -57,18 +57,17 @@ def kind(reply: dict) -> str:
     return "answer" if reply["answer_ids"] else "clarification"
 
 
-def test_starts_in_visible_mock_mode():
+def test_mock_mode_looks_like_the_real_app():
     at = new_app()
-    assert any("Mock mode" in w.value for w in at.warning)
-    assert any("OPENROUTER" in c.value for c in at.caption), "the reason for mock mode is shown"
+    assert not at.warning and not at.error, "no status box in mock mode"
+    assert any("Demo mode" in c.value for c in at.caption), "the chat notes it is a demo"
     assert not at.chat_input[0].disabled
 
 
-def test_every_recorded_question_button_gets_its_reply():
+def test_every_suggestion_button_gets_its_recorded_reply():
     at = new_app()
     labels = [b.label for b in suggestion_buttons(at)]
-    assert len(labels) >= 8
-    assert not any("Tarawa" in label for label in labels), "a follow-up is offered only after its question"
+    assert len(labels) == 4, "the same four suggestions as with the real agent"
     for label in labels:
         at = new_app()
         next(b for b in suggestion_buttons(at) if b.label == label).click().run()
@@ -82,13 +81,9 @@ def test_clarification_follow_up_keeps_the_conversation():
     at = new_app()
     thread_id = at.session_state.thread_id
     assert kind(ask(at, "What happened in the battle at Tara?")) == "clarification"
-    follow_up = [b for b in suggestion_buttons(at) if "Tarawa" in b.label]
-    assert follow_up, "the follow-up button appears after the clarification"
-    follow_up[0].click().run()
-    reply = at.session_state.last_reply
-    assert kind(reply) == "answer"
+    assert kind(ask(at, "Tarawa")) == "answer", "the follow-up is answered in the same conversation"
     assert at.session_state.thread_id == thread_id
-    assert not any("Tarawa" in b.label for b in suggestion_buttons(at))
+    assert len(at.session_state.messages) == 4
 
 
 def test_all_reply_kinds_match_the_agent_contract():
