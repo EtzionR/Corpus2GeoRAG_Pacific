@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 120" width="640" height="120" role="img" aria-label="Corpus2GeoRAG">
+  <g transform="translate(0 0) scale(0.6)">
+    <ellipse cx="100" cy="166" rx="54" ry="15" fill="none" stroke="#B8C7C0" stroke-width="5" opacity="0.6"/>
+    <path d="M100 12 C66 12 44 38 44 70 C44 110 100 166 100 166 C100 166 156 110 156 70 C156 38 134 12 100 12 Z" pathLength="100" stroke-dasharray="0 4 14 8 48 8 14 4" fill="none" stroke="#5FE39A" stroke-width="12" stroke-linejoin="round"/>
+    <g stroke="#5FE39A" stroke-width="10" stroke-linecap="square"><line x1="30" y1="67" x2="60" y2="67"/><line x1="140" y1="67" x2="170" y2="67"/><line x1="100" y1="0" x2="100" y2="30"/></g>
+    <g transform="translate(100 84) scale(0.72) translate(-110 -96)" fill="#E6EEEA" stroke="#E6EEEA" stroke-linejoin="round">
+      <path d="M98 64 C98 56 103 52 110 52 C117 52 122 56 122 64 L126 66 L94 66 Z"/>
+      <ellipse cx="110" cy="72" rx="8" ry="7"/>
+      <path d="M100 79 L120 79 L123 110 L97 110 Z"/>
+      <line x1="88" y1="112" x2="136" y2="64" stroke-width="9" stroke-linecap="round"/>
+      <path d="M98 110 L109 110 L107 141 L96 141 Z"/>
+      <path d="M111 110 L122 110 L128 141 L117 141 Z"/>
+    </g>
+  </g>
+  <text x="136" y="76" font-family="'Chakra Petch', 'Rajdhani', 'Segoe UI', sans-serif" font-size="46" font-weight="700" letter-spacing="3" fill="#E6EEEA">CORPUS2GEO <tspan fill="#5E7B75">//</tspan> <tspan fill="#5FE39A">RAG</tspan></text>
+</svg>

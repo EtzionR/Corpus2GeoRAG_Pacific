@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Corpus2GeoRAG">
+  <g fill="none" stroke="#B8C7C0">
+    <ellipse cx="100" cy="166" rx="86" ry="24" stroke-width="1.5" opacity="0.3"/>
+    <ellipse cx="100" cy="166" rx="60" ry="16" stroke-width="1.5" opacity="0.5"/>
+    <ellipse cx="100" cy="166" rx="34" ry="9" stroke-width="2" opacity="0.8"/>
+  </g>
+  <path d="M100 12 C66 12 44 38 44 70 C44 110 100 166 100 166 C100 166 156 110 156 70 C156 38 134 12 100 12 Z" pathLength="100" stroke-dasharray="0 3 15 6 52 6 15 3" fill="none" stroke="#5FE39A" stroke-width="6" stroke-linejoin="round"/>
+  <g stroke="#5FE39A" stroke-width="5" stroke-linecap="square">
+    <line x1="34" y1="65" x2="58" y2="65"/>
+    <line x1="142" y1="65" x2="166" y2="65"/>
+    <line x1="100" y1="2" x2="100" y2="28"/>
+  </g>
+  <g transform="translate(100 84) scale(0.72) translate(-110 -96)" fill="#E6EEEA" stroke="#E6EEEA" stroke-linejoin="round">
+    <path d="M98 64 C98 56 103 52 110 52 C117 52 122 56 122 64 L126 66 L94 66 Z"/>
+    <ellipse cx="110" cy="72" rx="7" ry="6"/>
+    <path d="M100 79 L120 79 L123 110 L97 110 Z"/>
+    <path d="M118 80 L129 89 L125 93 L115 86 Z"/>
+    <path d="M102 80 L97 101 L102 103 L106 85 Z"/>
+    <line x1="88" y1="112" x2="136" y2="64" stroke-width="6" stroke-linecap="round"/>
+    <path d="M98 110 L109 110 L107 141 L96 141 Z"/>
+    <path d="M111 110 L122 110 L128 141 L117 141 Z"/>
+  </g>
+  <circle cx="100" cy="166" r="4" fill="#5FE39A"/>
+</svg>
