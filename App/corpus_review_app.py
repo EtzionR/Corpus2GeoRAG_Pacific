@@ -24,7 +24,7 @@ OVERRIDES_PATH = CONFIG / "overrides.yaml"
 AUDIT_PATH = CONFIG / "corpus_audit.yaml"
 EVAL_PATH = CONFIG / "eval_set.yaml"
 EVAL_DRAFTS_PATH = ROOT / "Processing" / "reports" / "eval_log.tsv"
-CORPUS_PATH = ROOT / "Data" / "corpus.json"
+CORPUS_PATH = ROOT / "Data" / "corpus_paragraphs.parquet"
 AUDIT_LABELS = ["keep", "marginal", "wrong"]
 
 st.set_page_config(page_title="Pacific War Corpus", page_icon="⚓", layout="wide")
@@ -178,13 +178,14 @@ with overview_tab:
 
     st.markdown(
         "#### The Corpus\n"
-        "The **Corpus** is the deliverable: `Data/corpus.json`, one JSON file mapping each English Wikipedia "
-        "article title to its full, raw article text (wikitext), for every article about the war between the "
+        "The **Corpus** is the deliverable: `Data/corpus_paragraphs.parquet`, one Parquet file mapping each "
+        "English Wikipedia article's Wikidata id to its full, raw article text (wikitext), for every "
+        "article about the war between the "
         "**United States and Japan in WWII** (battles, people, ships, units, aircraft, weapons, places, events).")
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("In the Corpus", f"{len(corpus):,}",
-              help=f"Articles in corpus.json now: {by_rules:,} by the rules + {by_ai:,} by the AI check"
+              help=f"Articles in the Corpus now: {by_rules:,} by the rules + {by_ai:,} by the AI check"
                    + (f" + {by_override:,} by your overrides" if by_override else "")
                    + f". The {waiting:,} articles waiting for review are not included yet.")
     c2.metric("Examined", f"{len(rows):,}",
@@ -195,7 +196,7 @@ with overview_tab:
     c4.metric("Gold recall", f"{in_gold}/{len(gold)}",
               help="A hand-picked must-have list (Midway, Nimitz, Yamato, Enola Gay…). Every one must be in the Corpus.")
     c5.metric("Corpus file", f"{CORPUS_PATH.stat().st_size / 1e6:,.0f} MB" if CORPUS_PATH.exists() else "–",
-              help="Size of Data/corpus.json.")
+              help="Size of Data/corpus_paragraphs.parquet.")
 
     with st.expander(f"Where do the {len(corpus):,} articles come from?", expanded=True):
         breakdown = pd.DataFrame([

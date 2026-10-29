@@ -11,4 +11,5 @@ numpy
 streamlit
 altair
 pandas
+pyarrow
 pytest
