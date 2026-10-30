@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "node_count": 268703,
+  "pair_count": 131034512,
+  "raw_shared_page_count_sum": 175316858,
+  "node_rows_sha256": "3fe20d8f07f477a61b463650f43741bfa0fca1245ffc7e936632117b3eea8479",
+  "pair_rows_sha256": "6e0289425a05e9e3c510d0a17a31cdce4a1547a3eed594201e31aa27c3fd8928",
+  "parquet_sha256": "0e82b85a880ce2f57e6d47b92531f5eac05be2ca58213e264d873c0d84efd5bd",
+  "manifest_sha256": "7003439637ad8cd66d3ed5a4802fdd784a04c81772dd11caa2e282638348e714",
+  "metadata_revision": "RESTORE_CONTRACT_AND_CODE_PROVENANCE_ONLY; PARQUET_VALUES_UNCHANGED",
+  "initial_value_verification_sha256": "ca760af8b0daf2bdf8e43a362eb308b9c655c23ce1e001cfd3202d68f8c68e31"
+}
