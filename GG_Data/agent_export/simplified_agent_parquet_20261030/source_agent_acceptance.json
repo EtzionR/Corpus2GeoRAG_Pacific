@@ -1,0 +1,1340 @@
+{
+  "status": "PASS",
+  "verified_at_utc": "2026-10-30T14:29:22.327633+00:00",
+  "graph_sha256": "2c5d87879d7a870a23cfa025b927d0ad7344383f71453c3f74547de6bd11882f",
+  "index_sha256": "6d05b8996777e7f504eaa6f16e85947f32b1073be08fbb92e4bf2b0669ae4c0e",
+  "verification": "ALL_PAIRS_MEMBERSHIP_WEIGHTS_UNIQUENESS_AND_CONSERVATION",
+  "node_count": 268703,
+  "coverage": {
+    "pair_count": 131034512,
+    "raw_shared_page_count_sum": 175316858,
+    "expected_raw_shared_page_count_sum": 175316858,
+    "pair_categories": {
+      "event|location": 781453,
+      "location|person": 13425478,
+      "location|org": 14634481,
+      "location|misc": 12719997,
+      "location|location": 6094941,
+      "event|misc": 970854,
+      "misc|person": 15567171,
+      "misc|org": 16238049,
+      "misc|misc": 8571781,
+      "event|org": 1054440,
+      "org|person": 17915195,
+      "org|org": 10045134,
+      "event|person": 1129289,
+      "person|person": 11841608,
+      "event|event": 44641
+    },
+    "category_samples": {
+      "event|location": [
+        0,
+        268686
+      ],
+      "location|person": [
+        0,
+        267231
+      ],
+      "location|org": [
+        0,
+        178537
+      ],
+      "location|misc": [
+        0,
+        100471
+      ],
+      "location|location": [
+        0,
+        40793
+      ],
+      "event|misc": [
+        41406,
+        268689
+      ],
+      "misc|person": [
+        41406,
+        260259
+      ],
+      "misc|org": [
+        41406,
+        176512
+      ],
+      "misc|misc": [
+        41406,
+        97801
+      ],
+      "event|org": [
+        100882,
+        268366
+      ],
+      "org|person": [
+        100882,
+        266996
+      ],
+      "org|org": [
+        100882,
+        176892
+      ],
+      "event|person": [
+        179241,
+        268686
+      ],
+      "person|person": [
+        179241,
+        267071
+      ],
+      "event|event": [
+        267915,
+        268601
+      ]
+    },
+    "pair_rows_sha256": "6e0289425a05e9e3c510d0a17a31cdce4a1547a3eed594201e31aa27c3fd8928"
+  },
+  "schema": {
+    "node_count": 268703,
+    "edge_count": 262069024,
+    "assertion_count": 131034512,
+    "node_types": {
+      "location": 41406,
+      "misc": 59476,
+      "org": 78359,
+      "person": 88674,
+      "event": 788
+    },
+    "relation_types": {
+      "CO_OCCURS_ON_PAGE": 262069024
+    },
+    "date_range": null,
+    "bbox": null,
+    "relation_semantics": "PAGE_CO_OCCURRENCE_ONLY",
+    "strength_rule": "shared_page_count / distinct_pages_containing_source",
+    "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+    "geography_status": "PENDING_LAST_STAGE"
+  },
+  "tool_checks": [
+    {
+      "category": "event|event",
+      "id": "pair:267915:268601:267915",
+      "assertion_id": "pair:267915:268601",
+      "source": {
+        "id": "event:Q22082245",
+        "name": "1 November 1944 reconnaissance sortie over Japan",
+        "type": "event"
+      },
+      "target": {
+        "id": "event:Q371573",
+        "name": "Philippines campaign of 1944–1945",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 5,
+      "target_page_count": 354,
+      "strength": 0.2,
+      "reverse_strength": 0.002824858757062147,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        3326
+      ],
+      "sources": [
+        "Japanese air attacks on the Mariana Islands"
+      ],
+      "source_pages": [
+        {
+          "page_index": 3326,
+          "source_key": "Q6158351",
+          "title": "Japanese air attacks on the Mariana Islands",
+          "wiki_page_id": 30267125,
+          "revision_id": 1379764812
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|event",
+      "id": "pair:267915:268601:268601",
+      "assertion_id": "pair:267915:268601",
+      "source": {
+        "id": "event:Q371573",
+        "name": "Philippines campaign of 1944–1945",
+        "type": "event"
+      },
+      "target": {
+        "id": "event:Q22082245",
+        "name": "1 November 1944 reconnaissance sortie over Japan",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 354,
+      "target_page_count": 5,
+      "strength": 0.002824858757062147,
+      "reverse_strength": 0.2,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        3326
+      ],
+      "sources": [
+        "Japanese air attacks on the Mariana Islands"
+      ],
+      "source_pages": [
+        {
+          "page_index": 3326,
+          "source_key": "Q6158351",
+          "title": "Japanese air attacks on the Mariana Islands",
+          "wiki_page_id": 30267125,
+          "revision_id": 1379764812
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|location",
+      "id": "pair:0:268686:0",
+      "assertion_id": "pair:0:268686",
+      "source": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "target": {
+        "id": "event:Q362",
+        "name": "World War II",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 4419,
+      "strength": 1.0,
+      "reverse_strength": 0.00022629554197782303,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|location",
+      "id": "pair:0:268686:268686",
+      "assertion_id": "pair:0:268686",
+      "source": {
+        "id": "event:Q362",
+        "name": "World War II",
+        "type": "event"
+      },
+      "target": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 4419,
+      "target_page_count": 1,
+      "strength": 0.00022629554197782303,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|misc",
+      "id": "pair:41406:268689:41406",
+      "assertion_id": "pair:41406:268689",
+      "source": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "target": {
+        "id": "event:Q488",
+        "name": "atomic bombings of Hiroshima and Nagasaki",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 180,
+      "strength": 1.0,
+      "reverse_strength": 0.005555555555555556,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|misc",
+      "id": "pair:41406:268689:268689",
+      "assertion_id": "pair:41406:268689",
+      "source": {
+        "id": "event:Q488",
+        "name": "atomic bombings of Hiroshima and Nagasaki",
+        "type": "event"
+      },
+      "target": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 180,
+      "target_page_count": 1,
+      "strength": 0.005555555555555556,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|org",
+      "id": "pair:100882:268366:100882",
+      "assertion_id": "pair:100882:268366",
+      "source": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "target": {
+        "id": "event:Q217145",
+        "name": "Guadalcanal campaign",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 719,
+      "strength": 1.0,
+      "reverse_strength": 0.0013908205841446453,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|org",
+      "id": "pair:100882:268366:268366",
+      "assertion_id": "pair:100882:268366",
+      "source": {
+        "id": "event:Q217145",
+        "name": "Guadalcanal campaign",
+        "type": "event"
+      },
+      "target": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 719,
+      "target_page_count": 1,
+      "strength": 0.0013908205841446453,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|person",
+      "id": "pair:179241:268686:179241",
+      "assertion_id": "pair:179241:268686",
+      "source": {
+        "id": "ent:04ce99d27272388272ed883d0e84cef346ea1b686ea262af09ea8eba1fac825d",
+        "name": "\" ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "target": {
+        "id": "event:Q362",
+        "name": "World War II",
+        "type": "event"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 4419,
+      "strength": 1.0,
+      "reverse_strength": 0.00022629554197782303,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5329
+      ],
+      "sources": [
+        "USS Samuel B. Roberts (DE-413)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5329,
+          "source_key": "Q787851",
+          "title": "USS Samuel B. Roberts (DE-413)",
+          "wiki_page_id": 846554,
+          "revision_id": 1378283390
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "event|person",
+      "id": "pair:179241:268686:268686",
+      "assertion_id": "pair:179241:268686",
+      "source": {
+        "id": "event:Q362",
+        "name": "World War II",
+        "type": "event"
+      },
+      "target": {
+        "id": "ent:04ce99d27272388272ed883d0e84cef346ea1b686ea262af09ea8eba1fac825d",
+        "name": "\" ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 4419,
+      "target_page_count": 1,
+      "strength": 0.00022629554197782303,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5329
+      ],
+      "sources": [
+        "USS Samuel B. Roberts (DE-413)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5329,
+          "source_key": "Q787851",
+          "title": "USS Samuel B. Roberts (DE-413)",
+          "wiki_page_id": 846554,
+          "revision_id": 1378283390
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|location",
+      "id": "pair:0:40793:0",
+      "assertion_id": "pair:0:40793",
+      "source": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "target": {
+        "id": "ent:1bc504c8b6ae7e8c362360e8d21b133b30c47808547cac17a1b7c3312ad3ccd0",
+        "name": "ZINNIA",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|location",
+      "id": "pair:0:40793:40793",
+      "assertion_id": "pair:0:40793",
+      "source": {
+        "id": "ent:1bc504c8b6ae7e8c362360e8d21b133b30c47808547cac17a1b7c3312ad3ccd0",
+        "name": "ZINNIA",
+        "type": "location"
+      },
+      "target": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|misc",
+      "id": "pair:0:100471:0",
+      "assertion_id": "pair:0:100471",
+      "source": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "target": {
+        "id": "ent:42576b370980f4de5f6687a37878a36ad9657b4ae066276a7c5baec2f3aefe0d",
+        "name": "the Brave",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|misc",
+      "id": "pair:0:100471:100471",
+      "assertion_id": "pair:0:100471",
+      "source": {
+        "id": "ent:42576b370980f4de5f6687a37878a36ad9657b4ae066276a7c5baec2f3aefe0d",
+        "name": "the Brave",
+        "type": "misc"
+      },
+      "target": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|org",
+      "id": "pair:0:178537:0",
+      "assertion_id": "pair:0:178537",
+      "source": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "target": {
+        "id": "ent:285d492a60c076bbc6ab9a7d5ef6b997be75258c71505a9d85e4a7a0973793da",
+        "name": "joint",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|org",
+      "id": "pair:0:178537:178537",
+      "assertion_id": "pair:0:178537",
+      "source": {
+        "id": "ent:285d492a60c076bbc6ab9a7d5ef6b997be75258c71505a9d85e4a7a0973793da",
+        "name": "joint",
+        "type": "org"
+      },
+      "target": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|person",
+      "id": "pair:0:267231:0",
+      "assertion_id": "pair:0:267231",
+      "source": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "target": {
+        "id": "ent:8ef1ed9151bb43aa576ca51a3fea0d5c2a4e1b520f5f0ddd51641732ba00fe6d",
+        "name": "warrant officer",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 2,
+      "strength": 1.0,
+      "reverse_strength": 0.5,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "location|person",
+      "id": "pair:0:267231:267231",
+      "assertion_id": "pair:0:267231",
+      "source": {
+        "id": "ent:8ef1ed9151bb43aa576ca51a3fea0d5c2a4e1b520f5f0ddd51641732ba00fe6d",
+        "name": "warrant officer",
+        "type": "person"
+      },
+      "target": {
+        "id": "ent:f22cb1494b9d6a40246fb9b6509da48ca27afdefc98312378424b0ddf2e71496",
+        "name": "#1",
+        "type": "location"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 2,
+      "target_page_count": 1,
+      "strength": 0.5,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5335
+      ],
+      "sources": [
+        "United States Marine Corps Amphibious Reconnaissance Battalion"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5335,
+          "source_key": "Q7890712",
+          "title": "United States Marine Corps Amphibious Reconnaissance Battalion",
+          "wiki_page_id": 17650926,
+          "revision_id": 1382602425
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|misc",
+      "id": "pair:41406:97801:41406",
+      "assertion_id": "pair:41406:97801",
+      "source": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "target": {
+        "id": "ent:33f105c3680d0cb6599510f226eaa6385a2c0baec4f969cb28c6707b3c4030b1",
+        "name": "World War II",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 5589,
+      "strength": 1.0,
+      "reverse_strength": 0.0001789228842368939,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|misc",
+      "id": "pair:41406:97801:97801",
+      "assertion_id": "pair:41406:97801",
+      "source": {
+        "id": "ent:33f105c3680d0cb6599510f226eaa6385a2c0baec4f969cb28c6707b3c4030b1",
+        "name": "World War II",
+        "type": "misc"
+      },
+      "target": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 5589,
+      "target_page_count": 1,
+      "strength": 0.0001789228842368939,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|org",
+      "id": "pair:41406:176512:41406",
+      "assertion_id": "pair:41406:176512",
+      "source": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "target": {
+        "id": "ent:7ad4612505bf51831abdf93e0315d74ec401bb9f7c72648b14f2f28cc662ceef",
+        "name": "Web Publishing Company",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|org",
+      "id": "pair:41406:176512:176512",
+      "assertion_id": "pair:41406:176512",
+      "source": {
+        "id": "ent:7ad4612505bf51831abdf93e0315d74ec401bb9f7c72648b14f2f28cc662ceef",
+        "name": "Web Publishing Company",
+        "type": "org"
+      },
+      "target": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|person",
+      "id": "pair:41406:260259:41406",
+      "assertion_id": "pair:41406:260259",
+      "source": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "target": {
+        "id": "ent:a57c8a22d0895e8c5eeafcef3891cc76add6b1034d443b55145460ee96294644",
+        "name": "Wallace Burke",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "misc|person",
+      "id": "pair:41406:260259:260259",
+      "assertion_id": "pair:41406:260259",
+      "source": {
+        "id": "ent:a57c8a22d0895e8c5eeafcef3891cc76add6b1034d443b55145460ee96294644",
+        "name": "Wallace Burke",
+        "type": "person"
+      },
+      "target": {
+        "id": "ent:3331964383afeb8db0605a400e3cba86864406facf29794d6f4945f9df500729",
+        "name": "\" Caron Story",
+        "type": "misc"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1975
+      ],
+      "sources": [
+        "George R. Caron"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1975,
+          "source_key": "Q3101846",
+          "title": "George R. Caron",
+          "wiki_page_id": 27015290,
+          "revision_id": 1380307935
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "org|org",
+      "id": "pair:100882:176892:100882",
+      "assertion_id": "pair:100882:176892",
+      "source": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "target": {
+        "id": "ent:7bc3fca456c392c8c4ad1bb259b30dc62e787825e56c0706082fdc1849960a0a",
+        "name": "White\" Force",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "org|org",
+      "id": "pair:100882:176892:176892",
+      "assertion_id": "pair:100882:176892",
+      "source": {
+        "id": "ent:7bc3fca456c392c8c4ad1bb259b30dc62e787825e56c0706082fdc1849960a0a",
+        "name": "White\" Force",
+        "type": "org"
+      },
+      "target": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "org|person",
+      "id": "pair:100882:266996:100882",
+      "assertion_id": "pair:100882:266996",
+      "source": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "target": {
+        "id": "ent:212a50bce4fda126ffea0a124e3f9bc58e0587d63b97085853a3e5dc1d8d5b90",
+        "name": "the Honorable [[Jesse I. Straus",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "org|person",
+      "id": "pair:100882:266996:266996",
+      "assertion_id": "pair:100882:266996",
+      "source": {
+        "id": "ent:212a50bce4fda126ffea0a124e3f9bc58e0587d63b97085853a3e5dc1d8d5b90",
+        "name": "the Honorable [[Jesse I. Straus",
+        "type": "person"
+      },
+      "target": {
+        "id": "ent:b48ffe9e521d3c2939951112e3bc8c01d1b63b6662f84248687971b1fc3aca3c",
+        "name": "\" Fleet",
+        "type": "org"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        1951
+      ],
+      "sources": [
+        "USS Aylwin (DD-355)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 1951,
+          "source_key": "Q3016728",
+          "title": "USS Aylwin (DD-355)",
+          "wiki_page_id": 2571472,
+          "revision_id": 1377695263
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "person|person",
+      "id": "pair:179241:267071:179241",
+      "assertion_id": "pair:179241:267071",
+      "source": {
+        "id": "ent:04ce99d27272388272ed883d0e84cef346ea1b686ea262af09ea8eba1fac825d",
+        "name": "\" ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "target": {
+        "id": "ent:c34b3a3d87cff6cfed6b86ca917fe49dcb97f14d2e7ac538fb61efde559d6e33",
+        "name": "to ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5329
+      ],
+      "sources": [
+        "USS Samuel B. Roberts (DE-413)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5329,
+          "source_key": "Q787851",
+          "title": "USS Samuel B. Roberts (DE-413)",
+          "wiki_page_id": 846554,
+          "revision_id": 1378283390
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    },
+    {
+      "category": "person|person",
+      "id": "pair:179241:267071:267071",
+      "assertion_id": "pair:179241:267071",
+      "source": {
+        "id": "ent:c34b3a3d87cff6cfed6b86ca917fe49dcb97f14d2e7ac538fb61efde559d6e33",
+        "name": "to ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "target": {
+        "id": "ent:04ce99d27272388272ed883d0e84cef346ea1b686ea262af09ea8eba1fac825d",
+        "name": "\" ''Samuel B. Roberts",
+        "type": "person"
+      },
+      "relation": "CO_OCCURS_ON_PAGE",
+      "count": 1,
+      "shared_page_count": 1,
+      "source_page_count": 1,
+      "target_page_count": 1,
+      "strength": 1.0,
+      "reverse_strength": 1.0,
+      "denominator_unit": "distinct_source_pages",
+      "shared_page_indices": [
+        5329
+      ],
+      "sources": [
+        "USS Samuel B. Roberts (DE-413)"
+      ],
+      "source_pages": [
+        {
+          "page_index": 5329,
+          "source_key": "Q787851",
+          "title": "USS Samuel B. Roberts (DE-413)",
+          "wiki_page_id": 846554,
+          "revision_id": 1378283390
+        }
+      ],
+      "page_scope_id": "4f3a6bd0aef0f6956e2fc2eb86a03ab50f6d5d13c2e1c8dec3e6381c6e80cf34",
+      "semantics": "PAGE_CO_OCCURRENCE_ONLY"
+    }
+  ],
+  "asynchronous_tool_checks": 30,
+  "llm_invoked": false,
+  "geography_status": "PENDING_LAST_STAGE",
+  "geography": {
+    "locations": 41406,
+    "status_counts": {
+      "PENDING_LAST_STAGE": 41406
+    },
+    "geometry_types": {},
+    "geometry_rows_sha256": "d31d88168f2cee1a54652669441e324f50ccf133ee4d952e3d5190d0de4902dc",
+    "spatial_checks": []
+  },
+  "agent_code_sha256": {
+    "__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "agent.py": "1e700fffb40119f90e8c768870dac5ca8c9cc46df4449b65c7301f387b451b26",
+    "compact_dates.py": "08b77809cf3de970f1f2c31969f2e83fc32fd91575d25f6cf69f6e01b868c2c0",
+    "compact_format.py": "c58c584626dd8c2093ce1c5540ab97e9f77320b894d4e4fa9b6d300330904856",
+    "compact_store.py": "9ae7078f023a9752cc1c53e894e67f70f9302d145fc275b3dd72297eb4926689",
+    "graph_store.py": "e5c6e6c70a1c42c8941ab79847153be404ec4a475c36cc13da3a11f73b721b75",
+    "model_dates.py": "4a00c6c566a3a8627cf6f06a8b9c2025e3dce75c5a41d506384b6519f11d7c46",
+    "tools.py": "c9ac5538bc1d633e7123e38f8800d17526fb4dd49e16f50622e5c0a45d265c62",
+    "trace.py": "b63b2e19d6a744155ae511345af6370575af98b60c0c28f34d090b00e4bf0c4f",
+    "verify_compact.py": "7058ef347519a1105f2aaf04b6f73beaaefa56ba47a394e92886c6a139d2bbb8"
+  }
+}
