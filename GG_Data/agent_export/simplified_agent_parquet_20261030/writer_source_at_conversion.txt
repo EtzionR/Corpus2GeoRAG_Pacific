@@ -1,0 +1,283 @@
+"""Lossless typed Parquet transport for the complete compact Agent graph."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import struct
+from pathlib import Path
+
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+from Agent.geo_agent.compact_format import FORMAT, records, write_graph
+
+from .poc import digest, read_json
+from .simplified_agent import write_object
+
+LOG = logging.getLogger(__name__)
+PREFIX = "geoai."
+PROOF = "ALL_PAIRS_MEMBERSHIP_WEIGHTS_UNIQUENESS_AND_CONSERVATION"
+SCHEMA = pa.schema(
+    [
+        ("record_type", pa.string()),
+        ("node_index", pa.int64()),
+        ("node_json", pa.string()),
+        ("source_index", pa.int64()),
+        ("target_index", pa.int64()),
+        ("shared_page_count", pa.int64()),
+        ("strength_source_target", pa.float64()),
+        ("strength_target_source", pa.float64()),
+    ]
+)
+PAIR_NAMES = SCHEMA.names[3:]
+
+
+def node_bytes(node: dict) -> bytes:
+    return (
+        json.dumps(
+            node,
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def footer(path: Path) -> dict:
+    metadata = pq.ParquetFile(path).schema_arrow.metadata or {}
+    try:
+        result = {
+            key: json.loads(metadata[(PREFIX + key).encode()])
+            for key in ["format", "source_graph_sha256", "graph_metadata"]
+        }
+    except (KeyError, ValueError) as exc:
+        raise ValueError("Missing Parquet transport metadata") from exc
+    if result["format"] != FORMAT:
+        raise ValueError("Unsupported original graph format")
+    return result
+
+
+def verify(path: Path, expected: dict) -> dict:
+    """Read every typed value and compare complete ordered digests/counts."""
+    info = footer(path)
+    if (
+        info["source_graph_sha256"] != expected["source_graph_sha256"]
+        or info["graph_metadata"] != expected["graph_metadata"]
+    ):
+        raise ValueError("Parquet metadata/source binding differs")
+    file = pq.ParquetFile(path)
+    if file.schema_arrow.remove_metadata() != SCHEMA:
+        raise ValueError("Parquet transport schema differs")
+    node_hash, pair_hash = hashlib.sha256(), hashlib.sha256()
+    nodes = pairs = raw_sum = 0
+    for batch in file.iter_batches(batch_size=100000, use_threads=False):
+        for row in batch.to_pylist():
+            if row["record_type"] == "node":
+                if (
+                    pairs
+                    or row["node_index"] != nodes
+                    or any(row[k] is not None for k in PAIR_NAMES)
+                ):
+                    raise ValueError("Invalid node order/null fields")
+                node_hash.update(node_bytes(json.loads(row["node_json"])))
+                nodes += 1
+            elif row["record_type"] == "pair":
+                if (
+                    nodes != info["graph_metadata"]["node_count"]
+                    or row["node_index"] is not None
+                    or row["node_json"] is not None
+                ):
+                    raise ValueError("Invalid pair order/null fields")
+                values = [row[k] for k in PAIR_NAMES]
+                try:
+                    pair_hash.update(struct.pack("<qqqdd", *values))
+                except (TypeError, struct.error) as exc:
+                    raise ValueError("Invalid typed pair") from exc
+                raw_sum += values[2]
+                pairs += 1
+            else:
+                raise ValueError("Unknown Parquet record type")
+        if pairs and pairs % 10000000 == 0:
+            LOG.info("Parquet values read back: %s pairs", pairs)
+    result = dict(
+        node_count=nodes,
+        pair_count=pairs,
+        raw_shared_page_count_sum=raw_sum,
+        node_rows_sha256=node_hash.hexdigest(),
+        pair_rows_sha256=pair_hash.hexdigest(),
+    )
+    if any(result[k] != expected[k] for k in result):
+        raise ValueError("Parquet complete value proof differs")
+    return result
+
+
+def convert(
+    graph: Path, acceptance: Path, output: Path, *, batch_size: int = 100000
+) -> dict:
+    """Write one Parquet file, then verify every value before publishing it."""
+    graph, acceptance, output = map(Path, (graph, acceptance, output))
+    if output.exists():
+        raise FileExistsError(output)
+    if not 1 <= batch_size <= 100000:
+        raise ValueError("Batch size outside bounded range")
+    proof = read_json(acceptance)
+    graph_sha = digest(graph)
+    if (
+        proof.get("status") != "PASS"
+        or proof.get("verification") != PROOF
+        or proof.get("graph_sha256") != graph_sha
+    ):
+        raise ValueError("Full Agent acceptance does not bind source graph")
+    reader = records(graph)
+    _, metadata = next(reader)
+    if (
+        metadata["node_count"] != proof["node_count"]
+        or metadata["pair_count"] != proof["coverage"]["pair_count"]
+    ):
+        raise ValueError("Accepted source population differs")
+    transport = dict(
+        format=FORMAT, source_graph_sha256=graph_sha, graph_metadata=metadata
+    )
+    schema = SCHEMA.with_metadata(
+        {
+            (PREFIX + k)
+            .encode(): json.dumps(v, ensure_ascii=False, allow_nan=False)
+            .encode("utf-8")
+            for k, v in transport.items()
+        }
+    )
+    pa.set_cpu_count(2)
+    pa.set_io_thread_count(2)
+    output.mkdir(parents=True)
+    target, temporary = output / "graph.parquet", output / "graph.parquet.part"
+    node_hash, pair_hash = hashlib.sha256(), hashlib.sha256()
+    nodes = pairs = raw_sum = 0
+    rows = []
+    with pq.ParquetWriter(
+        temporary,
+        schema,
+        compression="zstd",
+        use_dictionary=["record_type"],
+        compression_level=3,
+    ) as writer:
+        for kind, value in reader:
+            if kind == "node":
+                rows.append(
+                    dict(
+                        record_type="node",
+                        node_index=nodes,
+                        node_json=json.dumps(
+                            value,
+                            ensure_ascii=False,
+                            separators=(",", ":"),
+                            allow_nan=False,
+                        ),
+                    )
+                )
+                node_hash.update(node_bytes(value))
+                nodes += 1
+            else:
+                rows.append(dict(record_type="pair", **dict(zip(PAIR_NAMES, value))))
+                pair_hash.update(struct.pack("<qqqdd", *value))
+                pairs += 1
+                raw_sum += value[2]
+            if len(rows) >= min(batch_size, 10000 if kind == "node" else batch_size):
+                writer.write_table(pa.Table.from_pylist(rows, schema=schema))
+                rows.clear()
+            if kind == "pair" and pairs % 10000000 == 0:
+                LOG.info("Parquet pairs written: %s/%s", pairs, metadata["pair_count"])
+        if rows:
+            writer.write_table(pa.Table.from_pylist(rows, schema=schema))
+    expected = dict(
+        source_graph_sha256=graph_sha,
+        graph_metadata=metadata,
+        node_count=nodes,
+        pair_count=pairs,
+        raw_shared_page_count_sum=raw_sum,
+        node_rows_sha256=node_hash.hexdigest(),
+        pair_rows_sha256=pair_hash.hexdigest(),
+    )
+    if nodes != proof["node_count"] or any(
+        expected[k] != proof["coverage"][k]
+        for k in ["pair_count", "raw_shared_page_count_sum", "pair_rows_sha256"]
+    ):
+        raise ValueError("Source values differ from full accepted pair proof")
+    verified = verify(temporary, expected)
+    temporary.replace(target)
+    result = dict(
+        expected,
+        status="VERIFIED_PARQUET_VALUES",
+        geography_status=metadata.get("geography_status"),
+        record_count=nodes + pairs,
+        format=FORMAT,
+        source_acceptance_sha256=digest(acceptance),
+        code_sha256=digest(Path(__file__)),
+        outputs={target.name: digest(target)},
+        restore_contract="python -m GG_Data.pipeline.simplified_parquet restore graph.parquet restored.json.gz; exact graph values/order/fields preserved; gzip bytes may differ",
+        node_digest_contract="SHA256 ordered UTF8 sorted-key compact JSON node objects, each followed by LF",
+        pair_digest_contract="SHA256 ordered struct.pack('<qqqdd', source,target,count,forward,reverse)",
+    )
+    write_object(output / "manifest.json", result)
+    write_object(
+        output / "verification.json",
+        dict(
+            status="PASS",
+            **verified,
+            parquet_sha256=result["outputs"][target.name],
+            manifest_sha256=digest(output / "manifest.json"),
+        ),
+    )
+    return result
+
+
+def restore(parquet: Path, output: Path) -> None:
+    """Restore original compact values with the unchanged Agent format writer."""
+    parquet, output = Path(parquet), Path(output)
+    if output.exists() or output.with_name(output.name + ".part").exists():
+        raise FileExistsError(output)
+    info = footer(parquet)
+
+    def objects():
+        for batch in pq.ParquetFile(parquet).iter_batches(
+            batch_size=10000, use_threads=False
+        ):
+            yield from batch.to_pylist()
+
+    rows = objects()
+
+    def nodes():
+        for index in range(info["graph_metadata"]["node_count"]):
+            row = next(rows)
+            if row["record_type"] != "node" or row["node_index"] != index:
+                raise ValueError("Invalid restored node order")
+            yield json.loads(row["node_json"])
+
+    def pairs():
+        for row in rows:
+            if row["record_type"] != "pair":
+                raise ValueError("Invalid restored pair order")
+            yield [row[k] for k in PAIR_NAMES]
+
+    write_graph(output, info["graph_metadata"], nodes(), pairs())
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    conversion = commands.add_parser("convert")
+    for name in ["graph", "acceptance", "output"]:
+        conversion.add_argument(name, type=Path)
+    restoration = commands.add_parser("restore")
+    for name in ["parquet", "output"]:
+        restoration.add_argument(name, type=Path)
+    args = parser.parse_args()
+    if args.command == "convert":
+        convert(args.graph, args.acceptance, args.output)
+    else:
+        restore(args.parquet, args.output)

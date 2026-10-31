@@ -1,1 +1,3 @@
 GG_Data/agent_export/final_fixed_10k_20261024/fixed_10k_data_model_20261024.zip filter=lfs diff=lfs merge=lfs -text
+GG_Data/agent_export/simplified_agent_parquet_20261030/graph.parquet filter=lfs diff=lfs merge=lfs -text
+GG_Data/agent_export/simplified_agent_parquet_20261030/** -text

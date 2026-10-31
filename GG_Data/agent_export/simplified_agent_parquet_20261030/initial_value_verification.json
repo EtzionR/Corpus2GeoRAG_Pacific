@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "node_count": 268703,
+  "pair_count": 131034512,
+  "raw_shared_page_count_sum": 175316858,
+  "node_rows_sha256": "3fe20d8f07f477a61b463650f43741bfa0fca1245ffc7e936632117b3eea8479",
+  "pair_rows_sha256": "6e0289425a05e9e3c510d0a17a31cdce4a1547a3eed594201e31aa27c3fd8928",
+  "parquet_sha256": "0e82b85a880ce2f57e6d47b92531f5eac05be2ca58213e264d873c0d84efd5bd",
+  "manifest_sha256": "bb05585587b98509783c61e432115225c3a0ab6904a9299869c7414ebf45d512"
+}
