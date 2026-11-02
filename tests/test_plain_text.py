@@ -2,7 +2,7 @@
 from pathlib import Path
 
 import pytest
-from plain_text import clean_text
+from plain_text import clean_text, part_of
 
 CORPUS_PATH = Path(__file__).resolve().parent.parent / "Data" / "corpus_paragraphs.parquet"
 
@@ -20,48 +20,39 @@ def test_word_bearing_templates_keep_their_words():
                                 "destroyer 300 nmi from Admiral Yamamoto (Yamamoto Isoroku)'s base.")
 
 
-def test_infobox_fields_become_label_lines():
-    text = """{{Short description|Battle}}
+MIDWAY = """{{Short description|Battle}}
 {{Infobox military conflict
 | conflict = Battle of Midway
+| partof = the [[Pacific War]] and [[World War II]]<ref>X</ref>
 | image = Midway.jpg
-| date = 4–7 June 1942
-| place = [[Midway Atoll]]
+| date = {{start date|1942|6|4}}
 | commander1 = {{Plainlist|
 * [[Chester W. Nimitz|Chester Nimitz]]
 * [[Raymond A. Spruance|Raymond Spruance]]}}
-| casualties2 = 3,057 {{KIA}}<ref>X</ref>
 }}
 The '''Battle of Midway''' was a naval battle."""
-    assert clean_text(text) == """Conflict: Battle of Midway
-Date: 4–7 June 1942
-Place: Midway Atoll
-Commander1: Chester Nimitz; Raymond Spruance
-Casualties2: 3,057 (killed in action)
-
-The Battle of Midway was a naval battle."""
 
 
-def test_partof_is_labelled_part_of():
-    assert clean_text("{{Infobox ship/career|partof='''LST Flotilla 14'''}}") == "Part of: LST Flotilla 14"
-    assert clean_text("{{Infobox military conflict|part_of=the [[Pacific War]]}}") == "Part of: the Pacific War"
+def test_infobox_is_left_out_of_the_body():
+    assert clean_text(MIDWAY) == "The Battle of Midway was a naval battle."
 
 
-def test_nested_ship_infobox_sections_are_walked():
+def test_part_of_comes_from_either_field_name():
+    assert part_of(MIDWAY) == "the Pacific War and World War II"
+    assert part_of("{{Infobox ship/career|part_of='''LST Flotilla 14'''}}") == "LST Flotilla 14"
+
+
+def test_part_of_reads_nested_ship_sections_and_joins_distinct_values():
     text = """{{Infobox ship
-|section1={{Infobox ship/image | image = A.jpg | image_caption = A}}
-|section2={{Infobox ship/career
- | flag = {{USN flag|1945}}
- | name = ''LST-629''
- | laid_down = {{start date|1944|4|13}}
- }}
+|section2={{Infobox ship/career | name = LST-629 | partof = LST Flotilla 7 }}
+|section3={{Infobox ship/career | hide_header = yes | partof = LST Flotilla 7 }}
+|section4={{Infobox ship/career | country = Singapore | partof = {{ubl|191 Squadron|[[RSN Navy|RSN]]}} }}
 }}"""
-    assert clean_text(text) == "Name: LST-629\nLaid down: 13 April 1944"
+    assert part_of(text) == "LST Flotilla 7; 191 Squadron; RSN"
 
 
-def test_generic_infobox_label_data_pairs():
-    text = "{{Infobox|label1=Garrison|data1=[[Okinawa]]|label2=Empty|data2=|header3=Notes}}"
-    assert clean_text(text) == "Garrison: Okinawa"
+def test_no_part_of_is_none():
+    assert part_of("{{Infobox person|name=X|part_of=}} Text with [[part of]] a link.") is None
 
 
 def test_headings_stay_and_reference_sections_are_cut():
@@ -115,7 +106,7 @@ def test_unparsed_markup_is_still_removed():
 def test_corpus_has_no_markup_left():
     pq = pytest.importorskip("pyarrow.parquet")
     table = pq.read_table(CORPUS_PATH)
-    assert table.column_names == ["qid", "text"]
+    assert table.column_names == ["qid", "text", "part_of"]
     texts = table.column("text").to_pylist()
     marked = [q for q, t in zip(table.column("qid").to_pylist(), texts)
               if any(m in t for m in ("{{", "}}", "[[", "]]", "<ref", "'''", "Category:"))]

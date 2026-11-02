@@ -1,30 +1,46 @@
 # How the Corpus text is cleaned
 
-`Data/corpus_paragraphs.parquet` has one row per Article: `qid` (Wikidata id) and `text`. `text` is the Article's
-Wikitext turned into **Plain text** by `clean_text()` in `Processing/plain_text.py`, called from the Export cell of
-`crawl_corpus.ipynb`. Tests: `tests/test_plain_text.py`.
+`Data/corpus_paragraphs.parquet` has one row per Article, sorted by `qid`:
 
-## What the text looks like
+| Column | What it holds |
+|---|---|
+| `qid` | The Article's Wikidata id |
+| `text` | The article body as **Plain text**: `clean_text()` in `Processing/plain_text.py` |
+| `part_of` | What the Article is part of, from its infobox: `part_of()` in the same file; null when the infobox has none |
+
+Both are called from the Export cell of `crawl_corpus.ipynb`. Tests: `tests/test_plain_text.py`.
+
+## What `text` looks like
 
 ```
-Conflict: Battle of Midway
-Part of: the Pacific War and World War II
-Date: 4–7 June 1942
-Commander1: Chester Nimitz; Frank Jack Fletcher; Raymond Spruance
-Strength1: 3 fleet carriers; 7 heavy cruisers; 1 light cruiser; 15 destroyers; …
-
 The Battle of Midway was a major naval battle in the Pacific Theater of World War II that took place on
 4–7 June 1942, six months after Japan's attack on Pearl Harbor …
 
 Background
 
-…
+Before the battle, Japan desired to extend its Pacific defense perimeter …
 ```
 
-Infobox lines first (where the infobox sits, normally the top), then the prose. Paragraphs, headings and
-blocks are separated by one blank line.
+Only the article body: prose paragraphs, section headings and table rows, separated by one blank line. No
+infobox, no images, no link markup (the linked words stay), no references.
 
-## What we keep
+## The `part_of` column
+
+The value of the infobox field `part_of` or `partof` (Wikipedia uses both spellings), as plain text:
+
+| Article | `part_of` |
+|---|---|
+| Battle of Midway | `the Pacific War and World War II` |
+| USS LST-908 | `LST Flotilla 14` |
+| Western Australian emergency of March 19 | `the Pacific theatre of World War II` |
+
+- A ship infobox has one section per career, and each can name a flotilla; the distinct values are joined with
+  `; `: `LST Flotilla 5 (1943–1944); LST Flotilla 13 (1945)`. A list inside the field is joined the same way.
+- Nested infoboxes and facts boxes not named `Infobox…` (`{{Operational plan}}`) are read too.
+- Empty when the field is missing or holds only a placeholder comment (many military-base infoboxes have
+  `part_of = <!-- for elements within a larger site -->`). Filled for 521 of the 5,692 Articles.
+
+## What we keep in `text`
 
 | In the wikitext | In the text |
 |---|---|
@@ -38,20 +54,6 @@ blocks are separated by one blank line.
 | HTML entities (`&nbsp;`, `&mdash;`) | The character (non-breaking space becomes a plain space) |
 | `<br>` | A line break |
 | `<span>`, `<sup>`, `<small>`, `<div>` and similar wrappers | Their contents |
-
-### Infoboxes → `Label: value` lines
-
-Every filled infobox field becomes one line: the field name with `_` turned into a space and the first letter
-capitalised, then the value. `partof` (written without a separator) is labelled `Part of`, like `part_of`.
-
-- A value with several items (list templates, bullets, `<br>`) is joined with `; `:
-  `Commander1: Chester Nimitz; Raymond Spruance`.
-- Ship infoboxes are built from nested sections (`{{Infobox ship/career}}`, `/characteristics`, …); each
-  section's fields are listed in order, so a ship that served two navies has two `Country:` / `Name:` blocks.
-- Generic `{{Infobox}}` (`label7 = Garrison`, `data7 = …`) becomes `Garrison: …`; its `headerN` rows are dropped.
-- Fields that are not text are skipped: images, captions, alt text, maps, logos, flags, ensigns, badges,
-  signatures, sizes, colours, styles, widths, `module`, `footnotes`, `hide_header`, language codes (`…_lang`).
-- An empty field is skipped.
 
 ### Tables → `cell; cell; …` lines
 
@@ -92,10 +94,11 @@ Templates are dropped unless they put words on the page. These are turned into t
 | `{{nowrap\|…}}`, `{{small\|…}}`, `{{abbr\|…}}`, `{{ill\|…}}`, `{{font color\|…}}` and other wrappers | Their text |
 | `{{'}}`, `{{'s}}`, `{{nbsp}}`, `{{ndash}}`, `{{mdash}}`, `{{snd}}`, `{{okina}}`, `{{!}}` | The character(s) |
 
-## What we remove
+## What we remove from `text`
 
 | In the wikitext | Why |
 |---|---|
+| Infoboxes (`{{Infobox …}}` and other facts boxes), including nested ship sections | Facts box beside the body, not the body; `part_of` is kept in its own column |
 | References: `<ref>…</ref>`, `<ref name=… />`, `<references/>` | Citations, not article text |
 | Footnote templates: `{{sfn}}`, `{{sfnp}}`, `{{sfnm}}`, `{{efn}}`, `{{refn}}`, `{{rp}}`, `{{r}}`, `{{#tag:ref}}` | Citations |
 | Citation templates: `{{cite book}}`, `{{cite web}}`, `{{ISBN}}`, `{{OCLC}}`, `{{webarchive}}`, … | Citations |
@@ -132,10 +135,10 @@ A check over the whole Corpus (`test_corpus_has_no_markup_left`) finds no `{{`, 
 
 ## Numbers (run of 2026-10-19, 5,692 Articles)
 
-| | Wikitext | Plain text |
+| | Wikitext | `text` (+ `part_of`) |
 |---|---|---|
-| Characters | 102.7 M | 57.4 M |
-| Parquet file (ZSTD) | 25.5 MB | 15.7 MB |
+| Characters | 102.7 M | 53.5 M |
+| Parquet file (ZSTD) | 25.5 MB | 14.9 MB |
 
 ## Changing the cleaning
 

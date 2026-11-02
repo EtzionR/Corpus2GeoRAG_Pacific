@@ -1,7 +1,7 @@
 """An Article's wikitext as plain text, for the Corpus export in crawl_corpus.ipynb.
-Infobox fields become `Label: value` lines and table rows become `cell; cell; …` lines where they sit; prose keeps
-its paragraphs and section headings; references, citations, files, categories and the closing reference sections
-are dropped.
+clean_text() is the article body: prose with its paragraphs and section headings, and table rows as `cell; cell; …`
+lines; infoboxes, references, citations, files, categories and the closing reference sections are dropped.
+part_of() is the infobox's `part_of` / `partof` value, exported in a column of its own.
 Templates that carry words (ship names, unit conversions, Japanese names, dates…) are turned into those words;
 any other template is dropped. What is kept and what is removed: PLAIN_TEXT.md."""
 import html
@@ -15,9 +15,6 @@ DROP_SECTIONS = {
     "references", "notes", "footnotes", "citations", "sources", "bibliography", "see also", "further reading",
     "external links", "notes and references", "references and notes", "works cited", "general references",
     "cited sources", "endnotes", "explanatory notes", "sources and further reading", "gallery"}
-SKIP_INFOBOX_PARAMS = re.compile(
-    r"image|caption|alt$|map|module|footnotes|size|logo|ensign|badge|flag|hide|signature|upright|pushpin|relief|"
-    r"embed|colou?r|style|width|label_position|onlysourced|qid|lang$", re.I)
 DROP_TAGS = {"ref", "references", "gallery", "timeline", "mapframe", "maplink", "graph", "imagemap",
              "score", "hr", "syntaxhighlight", "templatestyles", "math", "chem"}
 NON_TEXT_LINK = re.compile(r"^\s*(file|image|category|media)\s*:", re.I)
@@ -26,8 +23,7 @@ LEFTOVER_TABLE = re.compile(r"^\s*\{\|.*?^\s*\|\}", re.M | re.S)
 LEFTOVER_LINK = re.compile(r"\[\[(?:[^\[\]|]*\|)?([^\[\]]*)\]\]")
 LEFTOVER_TEMPLATE = re.compile(r"\{\{[^{}]*\}\}")
 LEFTOVER_ROW = re.compile(r"^\s*[|!](?![-}+])")  # a table row whose table a template opened ({{avilisthead}})
-INFOBOX_LABELS = {"partof": "Part of"}  # field names written without a separator
-INFOBOX_ROW = re.compile(r"(label|data|header)(\d+)$")
+PART_OF = {"part_of", "partof"}
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
           "November", "December"]
 
@@ -48,8 +44,23 @@ IMPERIAL_JAPAN = {"Navy": "Imperial Japanese Navy", "Army": "Imperial Japanese A
                   "Air Force": "Imperial Japanese Army Air Service"}
 
 
+def part_of(wikitext):
+    """What the Article is part of, from its infoboxes' `part_of` / `partof` fields: "the Pacific War and World
+    War II". A ship's career sections can each name one; distinct values are joined with "; ". None if absent.
+    Any template's field counts: not every facts box is named Infobox… ({{Operational plan}})."""
+    values = []
+    for tpl in parse(wikitext).filter_templates(recursive=True):  # recursive: nested ship sections
+        for p in tpl.params:
+            if p.showkey and str(p.name).strip().lower() in PART_OF:
+                lines = (re.sub(r"^[*#:;\s]+", "", line) for line in leftovers(render(p.value.nodes)).split("\n"))
+                value = re.sub(r"\s+", " ", "; ".join(v for v in lines if v.strip())).strip(" ;,")
+                if value and value not in values:
+                    values.append(value)
+    return "; ".join(values) or None
+
+
 def clean_text(wikitext):
-    """The Article as plain text: infobox lines, then paragraphs separated by blank lines."""
+    """The Article body as plain text: paragraphs, headings and table rows separated by blank lines."""
     out = leftovers(render(parse(wikitext).nodes, top=True))
     lines = [leftover_row(line) for line in out.split("\n") if not re.match(r"^\s*\|[-}+]", line)]
     lines = [re.sub(r"[ \t ]+", " ", line).strip() for line in lines]
@@ -164,8 +175,8 @@ def render_template(tpl):
     name = re.sub(r"\s+", " ", str(tpl.name).replace("_", " ")).strip().lower()
     args = positional(tpl)
     arg = lambda i: args[i] if len(args) > i else ""
-    if name.startswith("infobox"):
-        return "\n\n" + "\n".join(infobox_lines(tpl)) + "\n\n"
+    if name.startswith("infobox"):  # facts box beside the body; only part_of() reads it
+        return ""
     if name in CONSTANTS:
         return CONSTANTS[name]
     if name in FIRST_PARAM:
@@ -229,29 +240,3 @@ def date(args):
         return y
     return " ".join(p for p in (str(int(d)) if d.isdigit() else "", MONTHS[int(m) - 1], y) if p)
 
-
-def infobox_lines(tpl):
-    """`Label: value` for every filled infobox field; nested infoboxes (ship sections) are walked in place."""
-    lines, row_labels = [], {}
-    for p in tpl.params:
-        nested = [t for t in p.value.filter_templates(recursive=False)
-                  if str(t.name).strip().lower().startswith("infobox")]
-        if nested:
-            for t in nested:
-                lines += infobox_lines(t)
-            continue
-        key = str(p.name).strip()
-        if not p.showkey or SKIP_INFOBOX_PARAMS.search(key):
-            continue
-        value = "; ".join(v for v in (re.sub(r"^[*#:;\s]+|\s+$", "", line)
-                                      for line in leftovers(render(p.value.nodes)).split("\n")) if v)
-        value = re.sub(r":;", ":", re.sub(r"\s+", " ", value)).strip(" ;,")
-        row = INFOBOX_ROW.match(key)  # generic {{Infobox}}: label7 = Garrison, data7 = … -> Garrison: …
-        if row and row[1] == "label":
-            row_labels[row[2]] = value
-        elif row and row[1] == "data" and row_labels.get(row[2]) and value:
-            lines.append(f"{row_labels[row[2]]}: {value}")
-        elif value and not row:
-            label = INFOBOX_LABELS.get(key.lower()) or key.replace("_", " ").capitalize()
-            lines.append(f"{label}: {value}")
-    return lines

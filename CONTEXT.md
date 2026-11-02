@@ -21,7 +21,7 @@ The raw, uncleaned MediaWiki markup of a whole Article, including infoboxes, tem
 _Avoid_: Content, text, body
 
 **Plain text**:
-An Article's Wikitext with the markup removed: infobox fields as `Label: value` lines, then the prose with its section headings. References, citations, tables, files and the closing reference sections (References, See also, External links…) are dropped. Made by `Processing/plain_text.py`.
+An Article's body with the markup removed: the prose with its section headings, and table rows as `cell; cell` lines. The infobox, references, citations, files and the closing reference sections (References, See also, External links…) are dropped. Made by `Processing/plain_text.py`; see `Processing/PLAIN_TEXT.md`.
 _Avoid_: Clean wikitext, stripped text
 
 **Category**:
@@ -82,5 +82,5 @@ _Avoid_: Test set, examples
 ### Output
 
 **Corpus**:
-The final deliverable handed to the consumer: `Data/corpus_paragraphs.parquet`, one row per included Article: its Wikidata id (`qid`) and its Plain text (`text`).
+The final deliverable handed to the consumer: `Data/corpus_paragraphs.parquet`, one row per included Article: its Wikidata id (`qid`), its Plain text (`text`) and its infobox's `part_of` value (`part_of`, or null).
 _Avoid_: Dataset, dump, output

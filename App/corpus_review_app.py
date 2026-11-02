@@ -182,7 +182,7 @@ with overview_tab:
     st.markdown(
         "#### The Corpus\n"
         "The **Corpus** is the deliverable: `Data/corpus_paragraphs.parquet`, one Parquet file mapping each "
-        "English Wikipedia article's Wikidata id to its full article as plain text (infobox facts, then the prose), "
+        "English Wikipedia article's Wikidata id to its article body as plain text (and its infobox's part_of), "
         "for every article about the war between the "
         "**United States and Japan in WWII** (battles, people, ships, units, aircraft, weapons, places, events).")
 
