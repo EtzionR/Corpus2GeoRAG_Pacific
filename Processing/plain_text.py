@@ -3,7 +3,7 @@ Infobox fields become `Label: value` lines and table rows become `cell; cell; â€
 its paragraphs and section headings; references, citations, files, categories and the closing reference sections
 are dropped.
 Templates that carry words (ship names, unit conversions, Japanese names, datesâ€¦) are turned into those words;
-any other template is dropped."""
+any other template is dropped. What is kept and what is removed: PLAIN_TEXT.md."""
 import html
 import re
 
