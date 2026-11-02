@@ -27,6 +27,9 @@ EVAL_DRAFTS_PATH = ROOT / "Processing" / "reports" / "eval_log.tsv"
 CORPUS_PATH = ROOT / "Data" / "corpus_paragraphs.parquet"
 AUDIT_LABELS = ["keep", "marginal", "wrong"]
 
+sys.path.insert(0, str(ROOT / "Processing"))
+from plain_text import clean_text  # noqa: E402
+
 st.set_page_config(page_title="Pacific War Corpus", page_icon="⚓", layout="wide")
 
 
@@ -179,8 +182,8 @@ with overview_tab:
     st.markdown(
         "#### The Corpus\n"
         "The **Corpus** is the deliverable: `Data/corpus_paragraphs.parquet`, one Parquet file mapping each "
-        "English Wikipedia article's Wikidata id to its full, raw article text (wikitext), for every "
-        "article about the war between the "
+        "English Wikipedia article's Wikidata id to its full article as plain text (infobox facts, then the prose), "
+        "for every article about the war between the "
         "**United States and Japan in WWII** (battles, people, ships, units, aircraft, weapons, places, events).")
 
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -464,8 +467,8 @@ with explore_tab:
                     save_overrides([t for t in overrides["include"] if t != pick], overrides["exclude"] + [pick]); st.rerun()
             with st.expander("Categories"):
                 st.write(", ".join(c.removeprefix("Category:") for c in r["categories"]))
-        with st.expander("Raw wikitext (what the consumer receives)"):
-            st.code(wikitext(pick)[:20000], language="text")
+        with st.expander("Plain text (what the consumer receives)"):
+            st.code(clean_text(wikitext(pick))[:20000], language="text")
 
 
 # ---------- experiments ----------
