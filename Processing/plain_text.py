@@ -26,6 +26,7 @@ LEFTOVER_TABLE = re.compile(r"^\s*\{\|.*?^\s*\|\}", re.M | re.S)
 LEFTOVER_LINK = re.compile(r"\[\[(?:[^\[\]|]*\|)?([^\[\]]*)\]\]")
 LEFTOVER_TEMPLATE = re.compile(r"\{\{[^{}]*\}\}")
 LEFTOVER_ROW = re.compile(r"^\s*[|!](?![-}+])")  # a table row whose table a template opened ({{avilisthead}})
+INFOBOX_LABELS = {"partof": "Part of"}  # field names written without a separator
 INFOBOX_ROW = re.compile(r"(label|data|header)(\d+)$")
 MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
           "November", "December"]
@@ -251,5 +252,6 @@ def infobox_lines(tpl):
         elif row and row[1] == "data" and row_labels.get(row[2]) and value:
             lines.append(f"{row_labels[row[2]]}: {value}")
         elif value and not row:
-            lines.append(f"{key.replace('_', ' ').capitalize()}: {value}")
+            label = INFOBOX_LABELS.get(key.lower()) or key.replace("_", " ").capitalize()
+            lines.append(f"{label}: {value}")
     return lines

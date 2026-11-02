@@ -42,6 +42,11 @@ Casualties2: 3,057 (killed in action)
 The Battle of Midway was a naval battle."""
 
 
+def test_partof_is_labelled_part_of():
+    assert clean_text("{{Infobox ship/career|partof='''LST Flotilla 14'''}}") == "Part of: LST Flotilla 14"
+    assert clean_text("{{Infobox military conflict|part_of=the [[Pacific War]]}}") == "Part of: the Pacific War"
+
+
 def test_nested_ship_infobox_sections_are_walked():
     text = """{{Infobox ship
 |section1={{Infobox ship/image | image = A.jpg | image_caption = A}}

@@ -42,7 +42,7 @@ blocks are separated by one blank line.
 ### Infoboxes → `Label: value` lines
 
 Every filled infobox field becomes one line: the field name with `_` turned into a space and the first letter
-capitalised, then the value.
+capitalised, then the value. `partof` (written without a separator) is labelled `Part of`, like `part_of`.
 
 - A value with several items (list templates, bullets, `<br>`) is joined with `; `:
   `Commander1: Chester Nimitz; Raymond Spruance`.
