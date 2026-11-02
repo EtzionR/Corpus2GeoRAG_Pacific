@@ -1,0 +1,7 @@
+pydantic==2.12.5
+rank-bm25==0.2.2
+rapidfuzz==3.14.6
+shapely==2.1.2
+geopandas==1.1.3
+pyproj==3.7.2
+pyarrow==24.0.0
