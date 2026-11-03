@@ -1,11 +1,11 @@
 {
   "schema": "geoai-public-delivery-v1",
-  "checkpoint_id": "cpu3282-0f8f890d449a",
+  "checkpoint_id": "cpu3812-cbe147d0affd",
   "test_only": false,
   "proposed_contract": true,
   "daniel_approval": "not recorded",
-  "source_receipt_sha256": "01f588805cdcc24eef0591cd806908330f4dafec1a758fd1d2dfc9347b8cc8f8",
-  "decision_version": "sha256:97ac772eccabf6c9d6a5ccd5e3f5c82b8749c612f4fe94e0247d9e83b6f5f482",
+  "source_receipt_sha256": "f1f28c175bf1eca0c2ecbff0942a25abaa70bd28b149cd508d0d0ff7f09ea31c",
+  "decision_version": "sha256:0b1f5fb662851e4d1e4cb221f459113b7d638cb803da2860812efa5da6e21cc4",
   "data_files": [
     "graph.json",
     "model/cooccurrence_support.json.gz",
@@ -17,12 +17,12 @@
   "files": {
     ".gitattributes": "54fe4b2f7a729c55221d0a0a509939963b558db7610afbd4a7e9f166da131bcd",
     "LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
-    "README.md": "7116d797c60c8809bdf7d185a3f624f05baf13b8693c58c95fde9b8aa01fcd47",
-    "graph.json": "ca2f686a639749033fd82b0620ce5846bb03f5193e39dc48c084d688d72123d4",
-    "model/cooccurrence_support.json.gz": "b3b8cb5a05547aad05454773d0c9bad60e09d4375838552d93b3d4fc918e048b",
+    "README.md": "d3ddfbc1a43c466ed0f4c7e20b9c6745d51c6e52903bfbc2787147ddeb62630d",
+    "graph.json": "138e3cdc4623d7b3319cc5d1efd829fafda775d97526a566fec59e15c73dd134",
+    "model/cooccurrence_support.json.gz": "d98d8941b7ba6e2aa397c591afa3a19e2e51495e45636c367e33f347699544aa",
     "model/events.json.gz": "2780bc115b21edd6fcc26b1b87558ea203dd00b2003f633459102b4ed6da5af5",
-    "model/geography.json.gz": "d03c344ad460f815ee29c2e0c75f1b6ba283ab63b3901ecb196c876e14e3db8f",
-    "model/geometries.parquet": "a5443e2fd9c102b373e56777f86926319c8af99afddc1175a1885f6138c816c9",
+    "model/geography.json.gz": "19909b712a91b67699609e2d76e396cda70565aa1b1c96870927d269e27e3426",
+    "model/geometries.parquet": "11dbf3644396330808b7aec212356c79a31d34d349d049f0ff36e1ed5ca37be7",
     "model/relations.json.gz": "f80920446960181fe1733d798814bacc8149482dbf3024ce907180c984bc67ae",
     "requirements.txt": "55d4e1702251d65dd926f6baf630958b67391e80d64fbd17c3722ef70ea25e39",
     "runtime/GG_Data/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -38,21 +38,21 @@
     "verify_delivery.py": "f767baaa2262260b28ac66db92cc035a0f28cb9d6512047e260e3798936dc0fe"
   },
   "checks": {
-    "nodes": 3051,
-    "edges": 27125,
-    "geometries": 834,
-    "support_identities": 13654
+    "nodes": 3201,
+    "edges": 28293,
+    "geometries": 858,
+    "support_identities": 14238
   },
   "lfs_files": [
     "graph.json"
   ],
   "features": {
     "citations": {
-      "nodes_with_sources": 3051,
-      "occurrences": 159635,
-      "records": 159093,
-      "unknown_extraction_revisions": 159635
+      "nodes_with_sources": 3201,
+      "occurrences": 181423,
+      "records": 180832,
+      "unknown_extraction_revisions": 181423
     },
-    "inline_geometries": 834
+    "inline_geometries": 858
   }
 }
