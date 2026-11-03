@@ -1,4 +1,4 @@
-Consumer checkpoint cpu1308-c10f5ef5ef69
+Consumer checkpoint cpu1982-af0a3af72068
 
 Install requirements, then run python -B verify_delivery.py <trusted manifest SHA256>.
 Graph JSON, separate GeoParquet and the model date/page support preserve consumer semantics.
