@@ -42,7 +42,7 @@ flowchart LR
     HUMAN{{"<b>5 · Human review</b><br/><i>1,832 decided · 16 waiting</i>"}}
     IN["✅ <b>Included</b>"]
     OUT["❌ <b>Left out</b>"]
-    DELIVER[("<b>Deliverable</b><br/>corpus.json<br/><i>5,693 articles</i>")]
+    DELIVER[("<b>Deliverable</b><br/>corpus_paragraphs.parquet<br/><i>5,693 articles</i>")]
 
     FIND --> COLLECT --> RULES
     RULES -- "Yes · 4,088" --> KEY
@@ -262,7 +262,7 @@ flowchart TD
     WAIT -- "overrides.yaml include / exclude" --> FINAL
     IN --> FINAL("Apply overrides")
     OUT --> FINAL
-    FINAL --> CORPUS[("Data/corpus.json")]
+    FINAL --> CORPUS[("Data/corpus_paragraphs.parquet")]
     FINAL --> REPORTS("Reports: gold recall · category_review.csv · holdout accuracy")
 
     classDef wait fill:#ffe5b4,stroke:#d9480f,color:#5c2200,stroke-width:2px

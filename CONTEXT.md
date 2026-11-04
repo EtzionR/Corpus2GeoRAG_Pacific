@@ -1,6 +1,6 @@
 # Pacific War Wikipedia Corpus
 
-Collects English Wikipedia articles about the war between the United States and Japan in WWII and hands them to a consumer as a single title → wikitext JSON.
+Collects English Wikipedia articles about the war between the United States and Japan in WWII and hands them to a consumer as a single Wikidata id → Plain text Parquet file.
 
 ## Language
 
@@ -19,6 +19,10 @@ _Avoid_: Page, entry, document
 **Wikitext**:
 The raw, uncleaned MediaWiki markup of a whole Article, including infoboxes, templates and references.
 _Avoid_: Content, text, body
+
+**Plain text**:
+An Article's body with the markup removed: the prose with its section headings, and table rows as `cell; cell` lines. The infobox, references, citations, files and the closing reference sections (References, See also, External links…) are dropped. Made by `Processing/plain_text.py`; see `Processing/PLAIN_TEXT.md`.
+_Avoid_: Clean wikitext, stripped text
 
 **Category**:
 A Wikipedia category (`Category:…`); part of a cyclic graph, used for discovery, never as a Tag.
@@ -78,5 +82,5 @@ _Avoid_: Test set, examples
 ### Output
 
 **Corpus**:
-The final deliverable handed to the consumer: a JSON object mapping each included Article title to its Wikitext.
+The final deliverable handed to the consumer: `Data/corpus_paragraphs.parquet`, one row per included Article: its Wikidata id (`qid`), its Plain text (`text`) and its infobox's `part_of` value (`part_of`, or null).
 _Avoid_: Dataset, dump, output
