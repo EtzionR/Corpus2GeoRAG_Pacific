@@ -400,6 +400,9 @@ def trace_warnings(events: list[dict[str, Any]], warn_steps: int | None = None) 
     budget = env_int("GEO_AGENT_TOKEN_BUDGET", DEFAULT_TOKEN_BUDGET)
     if budget and diag["input_tokens"] > budget:
         warnings.append("token_budget")
+    requested = sum(c.get("name") != "AgentAnswer" for e in events if e["event"] == "model_end" for c in e.get("tool_calls_requested") or [])
+    if requested > sum(e["event"] in ("tool_end", "tool_error") for e in events):
+        warnings.append("tool_call_cap")  # spec R88: the model asked for calls that didn't run
     return warnings
 
 

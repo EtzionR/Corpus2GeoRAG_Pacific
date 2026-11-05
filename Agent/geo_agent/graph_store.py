@@ -1405,12 +1405,16 @@ class GraphStore:
                 offer(self._name_owner[idx], 100.0 if self._names[idx] == q else ARTICLE_SCORE, idx,
                       "name" if kind == "name" else kind)
         q_tokens = _tokenize(q)
+        q_numbers = {t for t in q_tokens if t[0].isdigit()}
         for score, idx in self._name_candidates(q, type):
             node_id = self._name_owner[idx]
             label_tokens = _tokenize(self._names[idx]) if len(q_tokens) >= 2 and self._label_kind[idx] == "alias" else []
             if (label_tokens and self.nodes[node_id].type == "person" and q_tokens[-1] == label_tokens[-1]
                     and _in_order(q_tokens, label_tokens)):
                 offer(node_id, ALIAS_PART_SCORE, idx, "alias_part")  # "howlin mad smith" in 'Holland McTyeire "Howlin' Mad" Smith'
+            numbers = {t for t in _tokenize(self._names[idx]) if t[0].isdigit()}
+            if q_numbers and numbers and not q_numbers & numbers:
+                continue  # spec R89: a fuzzy match can't change a number ("1st" is not "7th", "CV-6" not "CV-8")
             offer(node_id, score, idx, "fuzzy")
         ranked = sorted(best.items(), key=lambda kv: (-kv[1][0], kv[1][1]))[:limit]
         results = []
