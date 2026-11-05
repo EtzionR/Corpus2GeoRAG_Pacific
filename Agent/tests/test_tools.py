@@ -961,6 +961,15 @@ def test_r87_ships_and_countries_give_way_to_a_specific_place():
     assert s.without_broad_places(["Q2::LOC"], ["Q3::LOC"]) == []  # a result set is on the map
 
 
+def test_r89_a_fuzzy_match_cant_change_a_number():
+    s = GraphStore.from_dict({"nodes": [{"id": "A", "name": "7th Infantry Division", "type": "org"},
+                                        {"id": "B", "name": "1st Marine Division", "type": "org"},
+                                        {"id": "C", "name": "USS Hornet (CV-8)", "type": "org"}], "edges": []})
+    assert "A" not in {r["id"] for r in s.search_entities("1st Infantry Division")}
+    assert "B" in {r["id"] for r in s.search_entities("1st Marine Divison")}  # a typo still matches
+    assert s.search_entities("7th Infantry Division")[0]["id"] == "A"
+
+
 def test_r82_clean_wikitext():
     from geo_agent.graph_store import clean_wikitext
     raw = ("'''Admiral''' [[Isoroku Yamamoto|Yamamoto]] sent {{USS|Enterprise|CV-6}} and {{ship|Japanese cruiser|Mogami}} "

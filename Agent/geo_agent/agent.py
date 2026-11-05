@@ -99,7 +99,10 @@ How to work:
     clearly separated and labelled by year, with every candidate's id in context_ids. Names that only look alike
     ("Tara": Tarawa or Tarakan) are different entities: always ask.
     Skip both only if the user's question already settles it by year, type or context.
-  * no result: say plainly that the graph has no such entity.
+  * no result, or only a different entity with a similar name (the US 1st Infantry Division is not the Japanese 1st
+    Division): say plainly that the graph has no such entity, and don't answer about the other one. Never drop a word
+    that identifies the entity (a number, branch or nationality) to get a match: "1st Division" doesn't find the "1st
+    Infantry Division".
   * You may retry search_entities with another spelling or romanization. That spelling is only a query: a result
     counts only if the graph returns it, and it is judged by the same rule.
 - Compose tools freely; there is no fixed list of question types. Typical patterns:
@@ -409,6 +412,48 @@ class EmptyReplyRetry(AgentMiddleware):
             base = request.system_message.content if request.system_message is not None else ""
             request = request.override(tools=[], system_message=SystemMessage(content=f"{base}\n\n{EMPTY_REPLY_NOTE}"))
             response = await handler(request)
+        return response
+
+
+TOOL_CAP_NOTE = ("TOOL CALL LIMIT: {dropped} of your last tool calls did not run. Don't repeat calls. For many entities, use one "
+                 "set tool (connected_locations, find_entities, overview) instead of looking them up one by one, or answer now "
+                 "with what you have and say what you didn't check.")
+
+
+class ToolCallCap(AgentMiddleware):
+    """Keep a run from fanning out (spec R88). Identical calls in one turn are dropped, a turn runs at most
+    `per_turn` calls and a run at most `per_run`; past that the model is offered only the final answer tool.
+    The step limit counts model turns, so one turn could otherwise ask for hundreds of calls (run 136533b9: 367).
+    It never fails a question. Over 1,007 traced runs, no passing run used more than 17 calls or 5 in a turn.
+    """
+
+    def __init__(self, per_turn: int, per_run: int):
+        super().__init__()
+        self.per_turn, self.per_run = per_turn, per_run
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        msgs = request.messages
+        last_user = max((i for i, m in enumerate(msgs) if m.type == "human"), default=-1)
+        turn = msgs[last_user + 1:]
+        used = sum(m.type == "tool" and m.name != AgentAnswer.__name__ for m in turn)
+        dropped = next((m.response_metadata.get("tool_calls_dropped", 0) for m in reversed(turn) if m.type == "ai"), 0)
+        if dropped:
+            base = request.system_message.content if request.system_message is not None else ""
+            request = request.override(system_message=SystemMessage(content=f"{base}\n\n{TOOL_CAP_NOTE.format(dropped=dropped)}"))
+        if used >= self.per_run:
+            log.info("tool call limit reached: only the final answer tool is offered")
+            request = request.override(tools=[])
+        response = await handler(request)
+        ai = response.result[0]
+        calls = [c for c in ai.tool_calls if c["name"] != AgentAnswer.__name__]
+        unique = list({(c["name"], json.dumps(c["args"], sort_keys=True, default=str)): c for c in reversed(calls)}.values())[::-1]
+        kept = unique[:max(0, min(self.per_turn, self.per_run - used))]
+        if len(kept) < len(calls):
+            log.info("%d of %d tool calls dropped", len(calls) - len(kept), len(calls))
+            final = [c for c in ai.tool_calls if c["name"] == AgentAnswer.__name__]
+            response.result[0] = ai.model_copy(update={
+                "tool_calls": kept + final,
+                "response_metadata": {**ai.response_metadata, "tool_calls_dropped": len(calls) - len(kept)}})
         return response
 
 
@@ -1389,6 +1434,7 @@ class GeoAgent:
                 SetHandleGuard(retries=1),
                 GroundingGuard(store, retries=1),
                 EmptyReplyRetry(),
+                ToolCallCap(env_int("GEO_AGENT_MAX_TOOLS_PER_TURN", 12), env_int("GEO_AGENT_MAX_TOOL_CALLS", 30)),
             ],
             checkpointer=InMemorySaver(),  # per-thread conversation memory
         )

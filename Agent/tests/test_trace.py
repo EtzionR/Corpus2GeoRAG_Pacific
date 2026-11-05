@@ -545,6 +545,34 @@ def test_r80_an_empty_final_message_still_answers(isolated_env):
     assert {"structured_output_failed", "empty_answer"} <= set(out["warnings"])
 
 
+def searches(n, prefix="s"):
+    return [call("search_entities", f"{prefix}{i}", query=f"name {i}") for i in range(n)]
+
+
+def test_r88_a_turn_runs_at_most_the_cap(isolated_env):
+    out = ask([ai(*searches(15)), final("done")])
+    assert out["error"] is None and out["answer"] == "done" and "tool_call_cap" in out["warnings"]
+    assert sum(e["event"] == "tool_end" for e in read_events(isolated_env)) == 12
+
+
+def test_r88_identical_calls_in_a_turn_run_once(isolated_env):
+    same = [call("search_entities", f"d{i}", query="Midway") for i in range(5)]
+    out = ask([ai(*same), final("Midway Atoll", ["loc:midway_atoll"])])
+    assert sum(e["event"] == "tool_end" for e in read_events(isolated_env)) == 1 and out["answer"] == "Midway Atoll"
+
+
+def test_r88_the_run_cap_ends_in_an_answer(isolated_env, monkeypatch):
+    monkeypatch.setenv("GEO_AGENT_MAX_TOOL_CALLS", "3")
+    out = ask([ai(*searches(2, "a")), ai(*[call("search_entities", f"b{i}", query=f"other {i}") for i in range(2)]), final("done")])
+    assert out["error"] is None and out["answer"] == "done" and "tool_call_cap" in out["warnings"]
+    assert sum(e["event"] == "tool_end" for e in read_events(isolated_env)) == 3
+
+
+def test_r88_normal_runs_are_untouched(isolated_env):
+    out = ask(MIDWAY_RUN)
+    assert "tool_call_cap" not in out["warnings"] and sum(e["event"] == "tool_end" for e in read_events(isolated_env)) == 2
+
+
 def test_r86_an_empty_reply_is_retried_once(isolated_env):
     out = ask([ai(call("search_entities", "a", query="Midway")), AIMessage(""), final("Midway Atoll", ["loc:midway_atoll"])])
     assert out["answer"] == "Midway Atoll" and out["entity_ids"] == ["loc:midway_atoll"]
