@@ -65,6 +65,26 @@ def test_cli_exits_nonzero_on_error(monkeypatch, capsys):
     assert "Error at stage model_call" in capsys.readouterr().out
 
 
+def test_r85_the_prompt_says_what_the_graph_lacks():
+    assert agent_mod.missing_relation_note(None) == "" and agent_mod.missing_relation_note(GraphStore.from_json(GRAPH)) == ""  # the sample has both
+    bare = GraphStore.from_dict({"nodes": [{"id": "E", "name": "Battle", "type": "event"}, {"id": "P", "name": "Man", "type": "person"}],
+                                 "edges": [{"source": "P", "target": "E", "type": "wd:P607"}]})
+    note = agent_mod.missing_relation_note(bare)
+    assert "who attacked" in note and "who commanded" in note and note in agent_mod.build_system_prompt(bare)
+    commanded = GraphStore.from_dict({"nodes": [{"id": f"E{i}", "name": f"Battle {i}", "type": "event"} for i in range(12)]
+                                      + [{"id": "P", "name": "Man", "type": "person"}],
+                                      "edges": [{"source": f"E{i}", "target": "P", "type": "wd:P4791"} for i in range(12)]})
+    assert "who attacked" in agent_mod.missing_relation_note(commanded) and "commanded" not in agent_mod.missing_relation_note(commanded)
+
+
+def test_r80_model_requests_have_an_output_limit(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake")
+    monkeypatch.delenv("GEO_AGENT_MAX_OUTPUT_TOKENS", raising=False)
+    assert agent_mod.get_llm().max_tokens == 8192
+    monkeypatch.setenv("GEO_AGENT_MAX_OUTPUT_TOKENS", "2000")
+    assert agent_mod.get_llm().max_tokens == 2000
+
+
 def test_model_requests_have_a_timeout(monkeypatch):
     """A stalled provider request must fail (model_call) instead of hanging the run."""
     monkeypatch.setenv("OPENROUTER_API_KEY", "fake")
@@ -812,3 +832,8 @@ def test_r24a_place_found_by_another_tool_still_moves_to_the_answer():
     out = finalize_answer(STORE, AgentAnswer(answer="The Bombing of Darwin.", answer_ids=["event:bombing_of_darwin"],
                                              context_ids=["loc:darwin"], sources=[], answer_sets=[]), turn_)
     assert out["answer_ids"][0] == "loc:darwin"
+
+
+def test_r4_look_alike_names_always_ask():
+    """amb-4 (user decision 2026-10-25): Tarawa / Tarakan only look alike, so the agent asks."""
+    assert "Names that only look alike" in agent_mod.SYSTEM_PROMPT and "always ask" in agent_mod.SYSTEM_PROMPT

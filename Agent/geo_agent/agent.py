@@ -40,6 +40,7 @@ import re
 import sys
 import time
 import uuid
+from collections import Counter
 from importlib import metadata
 from pathlib import Path
 from typing import Any, Callable
@@ -60,7 +61,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from rapidfuzz import fuzz
 
-from geo_agent.graph_store import QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, normalize_name, source_ref
+from geo_agent.graph_store import LOCATION_RELATIONS, QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, normalize_name, source_ref
 from geo_agent.schema import SCHEMA_VERSION
 from geo_agent.tools import build_tools
 from geo_agent.trace import DEFAULT_TOKEN_BUDGET, RunTrace, TraceWriter, diagnostics, env_int, env_on, file_hash, short_hash, tool_calls_of, trace_warnings
@@ -93,9 +94,10 @@ How to work:
   * quality "uncertain" (a weak fuzzy match, or results marked `ambiguous` that nearly tie) and the entity matters
     to the answer: never pick one silently. Reply with one short clarification question naming the candidates and
     what matched, e.g. "Did you mean the Battle of Guam (1941) or the Battle of Guam (1944)?", and return no
-    entity_ids. Exception: when the tie is between at most 3 entities of the same name (e.g. two battles of Guam)
-    and each can be answered in a few lines, you may instead answer for EVERY candidate, clearly separated and
-    labelled by year or another distinguishing fact, with every candidate's id in context_ids.
+    entity_ids. Exception: when the tie is between at most 3 entities with the SAME name (e.g. two battles of Guam,
+    told apart only by year) and each can be answered in a few lines, you may instead answer for EVERY candidate,
+    clearly separated and labelled by year, with every candidate's id in context_ids. Names that only look alike
+    ("Tara": Tarawa or Tarakan) are different entities: always ask.
     Skip both only if the user's question already settles it by year, type or context.
   * no result: say plainly that the graph has no such entity.
   * You may retry search_entities with another spelling or romanization. That spelling is only a query: a result
@@ -129,6 +131,10 @@ How to work:
 - If after about 6 tool calls you still have no relation of the kind the question asks about (e.g. no attacker
   linked to the battle), stop searching: answer with what you found and say that the graph does not record the rest.
 - Coordinates are decimal degrees; a user's "(x, y)" is usually (lat, lon); state the interpretation you used.
+- When the answer names an actor or place you found in source text, look it up with search_entities and put its id in
+  answer_ids or context_ids if the graph has it: a name without an id is not on the map and doesn't count as an answer.
+- You cover 1938 to 1948. If a tool reports `out_of_scope`, or the question is about another period, say that it is
+  outside your window. Don't answer it from general knowledge.
 {graph_notes}
 Final answer fields (all required):
 - answer: concise answer for the user, mentioning dates and places.
@@ -181,6 +187,27 @@ def uses_graph_notes(store: GraphStore | None) -> bool:
     return bool(store.metadata) or sum(store.family_counts.values()) * 2 > len(store.edges) > 0
 
 
+COMMAND_RELATIONS = {"COMMANDED", "wd:P4791", "wd:P598", "http://dbpedia.org/ontology/commander"}
+RELATION_MINIMUM = 10  # fewer relations of a kind than this: the graph lacks them for practical purposes
+
+
+def missing_relation_note(store: GraphStore | None) -> str:
+    """What the loaded graph doesn't hold, so the model doesn't search for it (spec R85). "" when it holds both."""
+    if store is None:
+        return ""
+    counts = Counter(e.type for e in store.edges)
+    lacks = []
+    if sum(counts[t] for t in LOCATION_RELATIONS) < RELATION_MINIMUM:
+        lacks.append("who attacked, defended, captured, occupied, landed at or bombed a place")
+    if sum(counts[t] for t in COMMAND_RELATIONS) < RELATION_MINIMUM:
+        lacks.append("who commanded a battle")
+    if not lacks:
+        return ""
+    return (f"\nThis graph has no relations saying {' or '.join(lacks)}. Don't look for them with find_relations, get_neighbors "
+            "or list_relations. For such a question, read the battle's participants once, then use search_source_text, and "
+            "answer from those. A participant relation doesn't say which side attacked.\n")
+
+
 def build_system_prompt(store: GraphStore | None = None) -> str:
     """System prompt for a graph: its metadata scope, or the Pacific default (contract 4.8).
 
@@ -197,6 +224,7 @@ def build_system_prompt(store: GraphStore | None = None) -> str:
     if uses_graph_notes(store):
         status = store.metadata.get("release_status")
         notes = GRAPH_NOTES.format(status=f" (release status: {status})" if status else "")
+    notes += missing_relation_note(store)
     # str.replace, not format: the prompt itself contains braces ("{total, shown, ...}")
     return PROMPT_TEMPLATE.replace("{intro}", intro).replace("{scope_rule}", scope_rule).replace("{graph_notes}", notes)
 
@@ -297,9 +325,12 @@ def get_llm() -> ChatOpenAI:
         # stalled provider request could hang a run (or an eval) for ~30 minutes.
         timeout=float(os.getenv("GEO_AGENT_TIMEOUT", "60")),
         max_retries=env_int("GEO_AGENT_MAX_RETRIES", 2),
+        # Without a limit OpenRouter reserves the model's full output (131,072 tokens) against the credits on each call.
+        max_tokens=env_int("GEO_AGENT_MAX_OUTPUT_TOKENS", 8192),
     )
 
 
+EMPTY_ANSWER = "I couldn't finish an answer to this question from the graph. Please try asking it in a narrower way."
 SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning", "overview")
 BUDGET_NOTE = ("TOKEN BUDGET REACHED for this question: do not call more tools. Give your final answer now "
                "with what you already have, and say that the answer may be incomplete.")
@@ -360,6 +391,25 @@ class StepBudget(AgentMiddleware):
             log.info("last model call before the step limit: only the final answer tool is offered")
             request = request.override(tools=[])
         return await handler(request)
+
+
+EMPTY_REPLY_NOTE = ("Your last reply was empty. Give your final answer now with what the tool results show, "
+                    "and say what the graph does not record.")
+
+
+class EmptyReplyRetry(AgentMiddleware):
+    """Repeat once a model call that returned no text and no tool call (spec R86), offering only the
+    AgentAnswer tool. GLM did this at the forced last step, on "Who attacked Midway?" in 2 of 3 runs."""
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        ai = response.result[0]
+        if getattr(response, "structured_response", None) is None and not ai.tool_calls and not str(ai.content).strip():
+            log.info("empty model reply: retrying once with only the final answer tool")
+            base = request.system_message.content if request.system_message is not None else ""
+            request = request.override(tools=[], system_message=SystemMessage(content=f"{base}\n\n{EMPTY_REPLY_NOTE}"))
+            response = await handler(request)
+        return response
 
 
 class SetHandleGuard(AgentMiddleware):
@@ -1122,7 +1172,8 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
     # Name-search candidates don't count: a fuzzy hit for "Guadalcanal" (Guam) is not evidence
     # that the Marine Corps belongs on Guam for this answer.
     placed = collect_evidence([r for r in tool_results(turn) if r[0] != "search_entities"])["ids"]
-    geojson = store.to_geojson(kept + [d for d in draw if d not in kept], restrict_to=set(kept) | placed | set(draw))
+    named = store.without_broad_places(kept, draw)
+    geojson = store.to_geojson(named + [d for d in draw if d not in kept], restrict_to=set(kept) | placed | set(draw))
     map_truncated = len(geojson["features"]) > MAX_MAP_FEATURES
     geojson["features"] = geojson["features"][:MAX_MAP_FEATURES]
     draw_set = set(draw)
@@ -1337,6 +1388,7 @@ class GeoAgent:
                 StepBudget(env_int("GEO_AGENT_MAX_STEPS", 25)),
                 SetHandleGuard(retries=1),
                 GroundingGuard(store, retries=1),
+                EmptyReplyRetry(),
             ],
             checkpointer=InMemorySaver(),  # per-thread conversation memory
         )
@@ -1396,6 +1448,9 @@ class GeoAgent:
                 raw = str(messages[-1].content) if messages else ""
                 trace.emit("structured_output", ok=False, raw_text=raw[: trace.text_chars])
                 warnings.append("structured_output_failed")
+                if not raw.strip():  # spec R80: the user always gets a sentence
+                    raw = EMPTY_ANSWER
+                    warnings.append("empty_answer")
                 parsed = AgentAnswer(answer=raw, answer_ids=[], context_ids=[], sources=[], answer_sets=[])
             else:
                 trace.emit("structured_output", ok=True, answer=parsed.model_dump())

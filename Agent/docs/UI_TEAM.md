@@ -15,6 +15,14 @@
 - **The graph is getting broader.** The team's next graph covers World War II beyond the Pacific (`metadata.scope`), and ids become Wikidata QIDs. Don't hard-code "Pacific" assumptions or id formats.
 - **English only.**
 
+## What changed for the app (2026-11-05)
+The reply format is unchanged (`schema_version` stays "1.4"), so nothing has to change. Worth knowing:
+- **New warning `empty_answer`:** the model returned nothing, and `answer` is a fixed sentence saying the agent couldn't finish. Treat it as a failed answer: suggest asking in a narrower way.
+- **Questions outside 1938 to 1948 get a "that's outside my window" answer,** with nothing on the map. Events outside those years are no longer in the graph the agent uses.
+- **A war as a whole has no places.** MacArthur's map now shows campaigns and battles, not continents.
+- **Battles can appear as markers** (`type: "event"`) as well as places. Both are correct.
+- **Loading a real graph is slower:** about 25 seconds and 2.3 GB for the current 460 MB checkpoint. Keep showing a loading state, and load it once per process.
+
 ## 0. What we learned running your app with the agent (2026-10-18)
 - **Keep the running question in `st.session_state` and check it on every rerun.** If the app polls the answer only inside the function that handles the question, any click while the agent works (a sidebar button, a suggestion) reruns the script and the answer is lost. Store the `PendingAnswer` from `submit()` in session state, and at the top of every run, if one is pending, poll it and render it when it's done.
 - **Disable input while a question runs:** the chat input and the suggestion buttons, using `is_busy(thread_id)` or the pending answer. A Stop button can call `cancel()`.

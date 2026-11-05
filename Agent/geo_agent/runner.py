@@ -85,6 +85,7 @@ def excerpt(text: str, chars: int = EXCERPT_CHARS) -> str:
 
 def entity_card(store: GraphStore, entity_id: str, excerpt_chars: int = EXCERPT_CHARS) -> dict[str, Any] | None:
     """See AgentRunner.get_entity_feature."""
+    entity_id = store.canonical_id(entity_id)  # an old record id resolves to its merged node (spec R73)
     node = store.nodes.get(entity_id)
     if node is None:
         return None
