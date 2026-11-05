@@ -539,6 +539,18 @@ def test_resolution_warning_codes(isolated_env, code, question, responses):
     assert fin["resolved_entities"] and code in events[-1]["warnings"]
 
 
+def test_r80_an_empty_final_message_still_answers(isolated_env):
+    out = ask([ai(call("graph_schema", "g")), AIMessage(""), AIMessage("")])  # empty again after the retry
+    assert out["error"] is None and out["answer"] == agent_mod.EMPTY_ANSWER
+    assert {"structured_output_failed", "empty_answer"} <= set(out["warnings"])
+
+
+def test_r86_an_empty_reply_is_retried_once(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Midway")), AIMessage(""), final("Midway Atoll", ["loc:midway_atoll"])])
+    assert out["answer"] == "Midway Atoll" and out["entity_ids"] == ["loc:midway_atoll"]
+    assert not {"structured_output_failed", "empty_answer"} & set(out["warnings"])
+
+
 def test_final_answer_missing_ids_is_sent_back_and_retried(isolated_env):
     """The model's first final answer omits entity_ids/sources; the validation error goes back and the retry is used."""
     out = ask([

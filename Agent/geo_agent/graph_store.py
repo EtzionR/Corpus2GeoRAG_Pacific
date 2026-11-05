@@ -32,6 +32,7 @@ Design decisions:
 from __future__ import annotations
 
 import gc
+import html
 import json
 import math
 import re
@@ -47,7 +48,8 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from rank_bm25 import BM25Okapi
 from rapidfuzz import fuzz, process
-from shapely.geometry import Point, box, shape
+import shapely
+from shapely.geometry import Point, box, mapping, shape
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
 
@@ -56,7 +58,8 @@ EARTH_RADIUS_KM = 6371.0
 # They are replaced before any tool returns the text, so the model never reads them.
 INSTRUCTION_RE = re.compile(
     r"\b(ignore|disregard|forget|override)\b[^.!?\]]{0,40}\b(instructions?|prompts?|rules)\b"
-    r"|\byou are now\b|\bsystem prompt\b|\b(as an|you are an?) (ai|assistant|language model)\b"
+    r"|\byou are now\b|\bsystem prompt\b|\byou are an? (ai|assistant|language model)\b|\bas an (ai|language model)\b"
+    r"|\bas an assistant,? you\b"  # not "he served as an assistant to the admiral"
     r"|\b(answer|reply|respond) (to )?(every|all|any) (question|request)s?\b",
     re.IGNORECASE)
 REDACTED = "[instruction-like text removed]"
@@ -192,6 +195,49 @@ class Source(BaseModel):
         return None
 
 
+MAX_SOURCES_SHOWN = 5  # sources per entity in tool output (spec R80): a merged entity has over 1,300 mentions
+
+
+def sources_view(sources: list[Source]) -> dict[str, Any]:
+    """An entity's distinct sources for tool output, capped; `sources_total` only when some are left out."""
+    views = list({json.dumps(v, sort_keys=True): v for v in (s.view() for s in sources)}.values())
+    return {"sources": views[:MAX_SOURCES_SHOWN], **({"sources_total": len(views)} if len(views) > MAX_SOURCES_SHOWN else {})}
+
+
+_WIKIDATA_DATE = re.compile(r"^[+-]?(\d{1,4})-(\d{2})-(\d{2})(?:T.*)?$")
+_DMY_DATE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+NODE_DATE_KEYS = ("start_date", "end_date", "point_date")
+PRECISION_CUT = {"year": 4, "month": 7, "9": 4, "10": 7}  # ISO prefix kept; 9 / 10 are Wikidata year / month (R77)
+
+
+def iso_date(value: Any, precision: Any = None) -> Any:
+    """A graph-team date as the contract's partial ISO date (spec R70):
+    - Wikidata: "+1942-06-04T00:00:00Z" -> "1942-06-04", "+1942-06-00T…" -> "1942-06", "+1942-00-00T…" -> "1942"
+    - DD/MM/YYYY: "07/08/1942" -> "1942-08-07"
+    - with a precision ("year" / "month", or Wikidata 9 / 10 / 11), cut to it: "01/06/1942" + "month" -> "1942-06"
+    Anything else is returned unchanged."""
+    if value.__class__ is not str:
+        return value
+    out = value
+    if (m := _DMY_DATE.match(value)) is not None:
+        day, month, year = m.groups()
+        out = f"{year}-{int(month):02d}-{int(day):02d}"
+    elif value[:1] == "+" or "T" in value:
+        if (m := _WIKIDATA_DATE.match(value)) is None:
+            return value
+        year, month, day = m.groups()
+        year = year.zfill(4)
+        out = year if month == "00" else f"{year}-{month}" if day == "00" else f"{year}-{month}-{day}"
+    cut = PRECISION_CUT.get(str(precision).lower()) if precision else None
+    return out[:cut] if cut else out
+
+
+def day_one_without_precision(value: Any, precision: Any) -> bool:
+    """A DD/MM/YYYY date on day 01 with no precision given: "1942" exported as 01/01/1942 can't be told
+    from 1 January 1942, so a June 1942 filter would miss it (spec R70; counted, not guessed)."""
+    return value.__class__ is str and not precision and (m := _DMY_DATE.match(value)) is not None and int(m.group(1)) == 1
+
+
 class Node(BaseModel):
     """Graph entity (location, person, org, event, ...)."""
 
@@ -205,6 +251,31 @@ class Node(BaseModel):
     text: str = ""  # raw source text the entity was extracted from
     attributes: dict[str, Any] = Field(default_factory=dict)
     embedding: list[float] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_export_formats(cls, data: Any) -> Any:
+        """Formats of the graph team's exports, accepted besides contract v1 (2026-10-25): the type
+        "MISC" is "other", geometry may come as WKT in `geometry_wkt`, dates in Wikidata form."""
+        if data.__class__ is not dict:
+            return data
+        if str(data.get("type", "")).upper() == "MISC" or data.get("geometry_wkt") or data.get("attributes"):
+            data = data.copy()
+            if str(data.get("type", "")).upper() == "MISC":
+                data["type"] = "other"
+            if not data.get("geometry") and (wkt := data.get("geometry_wkt")).__class__ is str:
+                data["geometry"] = mapping(shapely.from_wkt(wkt))
+            if (attrs := data.get("attributes")).__class__ is dict and any(k in attrs for k in (*NODE_DATE_KEYS, "point_date_candidates")):
+                a = attrs.copy()
+                for k in NODE_DATE_KEYS:
+                    if k in a:
+                        if day_one_without_precision(a[k], a.get(f"{k}_precision")):
+                            data["_day_one_dates"] = data.get("_day_one_dates", 0) + 1
+                        a[k] = iso_date(a[k], a.get(f"{k}_precision"))
+                if isinstance(a.get("point_date_candidates"), list):
+                    a["point_date_candidates"] = [iso_date(c) for c in a["point_date_candidates"]]
+                data["attributes"] = a
+        return data
 
 
 # Edge attribute values repeated on every assertion of the draft graph; interning them
@@ -268,6 +339,12 @@ class Edge(BaseModel):
                     for src in sources]
         if (fam := data.get("relation_family")).__class__ is str:
             data["relation_family"] = intern(fam)
+        for k in ("start_date", "end_date", "point_date"):  # Wikidata and DD/MM/YYYY dates (spec R70)
+            if (v := data.get(k)).__class__ is str and (v[:1] == "+" or "T" in v or "/" in v):
+                precision = data.get(f"{k}_precision")
+                if day_one_without_precision(v, precision):
+                    data["_day_one_dates"] = data.get("_day_one_dates", 0) + 1
+                data[k] = iso_date(v, precision)
         return data
 
 
@@ -301,6 +378,26 @@ def edge_dates(e: Edge) -> tuple[str | None, str | None]:
     return e.point_date, e.point_date
 
 
+SCOPE_START, SCOPE_END = "1938", "1948"  # the agent's window: nothing before or after these years (spec R84)
+
+
+def outside_scope(start: Any, end: Any) -> bool:
+    """Entirely before or after the window; undated or open-ended stays (an end after 1938 isn't known to be before it)."""
+    return bool((end and str(end)[:4] < SCOPE_START) or (start and str(start)[:4] > SCOPE_END))
+
+
+def attribute_dates(a: dict[str, Any]) -> tuple[str | None, str | None]:
+    """(start, end) from node attributes: start_date / end_date; else point_date as [point, point]; else
+    the span of point_date_candidates (the draft exporter's unselected point dates, e.g. the two atomic bombings)."""
+    start, end = a.get("start_date"), a.get("end_date")
+    if start or end:
+        return start, end
+    if a.get("point_date"):
+        return a["point_date"], a["point_date"]
+    cands = sorted(str(c) for c in a.get("point_date_candidates") or [] if c)
+    return (cands[0], cands[-1]) if cands else (None, None)
+
+
 def dates_overlap(start: str | None, end: str | None, date_from: str | None, date_to: str | None) -> bool:
     """Interval overlap on partial ISO dates; undated never matches a set filter, and no filter matches all."""
     if not date_from and not date_to:
@@ -323,6 +420,188 @@ def normalize_name(text: str) -> str:
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
     stripped = re.sub(r"['\u2018\u2019`]", "", stripped).replace("-", " ")
     return " ".join(stripped.split())
+
+
+INVERSE_PREFIX = "inverse:"
+
+
+def fold_derived_views(edges: list[Edge]) -> tuple[list[Edge], int]:
+    """Drop reverse views whose base assertion is present (spec R69): the agent reads every relation
+    in both directions, so a view would only count its shared source assertion twice. A view is an
+    edge with `derived: true` and a `source_edge_id`; one whose base is missing is kept. A mirror without
+    the flag (same type, swapped endpoints, as the checkpoint stores co-mentions) is a view too."""
+    def extra(e: Edge, key: str) -> Any:
+        return (e.model_extra or {}).get(key, e.attributes.get(key))
+    bases = {e.id: e for e in edges if e.id and not extra(e, "derived") and not extra(e, "source_edge_id")}
+
+    def is_view(e: Edge) -> bool:
+        base = bases.get(extra(e, "source_edge_id"))
+        if base is None:
+            return False
+        return bool(extra(e, "derived")) or (e.type == base.type and (e.source, e.target) == (base.target, base.source))
+    kept = [e for e in edges if not is_view(e)]
+    return kept, len(edges) - len(kept)
+
+
+# Spec R73: the order that breaks a tie between records of one entity with as many sources each,
+# and the military-event kinds (set by the build-time Wikidata enrichment) that type an entity `event`.
+MERGE_TYPE_ORDER = ("location", "event", "person", "org", "other")
+MILITARY_EVENT_KINDS = frozenset({"battle", "campaign", "operation", "raid", "siege", "war", "attack", "landing"})
+
+
+_WIKI_REF_RE = re.compile(r"<ref\b[^>]*/>|<ref\b[^>]*>.*?</ref>|<!--.*?-->", re.S | re.I)
+_WIKI_TAG_RE = re.compile(r"</?[a-zA-Z][^>]*>")
+_WIKI_TEMPLATE_RE = re.compile(r"\{\{([^{}]*)\}\}")
+_WIKI_LINK_RE = re.compile(r"\[\[([^\[\]|]*)(?:\|([^\[\]]*))?\]\]")
+_WIKI_URL_RE = re.compile(r"\[https?://\S+(?:\s+([^\]]*))?\]|https?://\S+")
+_SHIP_PREFIXES = {"uss", "hms", "hmas", "hmnzs", "hmcs"}
+MIN_PARAGRAPH_CHARS = 30  # shorter fragments are list items and headings
+
+
+def _wiki_template(m: re.Match[str]) -> str:
+    """A template's readable text: ship names and measures are kept, the rest goes."""
+    parts = [p.strip() for p in m.group(1).split("|")]
+    head = parts[0].casefold()
+    if head in _SHIP_PREFIXES and len(parts) > 1:  # {{USS|Enterprise|CV-6}}
+        return f"{parts[0]} {parts[1]}" + (f" ({parts[2]})" if len(parts) > 2 and parts[2] else "")
+    if head == "ship" and len(parts) > 2:  # {{ship|Japanese cruiser|Mogami}}
+        return f"{parts[1]} {parts[2]}" + (f" ({parts[3]})" if len(parts) > 3 and parts[3] else "")
+    if head in ("convert", "cvt") and len(parts) > 2:  # {{convert|5|km}}
+        return f"{parts[1]} {parts[2]}"
+    return ""
+
+
+def _wiki_link(m: re.Match[str]) -> str:
+    target, label = m.group(1), m.group(2)
+    if target.split(":", 1)[0].strip().casefold() in ("file", "image", "category"):
+        return ""
+    return label if label is not None else target
+
+
+def clean_wikitext(text: str) -> str:
+    """Plain text of a Wikipedia paragraph (spec R82); "" for a fragment too short to be one."""
+    text = _WIKI_REF_RE.sub(" ", text)
+    while (cleaner := _WIKI_TEMPLATE_RE.sub(_wiki_template, text)) != text:  # innermost first
+        text = cleaner
+    while (cleaner := _WIKI_LINK_RE.sub(_wiki_link, text)) != text:
+        text = cleaner
+    text = _WIKI_URL_RE.sub(lambda m: m.group(1) or "", text)
+    text = html.unescape(_WIKI_TAG_RE.sub(" ", text)).replace("'''", "").replace("''", "")
+    text = " ".join(text.split()).strip(" *#:;=|")
+    return text if len(text) >= MIN_PARAGRAPH_CHARS else ""
+
+
+def text_from_sources(nodes: list[Node]) -> tuple[set[str], dict[str, dict[str, Any]]]:
+    """Give a node with no `text` the cleaned paragraphs of its `sources[].text` (spec R82). Returns the
+    ids filled and each paragraph's own source. The raw paragraph leaves the source record: a paragraph
+    is repeated on every entity it mentions, and the graph holds over 250,000 of them."""
+    cleaned: dict[str, str] = {}
+    paragraph_source: dict[str, dict[str, Any]] = {}
+    filled: set[str] = set()
+    for n in nodes:
+        if n.text:
+            continue
+        paragraphs: dict[str, None] = {}
+        for s in n.sources:
+            raw = (s.model_extra or {}).pop("text", None)
+            if raw.__class__ is not str:
+                continue
+            if raw not in cleaned:
+                cleaned[raw] = clean_wikitext(raw)
+            if clean := cleaned[raw]:
+                paragraphs[clean] = None
+                if clean not in paragraph_source:
+                    paragraph_source[clean] = s.view()
+        if paragraphs:
+            n.text = "\n\n".join(paragraphs)
+            filled.add(n.id)
+    return filled, paragraph_source
+
+
+def wikidata_id_of(n: Node) -> str | None:
+    wid = (n.model_extra or {}).get("wikidata_id") or n.attributes.get("wikidata_id")
+    return wid if wid.__class__ is str else None
+
+
+def merge_qid_records(nodes: list[Node]) -> tuple[list[Node], dict[str, str], int]:
+    """One node per entity (spec R73). The producer writes one record per NER label an entity's
+    mentions got (`Q127417::PER`, `::ORG`, `::MISC`); the agent answers about the entity.
+
+    Records sharing a `wikidata_id` merge into the winner: a record with geometry, else an event,
+    else the one with the most sources (ties: MERGE_TYPE_ORDER). It keeps its id; sources, aliases,
+    the other names, text and attributes (the winner's win) are combined, with `mention_types` and
+    `merged_from` as provenance. An entity whose `kind` is a military event is typed `event`, its
+    geometry kept. Nodes without a `wikidata_id` and synthetic `SYN_` ids are left alone.
+
+    Returns (nodes in input order, redirect: old record id or bare QID -> merged id, entities merged)."""
+    groups: dict[str, list[Node]] = defaultdict(list)
+    for n in nodes:
+        if (wid := wikidata_id_of(n)) and not n.id.startswith("SYN_"):
+            groups[wid].append(n)
+    if not groups:
+        return nodes, {}, 0
+
+    def rank(n: Node) -> tuple:
+        order = MERGE_TYPE_ORDER.index(n.type) if n.type in MERGE_TYPE_ORDER else len(MERGE_TYPE_ORDER)
+        return bool(n.geometry), n.type == "event", len(n.sources), -order
+
+    ids = {n.id for n in nodes}
+    redirect: dict[str, str] = {}
+    merged: dict[str, Node] = {}  # winner id -> merged node
+    entities = 0
+    for wid, records in groups.items():
+        win = max(records, key=rank)
+        rest = [r for r in records if r is not win]
+        update: dict[str, Any] = {}
+        attrs = win.attributes
+        if rest:
+            entities += 1
+            seen: set[str] = set()
+            sources = []
+            for r in (win, *rest):
+                for s in r.sources:
+                    if (occ := (s.model_extra or {}).get("occurrence_id")) is not None:
+                        if occ in seen:
+                            continue
+                        seen.add(occ)
+                    sources.append(s)
+            win_name = normalize_name(win.name)
+            aliases = [*win.aliases, *(a for r in rest for a in r.aliases),
+                       *(r.name for r in rest if normalize_name(r.name) != win_name)]
+            attrs = {}
+            for r in (*reversed(rest), win):  # the winner's attributes win conflicts
+                attrs.update(r.attributes)
+            mention_types: Counter = Counter()
+            for r in records:
+                mention_types[r.id.rpartition("::")[2] if "::" in r.id else r.type] += len(r.sources)
+            attrs |= {"mention_types": dict(mention_types), "merged_from": [r.id for r in records]}
+            update = {"sources": sources, "attributes": attrs,
+                      "aliases": [a for a in dict.fromkeys(aliases) if a != win.name],
+                      "text": "\n\n".join(dict.fromkeys(r.text for r in (win, *rest) if r.text))}
+        if attrs.get("kind") in MILITARY_EVENT_KINDS and win.type != "event":
+            update["type"] = "event"
+        if attrs.get("entity_class") == "ship" and win.type == "location":
+            update["type"] = "other"  # spec R87: a ship is not a place
+        node = win.model_copy(update=update) if update else win
+        if rest and (day_one := sum((r.model_extra or {}).get("_day_one_dates", 0) for r in records)):
+            node.model_extra["_day_one_dates"] = day_one  # R70 count, summed over the records
+        merged[win.id] = node
+        for r in rest:
+            redirect[r.id] = win.id
+        if wid not in ids:
+            redirect[wid] = win.id
+    out = [merged.get(n.id, n) for n in nodes if n.id not in redirect]
+    return out, redirect, entities
+
+
+def expected_end_types(relation: str, end: str) -> frozenset[str]:
+    """Node types a relation expects at `end` ("source" / "target") from its role (spec R68); empty if unknown."""
+    for role, (subj, obj) in ROLE_END_TYPES.items():
+        direction = RELATION_ROLES[role].get(relation)
+        if direction is not None:
+            forward = direction == FWD
+            return subj if (end == "source") == forward else obj
+    return frozenset()
 
 
 def _in_order(needle: list[str], hay: list[str]) -> bool:
@@ -417,6 +696,16 @@ WEAK_RELATION = "CO_MENTIONED"
 # TEMPORAL_SUCCESSION, FORMATION_DISSOLUTION, and UNRESOLVED (instance of, described by, ...),
 # apart from the UNRESOLVED-family relations named in the table (participant in, participated In).
 FWD, INV = 1, -1
+_ACTORS = frozenset({"person", "org", "other"})
+# Node types each role expects at its (subject, object) ends, to resolve a bare QID with several typed
+# records (spec R68); part_of has none: a unit is part of a unit, an event of an event.
+ROLE_END_TYPES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "event_link": (_ACTORS, frozenset({"event"})),
+    "occurred_at": (frozenset({"event"}), frozenset({"location"})),
+    "acted_at": (_ACTORS, frozenset({"location"})),
+    "located_in": (frozenset({"location"}), frozenset({"location"})),
+    "person_place": (frozenset({"person"}), frozenset({"location"})),
+}
 RELATION_ROLES: dict[str, dict[str, int]] = {
     # actor -> event it took part in or commanded (EVENT_LINKS)
     "event_link": {
@@ -479,6 +768,8 @@ EVENT_DATED_ROLES = ("event_link", "occurred_at")  # undated edges of these role
 # the countries listed as their location. Campaigns stay below (Guadalcanal 10, New
 # Guinea 42) and are followed into their battles. Starting value.
 HUB_SUB_EVENTS = 50
+# A war or theatre as a whole states no places (spec R83). "Pacific War" has no kind, so the name counts too.
+WAR_LEVEL_NAME_RE = re.compile(r"\bworld war\b|(?<!of )\bwar$|\btheat(er|re)\b", re.IGNORECASE)
 OVERVIEW_TOP = 10  # items shown in an overview (spec R57); the result set holds all of them
 OVERVIEW_THRESHOLD = 25  # a set larger than this answers a broad question: use overview (spec R57)
 ACTOR_TYPES = ("person", "org", "other")  # `other`: unresolved draft nodes, e.g. the IJN
@@ -552,9 +843,32 @@ class GraphStore:
         metadata: dict[str, Any] | None = None,
         relation_catalog: Any = None,
     ):
+        records = len(nodes)
+        # spec R73: one node per entity; old record ids and bare QIDs redirect to it
+        nodes, self.id_redirect, self.entities_merged = merge_qid_records(nodes)
+        self.qid_records_merged = records - len(nodes)
+        # spec R84: events entirely outside the window leave the graph; their names stay, to say so when asked
+        outside = [n for n in nodes if n.type == "event" and outside_scope(*attribute_dates(n.attributes))]
+        self.out_of_scope: dict[str, dict[str, Any]] = {
+            normalize_name(n.name): {"name": n.name, "dates": attribute_dates(n.attributes)} for n in outside}
+        gone = {n.id for n in outside} | {w for n in outside if (w := wikidata_id_of(n))}
+        nodes = [n for n in nodes if n.id not in gone]
+        self.id_redirect = {old: new for old, new in self.id_redirect.items() if new not in gone}
+        self.text_from_sources, self._paragraph_source = text_from_sources(nodes)  # spec R82
         self.nodes: dict[str, Node] = {n.id: n for n in nodes}
         self.metadata: dict[str, Any] = metadata if isinstance(metadata, dict) else {}
         self.catalog: dict[str, dict[str, Any]] = load_catalog(relation_catalog)
+        edges, self.derived_views_folded = fold_derived_views(edges)  # spec R69: one assertion, both directions
+        if self.id_redirect:
+            redirect = self.id_redirect
+            for e in edges:
+                if e.source in redirect:
+                    e.source = redirect[e.source]
+                if e.target in redirect:
+                    e.target = redirect[e.target]
+        kept = [e for e in edges if e.source not in gone and e.target not in gone and not outside_scope(*edge_dates(e))]
+        self.relations_out_of_scope, edges = len(edges) - len(kept), kept
+        self.ambiguous_endpoints = self._resolve_qid_endpoints(edges)  # spec R68: "Q100" -> "Q100::LOC"
         # Drop edges pointing at unknown nodes instead of failing the whole load.
         self.edges: list[Edge] = [e for e in edges if e.source in self.nodes and e.target in self.nodes]
         self.dropped_edges = len(edges) - len(self.edges)
@@ -662,7 +976,7 @@ class GraphStore:
         # Nickname phrases in the (redacted) text: 'codename was "Cactus"', "nicknamed the Big E" (spec R53)
         for n in nodes:
             text = self.safe_text.get(n.id) or ""
-            if not text:
+            if not text or n.id in self.text_from_sources:  # a shared paragraph says nothing about each entity in it
                 continue
             code = type_codes[n.type]
             for m in TEXT_NICKNAME_RE.finditer(text):
@@ -689,14 +1003,13 @@ class GraphStore:
         for i, name in enumerate(self._names):
             self._exact.setdefault(strip_article(name), []).append(i)
 
-        # Text index: one chunk per paragraph of each node's (redacted) text.
-        self._chunks: list[tuple[str, str]] = [
-            (n.id, para.strip())
-            for n in nodes
-            if n.text
-            for para in self.safe_text[n.id].split("\n\n")
-            if para.strip()
-        ]
+        # Text index: one chunk per distinct paragraph of the nodes' (redacted) text, with the nodes holding it.
+        owners: dict[str, dict[str, None]] = {}
+        for n in nodes:
+            for para in self.safe_text[n.id].split("\n\n"):
+                if para.strip():
+                    owners.setdefault(para.strip(), {})[n.id] = None
+        self._chunks: list[tuple[str, list[str]]] = [(para, list(ids)) for para, ids in owners.items()]
         self._bm25_index: BM25Okapi | None = None  # built on the first text search
         self._role_cache: dict[tuple[str, str, bool], tuple[tuple[Edge, str], ...]] = {}
 
@@ -708,7 +1021,7 @@ class GraphStore:
     @property
     def _bm25(self) -> BM25Okapi | None:
         if self._bm25_index is None and self._chunks:
-            self._bm25_index = BM25Okapi([_tokenize(t) for _, t in self._chunks])
+            self._bm25_index = BM25Okapi([_tokenize(t) for t, _ in self._chunks])
         return self._bm25_index
 
     @classmethod
@@ -754,7 +1067,48 @@ class GraphStore:
         store.input_counts = {"nodes": len(raw_nodes), "edges": len(raw_edges)}  # to check nothing was dropped
         return store
 
+    def canonical_id(self, entity_id: Any) -> Any:
+        """The merged node's id for an old record id or a bare QID (spec R73); any other id unchanged."""
+        return self.id_redirect.get(entity_id, entity_id) if entity_id.__class__ is str else entity_id
+
     # ------------------------------------------------------------- relations
+
+    def _resolve_qid_endpoints(self, edges: list[Edge]) -> int:
+        """Relation endpoints given as a bare QID, resolved to the typed record they mean (spec R68).
+
+        Typed records (`Q100::LOC`, `Q100::ORG`) stay separate nodes; a relation is never copied
+        per type. One record with that `wikidata_id`: that record. Several: the one whose type the
+        relation's role expects at that end (ROLE_END_TYPES). Otherwise the endpoint stays a bare
+        QID, so the relation is left out; returns how many relations that left out."""
+        by_qid: dict[str, list[str]] = defaultdict(list)
+        for n in self.nodes.values():
+            wid = (n.model_extra or {}).get("wikidata_id") or n.attributes.get("wikidata_id")
+            if isinstance(wid, str) and wid != n.id:
+                by_qid[wid].append(n.id)
+        if not by_qid:
+            return 0
+        ambiguous = 0
+        for e in edges:
+            unresolved = False
+            for end in ("source", "target"):
+                ref = getattr(e, end)
+                if ref in self.nodes or ref not in by_qid:
+                    continue
+                cands = by_qid[ref]
+                if len(cands) > 1:
+                    wanted = expected_end_types(e.type, end)
+                    if not wanted and e.type in RELATION_ROLES["part_of"]:
+                        # part of: same type at both ends (a battle is part of a campaign event, a unit of a unit)
+                        other = getattr(e, "target" if end == "source" else "source")
+                        other_types = {self.nodes[o].type for o in ([other] if other in self.nodes else by_qid.get(other, []))}
+                        wanted = frozenset(other_types) if len(other_types) == 1 else frozenset()
+                    cands = [c for c in cands if self.nodes[c].type in wanted] if wanted else []
+                if len(cands) == 1:
+                    setattr(e, end, cands[0])
+                else:
+                    unresolved = True
+            ambiguous += unresolved
+        return ambiguous
 
     def relation_filter(self, values: str | Iterable[str] | None) -> tuple[set[str], set[str]] | None:
         """Resolve relation filter values to (Level 2 types, Level 1 families); None = no filter.
@@ -862,6 +1216,17 @@ class GraphStore:
         return {k: self.metadata[k] for k in keys if self.metadata.get(k) is not None}
 
     # ------------------------------------------------------------ serialization
+
+    def geometry_summary(self, node_id: str) -> dict[str, Any] | None:
+        """A shape described for the model, not listed: type, bounding box, a representative point and
+        the number of points. Full shapes go only to the map (to_geojson in code), never into tool output:
+        on the fixed-10K one tool call returned 22 MB of polygon points and the model call failed."""
+        g = self.geoms.get(node_id)
+        if g is None:
+            return None
+        c = g.representative_point()
+        return {"type": g.geom_type, "bbox": [round(v, 4) for v in g.bounds], "lat": round(c.y, 4), "lon": round(c.x, 4),
+                "points": len(shapely.get_coordinates(g))}
 
     def summarize_node(self, node_id: str) -> dict[str, Any]:
         """Compact node view for tool output: id, name, type, representative lat/lon."""
@@ -1005,6 +1370,14 @@ class GraphStore:
             "relation_types_not_in_catalog": sum(1 for t in self.by_type if t not in self.catalog) if self.catalog else 0,
             "duplicate_assertions_combined": sum(len(g) - 1 for g in self.assertions.values()),
             "edges_dropped_unknown_endpoint": self.dropped_edges,
+            "edges_ambiguous_endpoint": self.ambiguous_endpoints,  # bare QID with several typed records (R68)
+            "qid_records_merged": self.qid_records_merged,  # records folded into their entity's node (R73)
+            "events_out_of_scope": len(self.out_of_scope),  # removed at load: outside 1938-1948 (R84)
+            "relations_out_of_scope": self.relations_out_of_scope,
+            "entities_merged": self.entities_merged,  # entities that had several records (R73)
+            "derived_views_folded": self.derived_views_folded,  # reverse views read from their base assertion (R69)
+            "dates_day_one_without_precision": sum((e.model_extra or {}).get("_day_one_dates", 0) for e in self.edges)
+            + sum((n.model_extra or {}).get("_day_one_dates", 0) for n in self.nodes.values()),  # R70: maybe a year or month
         }
 
     def search_entities(self, query: str, type: str | None = None, limit: int = 5) -> list[dict[str, Any]]:
@@ -1073,7 +1446,8 @@ class GraphStore:
         hulls = [self._labels[i] for i in self._label_ids.get(node_id, ()) if self._label_kind[i] == "hull_number"]
         start, end = self.node_dates(node_id)
         years = "-".join(dict.fromkeys(str(d)[:4] for d in (start, end) if d))
-        parts = [*hulls, years] if (hulls or years) else [" ".join((self.nodes[node_id].text or "").split()[:8])]
+        text = "" if node_id in self.text_from_sources else self.nodes[node_id].text  # a source paragraph doesn't describe the entity
+        parts = [*hulls, years] if (hulls or years) else [" ".join((text or "").split()[:8])]
         return ", ".join(p for p in parts if p)
 
     NAME_CANDIDATES = 200  # best-scoring labels examined per search (several labels can belong to one node)
@@ -1114,6 +1488,7 @@ class GraphStore:
 
     def get_entity(self, entity_id: str, text_chars: int = 1500) -> dict[str, Any] | None:
         """Full node details, with the raw text truncated to `text_chars`."""
+        entity_id = self.canonical_id(entity_id)
         n = self.nodes.get(entity_id)
         if n is None:
             return None
@@ -1121,8 +1496,8 @@ class GraphStore:
             **self.summarize_node(entity_id),
             "aliases": n.aliases,
             "attributes": n.attributes,
-            "geometry": n.geometry,
-            "sources": [s.view() for s in n.sources],
+            "geometry": self.geometry_summary(entity_id),  # never every point: OSM shapes run to MBs
+            **sources_view(n.sources),
             "text": self.safe_text[entity_id][:text_chars],
             **({"text_redacted": True} if entity_id in self.redacted_ids else {}),
             **({"data_limits": lim} if (lim := self.data_limits(entity_id)) else {}),
@@ -1138,17 +1513,8 @@ class GraphStore:
         return dates_overlap(*edge_dates(e), date_from, date_to)
 
     def node_dates(self, node_id: str) -> tuple[str | None, str | None]:
-        """(start, end) of an entity from its attributes: start_date / end_date; else
-        point_date as [point, point]; else the span of point_date_candidates (the draft
-        exporter's unselected point dates, e.g. the two atomic bombings)."""
-        a = self.nodes[node_id].attributes
-        start, end = a.get("start_date"), a.get("end_date")
-        if start or end:
-            return start, end
-        if a.get("point_date"):
-            return a["point_date"], a["point_date"]
-        cands = sorted(str(c) for c in a.get("point_date_candidates") or [] if c)
-        return (cands[0], cands[-1]) if cands else (None, None)
+        """(start, end) of an entity from its attributes (see attribute_dates)."""
+        return attribute_dates(self.nodes[node_id].attributes)
 
     # ----------------------------------------------------------- roles, places
 
@@ -1185,9 +1551,18 @@ class GraphStore:
         place of birth, ...): in the draft most coordinates on `other` nodes belong to
         airfields, forts and towns, but also to ships and wrecks, which are not places of
         the battles they took part in. Events, orgs and people are never places.
+        A co-mention, a participation (event_link) or a country (wd:P17) relation never
+        makes its other end a place (spec R76): Japan is a participant of Iwo Jima, not its place.
         """
+        if e.type == WEAK_RELATION or e.type == "wd:P17" or role_dir("event_link", e.type) is not None:
+            return False
         n = self.nodes[node_id]
         return n.type == "location" or (n.type == "other" and node_id in self.geoms and e.type in PLACE_RELATIONS)
+
+    def is_war_level(self, node_id: str) -> bool:
+        """Is this a war or theatre as a whole, above the campaign level? (spec R83)"""
+        n = self.nodes[node_id]
+        return n.type in ("event", "other") and (n.attributes.get("kind") == "war" or bool(WAR_LEVEL_NAME_RE.search(n.name)))
 
     def sub_event_count(self, event_id: str) -> int:
         cache = self.__dict__.setdefault("_sub_events", {})
@@ -1233,6 +1608,10 @@ class GraphStore:
         include_sublocations: bool = True,
     ) -> list[Edge]:
         """The edges behind find_relations, strongest first (tools summarize only the rows they show)."""
+        if isinstance(relation_type, str) and relation_type.startswith(INVERSE_PREFIX):  # R69: a reverse view's type
+            relation_type = relation_type[len(INVERSE_PREFIX):]
+            source_id, target_id = target_id, source_id
+        source_id, target_id = self.canonical_id(source_id), self.canonical_id(target_id)
         def expand(node_id: str | None) -> set[str] | None:
             if node_id is None:
                 return None
@@ -1287,6 +1666,7 @@ class GraphStore:
         date_to: str | None = None,
     ) -> list[tuple[Edge, str]]:
         """(edge, neighbor id) pairs behind neighbors(), strongest first."""
+        entity_id = self.canonical_id(entity_id)
         matches = self._relation_matcher(self.relation_filter(relation_types or None))
         edges = []
         if direction in ("out", "both"):
@@ -1343,14 +1723,18 @@ class GraphStore:
             if event_id in visited:
                 return
             visited.add(event_id)
-            if from_actor and self.sub_event_count(event_id) > HUB_SUB_EVENTS:
+            war_level = self.is_war_level(event_id)
+            if from_actor and (war_level or self.sub_event_count(event_id) > HUB_SUB_EVENTS):
                 return  # a war or theatre the actor took part in: neither all its battles nor its countries
-            if event_id in self.geoms:  # geometry rule: an event's own coordinates are its site
-                yield event_id, prefix
-            else:
-                for e, place in self._objects(event_id, "occurred_at"):
-                    if ok(e) and self.is_place_via(e, place):
+            stated = [(e, place) for e, place in self._objects(event_id, "occurred_at") if self.is_place_via(e, place)]
+            if war_level:
+                pass  # spec R83: only its campaigns and battles have places
+            elif stated:  # spec R78: the places an event is stated to have happened at come first
+                for e, place in stated:
+                    if ok(e):
                         yield place, prefix + [e]
+            elif event_id in self.geoms:  # geometry rule: otherwise an event's own coordinates are its site
+                yield event_id, prefix
             for e, sub in self._subjects(event_id, "part_of"):
                 if self.nodes[sub].type == "event" and ok(e):
                     yield from event_paths(sub, prefix + [e], visited, from_actor)
@@ -1420,6 +1804,7 @@ class GraphStore:
         a place relation) or, with `type` "event", the own site of an event that has
         coordinates (geometry rule). Ships, units and people with coordinates are never rows.
         """
+        entity_id = self.canonical_id(entity_id)
         if entity_id not in self.nodes:
             return []
         ok = lambda e: self._edge_ok(e, date_from, date_to)
@@ -1552,6 +1937,7 @@ class GraphStore:
         (no scope).
         """
         groups: dict[str, str] = {}  # item id -> group label
+        scope = self.canonical_id(scope)
         node = self.nodes.get(scope) if scope else None
         if scope and node is None:
             return {"total": 0, "error": f"unknown entity id {scope}"}
@@ -1698,9 +2084,10 @@ class GraphStore:
     def group_members(self, spec: str | list[str]) -> list[str]:
         """Org ids for a group: a list of entity ids, "country:<name>" or "side:<name>"."""
         if isinstance(spec, list):
-            return [i for i in spec if i in self.nodes]
+            return [i for i in map(self.canonical_id, spec) if i in self.nodes]
         key, _, value = spec.partition(":")
         if key not in ("country", "side") or not value:
+            spec = self.canonical_id(spec)
             return [spec] if spec in self.nodes else []
         return [r["id"] for r in self.find_entities("org", **{key: value})]
 
@@ -1718,7 +2105,7 @@ class GraphStore:
                 for r in self.connected_locations(m):
                     if r["id"] not in locs or r["strength"] > locs[r["id"]]["strength"]:
                         locs[r["id"]] = r
-                events |= {ev for _, ev in self._objects(m, "event_link") if self.nodes[ev].type == "event"}
+                events |= {ev for _, ev in self._objects(m, "event_link") if self.nodes[ev].type == "event" and not self.is_war_level(ev)}
             return locs, events
 
         a_members, b_members = self.group_members(group_a), self.group_members(group_b)
@@ -1761,8 +2148,9 @@ class GraphStore:
         with relations ["SELF"] and geometry_source "direct"; linked places have
         geometry_source "related". Places follow `is_place_via`.
         """
+        entity_id = self.canonical_id(entity_id)
         n = self.nodes.get(entity_id)
-        if n is None:
+        if n is None or self.is_war_level(entity_id):  # spec R83
             return []
         if n.type == "location" and entity_id in self.geoms:
             return [{**self.summarize_node(entity_id), "relations": ["SELF"], "geometry_source": "direct"}]
@@ -1871,10 +2259,10 @@ class GraphStore:
         hits = self.near(lat, lon, radius_km, limit=None)  # the tool caps and reports totals
         places = [h for h in hits if h["type"] in PLACE_TYPES]
         place_ids = {p["id"] for p in places}
-        edges = [e for pid in place_ids for e in self.in_edges[pid] + self.out_edges[pid]]
+        edges = [e for pid in place_ids for e in self.in_edges[pid] + self.out_edges[pid] if e.type != WEAK_RELATION]
         event_ids = {e.source for e in edges if self.nodes[e.source].type == "event"}
         event_ids |= {h["id"] for h in hits if h["type"] == "event"}  # events with their own coordinates
-        edges += [e for ev in event_ids for e in self.in_edges[ev]]
+        edges += [e for ev in event_ids for e in self.in_edges[ev] if e.type != WEAK_RELATION]  # spec R76
         unique = list({id(e): e for e in edges}.values())
         if date_from or date_to:
             unique = [e for e in unique if self.edge_in_range(e, date_from, date_to)]
@@ -1910,26 +2298,44 @@ class GraphStore:
         """BM25 search over node text paragraphs, optionally limited to `entity_ids`."""
         if self._bm25 is None:
             return []
-        scores = self._bm25.get_scores(_tokenize(query))
-        allowed = set(entity_ids) if entity_ids else None
+        words = _tokenize(query)
+        scores = self._bm25.get_scores(words)
+        allowed = set(map(self.canonical_id, entity_ids)) if entity_ids else None
         ranked = sorted(
-            (i for i, (nid, _) in enumerate(self._chunks) if allowed is None or nid in allowed),
+            (i for i, (_, ids) in enumerate(self._chunks) if allowed is None or not allowed.isdisjoint(ids)),
             key=lambda i: -scores[i],
         )
         out = []
         for i in ranked[:k]:
             if scores[i] <= 0 and allowed is None:
                 break
-            nid, text = self._chunks[i]
+            text, ids = self._chunks[i]
+            ids = [x for x in ids if allowed is None or x in allowed] + [x for x in ids if allowed is not None and x not in allowed]
+            nid = ids[0] if allowed is not None else max(ids, key=lambda x: len(set(words) & set(_tokenize(self.nodes[x].name))))
             n = self.nodes[nid]
+            others = [self.nodes[x].name for x in ids if x != nid][:MAX_SOURCES_SHOWN]
+            own = self._paragraph_source.get(text)
             out.append({
                 "entity": {"id": nid, "name": n.name, "type": n.type},
                 "text": text,
+                **({"mentions": others} if others else {}),
                 **({"text_redacted": True} if nid in self.redacted_ids else {}),
-                "sources": [s.view() for s in n.sources],
+                **({"sources": [own]} if own else sources_view(n.sources)),
                 "score": round(float(scores[i]), 3),
             })
         return out
+
+    def without_broad_places(self, named: list[str], drawn: list[str]) -> list[str]:
+        """`named` without ships and countries when the map has something more specific (spec R87): Japan's
+        polygon doesn't belong on a Pearl Harbor map, but "What happened at Nauru?" still draws Nauru."""
+        def broad(i: str) -> bool:
+            n = self.nodes.get(self.canonical_id(i))
+            return n is not None and n.attributes.get("entity_class") in ("ship", "country")
+        def placed(i: str) -> bool:
+            c = self.canonical_id(i)
+            return c in self.nodes and (c in self.geoms or bool(self.locations_of(c)))
+        specific = bool(drawn) or any(placed(i) and not broad(i) for i in named)
+        return [i for i in named if not (specific and broad(i))]
 
     def to_geojson(self, entity_ids: list[str], restrict_to: set[str] | None = None) -> dict[str, Any]:
         """FeatureCollection for the map UI.
@@ -1957,8 +2363,8 @@ class GraphStore:
                 props["related_to"] = via
             features.append({"type": "Feature", "geometry": n.geometry, "properties": props})
 
-        for eid in entity_ids:
-            if eid not in self.nodes:
+        for eid in map(self.canonical_id, entity_ids):
+            if eid not in self.nodes or self.is_war_level(eid):  # spec R83: a war is not drawn as a whole
                 continue
             if eid in self.geoms:
                 add(eid)
