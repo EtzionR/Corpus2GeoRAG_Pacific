@@ -970,6 +970,76 @@ def test_r89_a_fuzzy_match_cant_change_a_number():
     assert s.search_entities("7th Infantry Division")[0]["id"] == "A"
 
 
+def _sound_graph():
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}
+    box = {"type": "Polygon", "coordinates": [[[150, -20], [170, -20], [170, 0], [150, 0], [150, -20]]]}
+    return GraphStore.from_dict({"nodes": [
+        {"id": "SOUND", "name": "Iron Sound", "type": "location", "geometry": pt(160.0, -9.25)},
+        {"id": "ISLE", "name": "Green Isle", "type": "location", "geometry": pt(160.2, -9.4)},
+        {"id": "AUS", "name": "Big Country", "type": "location", "geometry": box, "attributes": {"entity_class": "country"}},
+        {"id": "NAVAL", "name": "Naval Battle", "type": "event", "geometry": pt(160.05, -9.2), "text": "Ships sank in Iron Sound at night."},
+        {"id": "LAND", "name": "Land Battle", "type": "event", "geometry": pt(160.1, -9.35), "text": "Marines held the ridge."},
+        {"id": "STATED", "name": "Sound Raid", "type": "event", "text": "A raid."},
+        {"id": "FAR", "name": "Faraway War Battle", "type": "event"},
+        {"id": "FARLOC", "name": "Far Away", "type": "location", "geometry": pt(0, 51)}],
+        "edges": [
+        {"source": "STATED", "target": "SOUND", "type": "OCCURRED_AT"},
+        {"source": "FAR", "target": "FARLOC", "type": "OCCURRED_AT"},
+        {"source": "FAR", "target": "AUS", "type": "wd:P710"},          # a participant, not a place
+        {"source": "AUS", "target": "FARLOC", "type": "wd:P530"}]})
+
+
+def test_r90_events_come_only_from_happened_at_links():
+    s = _sound_graph()
+    out = s.what_happened_at(-9.26, 160.01, 30)
+    assert {e["id"] for e in out["events"]} == {"NAVAL", "LAND", "STATED"}  # not the country's participations
+    assert all("FAR" not in (r["source"]["id"], r["target"]["id"]) for r in out["relations"])
+    assert "nearby_events" not in out  # a coordinate question stays spatial
+
+
+def test_r90_a_places_own_point_names_it():
+    s = _sound_graph()
+    out = s.what_happened_at(-9.25, 160.0, 100)  # exactly the sound's point, no place_id
+    assert [e["id"] for e in out["events"]] == ["STATED"] and [e["id"] for e in out["nearby_events"]] == ["NAVAL"]
+
+
+def test_r90_a_named_place_separates_stated_and_nearby_events():
+    s = _sound_graph()
+    out = s.what_happened_at(-9.25, 160.0, 30, place_id="SOUND")
+    assert [e["id"] for e in out["events"]] == ["STATED"]
+    assert [e["id"] for e in out["nearby_events"]] == ["NAVAL"]  # its text mentions the sound
+    assert out["nearby_dropped"] == 1  # the land battle
+    assert all("LAND" not in (r["source"]["id"], r["target"]["id"]) for r in out["relations"])
+
+
+def _region_graph():
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}
+    return GraphStore.from_dict({"nodes": [
+        {"id": "KISKA", "name": "Kiska", "type": "location", "geometry": pt(177.5, 52.0)},
+        {"id": "ALEUT", "name": "Aleutian Islands", "type": "location", "geometry": pt(-170, 52)},
+        {"id": "USA", "name": "United States", "type": "location", "geometry": pt(-100, 40), "attributes": {"entity_class": "country"}},
+        {"id": "OCEAN", "name": "Pacific Ocean", "type": "location", "geometry": pt(-150, 0), "attributes": {"entity_class": "region"}},
+        {"id": "FARBATTLE", "name": "Far battle", "type": "event"},
+        {"id": "COTTAGE", "name": "Operation Cottage", "type": "event", "attributes": {"point_date": "1943-08-15"}},
+        {"id": "CAMPAIGN", "name": "Aleutian Islands campaign", "type": "event", "attributes": {"start_date": "1942-06-03", "end_date": "1943-08-15"}},
+        {"id": "WAR", "name": "Pacific War", "type": "other"},
+        {"id": "CIVIL", "name": "Some national event", "type": "event"}],
+        "edges": [
+        {"source": "COTTAGE", "target": "KISKA", "type": "OCCURRED_AT"}, {"source": "KISKA", "target": "ALEUT", "type": "PART_OF"},
+        {"source": "CAMPAIGN", "target": "ALEUT", "type": "OCCURRED_AT"}, {"source": "WAR", "target": "ALEUT", "type": "OCCURRED_AT"},
+        {"source": "ALEUT", "target": "USA", "type": "LOCATED_IN"}, {"source": "CIVIL", "target": "USA", "type": "OCCURRED_AT"},
+        {"source": "KISKA", "target": "OCEAN", "type": "PART_OF"}, {"source": "FARBATTLE", "target": "OCEAN", "type": "OCCURRED_AT"}]})
+
+
+def test_r91_events_of_the_containing_region():
+    s = _region_graph()
+    assert s.parent_places("KISKA") == ["ALEUT"] and s.parent_places("ALEUT") == []  # a country is no region
+    for out in (s.what_happened_at(51.98, 177.57, 50), s.what_happened_at(52.0, 177.5, 50, place_id="KISKA")):
+        assert [e["id"] for e in out["events"]] == ["COTTAGE"]
+        assert [(e["id"], e["region"]) for e in out["region_events"]] == [("CAMPAIGN", "Aleutian Islands")]  # no war, no country
+    assert "region_events" not in s.what_happened_at(51.98, 177.57, 50, date_from="1944", date_to="1944")
+
+
 def test_r82_clean_wikitext():
     from geo_agent.graph_store import clean_wikitext
     raw = ("'''Admiral''' [[Isoroku Yamamoto|Yamamoto]] sent {{USS|Enterprise|CV-6}} and {{ship|Japanese cruiser|Mogami}} "

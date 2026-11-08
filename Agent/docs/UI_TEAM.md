@@ -18,6 +18,7 @@
 ## What changed for the app (2026-11-05)
 The reply format is unchanged (`schema_version` stays "1.4"), so nothing has to change. Worth knowing:
 - **New warning `empty_answer`:** the model returned nothing, and `answer` is a fixed sentence saying the agent couldn't finish. Treat it as a failed answer: suggest asking in a narrower way.
+- **New warning `raw_answer`:** the model twice returned raw data instead of an answer, and `answer` is the same fixed sentence as for `empty_answer`. Handle it the same way.
 - **New warning `tool_call_cap`:** the agent reached its limit on tool calls, so the answer may be incomplete. This is rare; no good answer so far has come near it.
 - **Questions outside 1938 to 1948 get a "that's outside my window" answer,** with nothing on the map. Events outside those years are no longer in the graph the agent uses.
 - **A war as a whole has no places.** MacArthur's map now shows campaigns and battles, not continents.

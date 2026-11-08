@@ -98,7 +98,8 @@ How to work:
     told apart only by year) and each can be answered in a few lines, you may instead answer for EVERY candidate,
     clearly separated and labelled by year, with every candidate's id in context_ids. Names that only look alike
     ("Tara": Tarawa or Tarakan) are different entities: always ask.
-    Skip both only if the user's question already settles it by year, type or context.
+    Skip both only if the user's question already settles it by year, type or context. A side or participant does not
+    settle it: "the US forces in the Battle of Guam" fits both battles of Guam, so answer for each or ask.
   * no result, or only a different entity with a similar name (the US 1st Infantry Division is not the Japanese 1st
     Division): say plainly that the graph has no such entity, and don't answer about the other one. Never drop a word
     that identifies the entity (a number, branch or nationality) to get a match: "1st Division" doesn't find the "1st
@@ -108,6 +109,11 @@ How to work:
 - Compose tools freely; there is no fixed list of question types. Typical patterns:
   * where did battle X happen -> search_entities -> get_locations
   * who did <relation> to place X in <year> -> search_entities -> find_relations(target_id=..., relation_type=..., year=...)
+  * what happened at <named place> -> search_entities -> what_happened_at(lat, lon, place_id=<its id>): its `events`
+    happened there; `nearby_events` only nearby, so say "nearby", never "at". List as having happened there only
+    what this tool returned (`events`, `nearby_events`, `region_events`). An event you found another way, such as a
+    battle you searched for because you expected it there, is not placed there by the graph: leave it out or say
+    exactly that
   * what happened at (lat, lon) -> what_happened_at (widen radius_km if nothing is found; pass year or
     date_from/date_to when the question names a period)
   * call graph_schema when you are unsure which relation or entity types exist.
@@ -413,6 +419,77 @@ class EmptyReplyRetry(AgentMiddleware):
             request = request.override(tools=[], system_message=SystemMessage(content=f"{base}\n\n{EMPTY_REPLY_NOTE}"))
             response = await handler(request)
         return response
+
+
+RAW_ANSWER_NOTE = ("Rejected: your answer is raw data, not an answer. Write the answer to the question in sentences, "
+                   "and put the ids of what answers it in answer_ids. If the graph doesn't answer it, say so in a sentence.")
+
+
+def is_raw_answer(text: str) -> bool:
+    """A bare JSON list, object or quoted string, such as '["Holland Smith"]' (spec R94)."""
+    s = (text or "").strip()
+    if not s or s[0] not in '[{"':
+        return False
+    try:
+        json.loads(s)
+    except ValueError:
+        return False
+    return True
+
+
+WHO_QUESTION_RE = re.compile(r"^\W*(who|whom|which (sides?|forces?|countr(y|ies)|nations?|units?|commanders?|armies|army|navy|navies|fleets?))\b",
+                             re.I)
+WHO_ANSWER_NOTE = ("Rejected: the question asks who, but answer_ids holds no person, unit or country. Put the ids of the "
+                   "actors that answer the question (sides, units, people) on answer_ids, looking each up with "
+                   "search_entities first; other entities go on context_ids. If no actor answers the question, resend "
+                   "the same answer.")
+
+
+def _send_back(request: Any, response: Any, note: str) -> Any:
+    """The request again, with the model's final answer and a rejection of it appended."""
+    ai = response.result[0]
+    call_id = next((c["id"] for c in ai.tool_calls if c["name"] == AgentAnswer.__name__), None)
+    rejection = ToolMessage(content=note, tool_call_id=call_id or "answer", name=AgentAnswer.__name__)
+    return request.override(messages=[*request.messages, ai, rejection])
+
+
+class RawAnswerGuard(AgentMiddleware):
+    """Send back once a final answer that is a bare JSON value (spec R94). GLM answered "Which battles did
+    Holland Smith command?" with '["Holland Smith"]' after one search; ask() replaces a second one."""
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        parsed = getattr(response, "structured_response", None)
+        if isinstance(parsed, AgentAnswer) and is_raw_answer(parsed.answer):
+            log.info("final answer is raw data; sending it back once")
+            response = await handler(_send_back(request, response, RAW_ANSWER_NOTE))
+        return response
+
+
+class WhoAnswerGuard(AgentMiddleware):
+    """Send back once a final answer to a "who" question whose answer_ids hold no actor (spec R95).
+    "Who attacked in the Battle of Tarawa in 1942?" named the United States and the Marine Corps, with no ids."""
+
+    def __init__(self, store: GraphStore):
+        super().__init__()
+        self.store = store
+
+    def is_actor(self, node_id: str) -> bool:
+        node = self.store.nodes.get(self.store.canonical_id(node_id))
+        return node is not None and (node.type in ("person", "org") or node.attributes.get("entity_class") == "country")
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        parsed = getattr(response, "structured_response", None)
+        if not isinstance(parsed, AgentAnswer) or parsed.answer_sets:
+            return response
+        question = next((str(m.content) for m in reversed(request.messages) if m.type == "human"), "")
+        if not WHO_QUESTION_RE.match(question) or not any(m.type == "tool" for m in turn_messages(request.messages)):
+            return response
+        if any(self.is_actor(i) for i in parsed.answer_ids):
+            return response
+        log.info("who question answered without an actor id; sending it back once")
+        return await handler(_send_back(request, response, WHO_ANSWER_NOTE))
 
 
 TOOL_CAP_NOTE = ("TOOL CALL LIMIT: {dropped} of your last tool calls did not run. Don't repeat calls. For many entities, use one "
@@ -1433,6 +1510,8 @@ class GeoAgent:
                 StepBudget(env_int("GEO_AGENT_MAX_STEPS", 25)),
                 SetHandleGuard(retries=1),
                 GroundingGuard(store, retries=1),
+                RawAnswerGuard(),
+                WhoAnswerGuard(store),
                 EmptyReplyRetry(),
                 ToolCallCap(env_int("GEO_AGENT_MAX_TOOLS_PER_TURN", 12), env_int("GEO_AGENT_MAX_TOOL_CALLS", 30)),
             ],
@@ -1500,6 +1579,9 @@ class GeoAgent:
                 parsed = AgentAnswer(answer=raw, answer_ids=[], context_ids=[], sources=[], answer_sets=[])
             else:
                 trace.emit("structured_output", ok=True, answer=parsed.model_dump())
+                if is_raw_answer(parsed.answer):  # spec R94: still raw after the guard's one retry
+                    parsed = parsed.model_copy(update={"answer": EMPTY_ANSWER})
+                    warnings.append("raw_answer")
 
             try:
                 out = finalize_answer(self.store, parsed, messages, self.sets)
