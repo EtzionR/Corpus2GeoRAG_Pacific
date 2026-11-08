@@ -66,6 +66,9 @@ GEO_AGENT_BIG_GRAPH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run pytest te
 29. **Places start at the campaign level.** The agent answers about the Pacific theatre, so a war or theatre as a whole states no places. Otherwise World War I would add every continent to MacArthur's map. A person or unit reaches places through campaigns and battles, and a war asked about directly answers through its campaigns.
 30. **A time window: 1938 to 1948.** Events entirely outside it are removed at load with their relations, and so are dated relations entirely outside it. Undated ones stay, and so does anything overlapping the window. Asked about the Korean War, the agent says it's outside its window rather than that it doesn't know it. Coverage reports `events_out_of_scope` and `relations_out_of_scope`.
 31. **Ships and countries give way on the map.** Records may carry `attributes.entity_class` (`ship`, `country`). A ship isn't a place, so it loads as `other`. A country stays a place, because "What happened at Nauru?" is a fair question, but neither is drawn when the model names it in an answer that has a more specific place: Japan's polygon doesn't belong on a Pearl Harbor map.
+32. **What happened at a place is what's stated there.** Events come from "happened at" links and events' own coordinates, never from a nearby place's other relations: Australia's polygon covers Milne Bay, and its participant links once listed the Battle of Britain there. Asked about a named place, the agent separates the events stated there from nearby ones, and keeps a nearby event only if its own text mentions the place. So Ironbottom Sound keeps the naval battles and drops the land battles on Guadalcanal. A land/sea rule couldn't do this: only a few events are marked naval, and all of Savo Island's battles were at sea. Questions given as coordinates stay purely spatial.
+33. **Events of the containing region are listed apart.** Kiska is part of the Aleutian Islands, and the Aleutian Islands campaign is linked only to the islands as a whole. So `what_happened_at` also gives, as `region_events`, events stated one level up, with the region's name. Countries and broad regions (an ocean, a continent, Micronesia) never count as a containing region; through the Pacific Ocean, Pearl Harbor got the Battle of Balikpapan. Most places gain nothing.
+34. **Final answers are checked for shape.** The model gets one more try when its final answer is raw data (`["Holland Smith"]`) instead of sentences, or answers a "who" question with no person, unit or country in `answer_ids`. A raw answer that comes back again is replaced by the fixed "couldn't finish" sentence. For a named place, the answer lists only the events the place tool returned. A battle the model looked up because it expected it there isn't presented as having happened there.
 
 ## Input schema (for the knowledge-graph builder)
 The agent reads **one JSON file**, set by `GRAPH_PATH` (default `data/sample_graph.json`; a relative path that doesn't exist from the working directory is read from the agent's project root, so a UI started in another folder finds the `.env` value):
@@ -231,6 +234,26 @@ print('locations without geometry:', [n.id for n in s.nodes.values() if n.type =
 ```
 Then point the agent at it with `GRAPH_PATH=path/to/graph.json uv run geo-agent "..."`.
 
+### Checkpoints tested
+The agent has been run on two of the graph team's checkpoints. They come from different corpora, so the second isn't a superset of the first.
+
+| | cpu5747 (2026-11-03) | partof521 (2026-11-08) |
+|---|---|---|
+| Records / entities | 3,529 / 1,985 | 4,055 / 3,661 |
+| Mentions / distinct paragraphs | 258,101 / about 76,000 | 44,129 / 8,833 |
+| Typed relations | 1,265 | 19,752 |
+| Records with dates | 4 | 175 |
+| Records with geometry | 883 | 556 |
+| Load time | 28 s | 10 s |
+
+The agent behaves fully only when four things are filled. In both checkpoints they had to be added from Wikidata before loading:
+- **a name on every record:** 1,105 places in partof521 were named only by their QID, such as Lae, Truk and Balikpapan.
+- **dates on battles**
+- **`attributes.kind` and `attributes.entity_class`**
+- **a point for every place**
+
+Without them, the time window removes little, battles load as places, and those places can't be found or mapped.
+
 ## Tools
 | Tool | Purpose |
 |------|---------|
@@ -299,7 +322,7 @@ From synchronous code such as Streamlit, use `AgentRunner` instead (see "Using t
 | `unverified_sources` | list of strings | Pages the model cited that never appeared in its evidence. |
 | `unverified_numbers` | list of numbers | Coordinates written in `answer` that match no value the graph returned. The text isn't changed; consider a small "unverified" marker. |
 | `ungrounded_names` | list of strings | Graph entities the answer names although no tool returned them this turn: the model added them from its own knowledge. In a reply with no answer ("not in the graph", or a clarification question), also any capitalized name that neither the question, nor a tool result, nor the graph's scope contains (e.g. "Normandy" for a division the graph links to no battle). The model is sent back once to look them up or remove them; what remains is listed here. Show a "not from the graph" note. |
-| `warnings` | list of strings | Codes for things worth flagging, empty when all went well. Answer quality: `low_confidence`, `uncertain_match_used` (a weak or ambiguous name match was used), `context_mismatch` (e.g. "Battle of Midway in 1944"; the battle was 1942), `model_rewritten_query` (the model searched a spelling the user didn't type), `ids_dropped`, `sources_unverified`, `text_coordinates_unverified`, `approximation_used` (a kind, country or concept was guessed; see `interpretation`), `result_set_unknown`, `ungrounded_names` (see that field), `nothing_on_map` (the answer has entities, but none has a place in the graph to draw: say so instead of showing an empty map). Scope: `off_topic` (the question wasn't about the graph; `answer` is the fixed scope message), `instruction_text_removed` (source text used for this answer contained instruction-like sentences, which were removed before the model saw them). Run health: `structured_output_failed` (plain text without ids), `empty_answer` (the model ended with no text; `answer` is a fixed sentence saying so), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`, `token_budget` (the question used more tokens than the budget), `tool_call_cap` (some tool calls didn't run because of the limit, so the answer may be incomplete). |
+| `warnings` | list of strings | Codes for things worth flagging, empty when all went well. Answer quality: `low_confidence`, `uncertain_match_used` (a weak or ambiguous name match was used), `context_mismatch` (e.g. "Battle of Midway in 1944"; the battle was 1942), `model_rewritten_query` (the model searched a spelling the user didn't type), `ids_dropped`, `sources_unverified`, `text_coordinates_unverified`, `approximation_used` (a kind, country or concept was guessed; see `interpretation`), `result_set_unknown`, `ungrounded_names` (see that field), `nothing_on_map` (the answer has entities, but none has a place in the graph to draw: say so instead of showing an empty map). Scope: `off_topic` (the question wasn't about the graph; `answer` is the fixed scope message), `instruction_text_removed` (source text used for this answer contained instruction-like sentences, which were removed before the model saw them). Run health: `structured_output_failed` (plain text without ids), `empty_answer` (the model ended with no text; `answer` is a fixed sentence saying so), `raw_answer` (the model twice gave raw data such as `["Holland Smith"]` as its answer; `answer` is the same fixed sentence), `repeated_tool_call`, `empty_resolution` (the first name lookup found nothing), `many_steps`, `token_budget` (the question used more tokens than the budget), `tool_call_cap` (some tool calls didn't run because of the limit, so the answer may be incomplete). |
 | `bbox` | `[min_lon, min_lat, max_lon, max_lat]` or `null` | Bounding box of the map features, for fitting the map. A box crossing the 180° meridian has `min_lon > max_lon` (Midway + Guadalcanal: `[159.6, -10.0, -177.37, 28.21]`, about 23° wide, not the whole world); for Leaflet `fit_bounds`, add 360 to `max_lon` in that case. |
 | `center` | `{lat, lon}` or `null` | A suggested map center. |
 | `result_sets` | list of `{handle, label, total, on_map, map_truncated}` | For set questions: the sets the answer is about, e.g. `{"label": "locations connected to Isoroku Yamamoto", "total": 5, "on_map": 5}`. Their members are in `answer_ids` and on the map. Show `total` ("5 places"), since the text names only the top ones. |
@@ -486,6 +509,7 @@ Add a server to `mcp_servers.json`. Every key except `allowed_tools`/`enabled` i
 ```
 
 ## Next steps
-- Point `GRAPH_PATH` at the real graph when the pipeline produces it, and add tests for its quirks.
+- Load the full graph: at the current size per record it won't fit in memory. Text search will probably move out of memory too.
+- Sides and commanders per battle, for "who attacked" and "who commanded"; neither checkpoint has them.
 - Use node/edge `embedding`s for semantic search once the graph team fixes the embedding model; the query must use the same model.
 - Expose `GraphStore` to the UI, via an MCP server or a small API, if the map needs direct queries without the LLM.

@@ -786,6 +786,7 @@ def role_dir(role: str, type: str) -> int | None:
 # location_kind values that cover several graph kinds
 KIND_GROUPS = {"island": {"island", "atoll"}, "city": {"city", "town", "village", "port"}}
 SELF_STRENGTH = 99  # strength of an entity's own location (no path needed)
+PLACE_POINT_KM = 0.05  # coordinates this close to a location's own point name that place (spec R90)
 
 # Flagged approximations while the graph lacks kinds / countries (spec R30). Each one is
 # used only when NO node of that type carries the attribute, and tools report it.
@@ -1574,6 +1575,13 @@ class GraphStore:
             cache[event_id] = sum(1 for _, sub in self._subjects(event_id, "part_of") if self.nodes[sub].type == "event")
         return cache[event_id]
 
+    def parent_places(self, location_id: str) -> list[str]:
+        """The places one level up (located in, part of), except countries and broad regions (spec R91)."""
+        out = [p for role in ("located_in", "part_of") for _, p in self._objects(location_id, role)
+               if p != location_id and self.nodes[p].type == "location"
+               and self.nodes[p].attributes.get("entity_class") not in ("country", "region")]
+        return list(dict.fromkeys(out))
+
     def sublocations(self, location_id: str) -> set[str]:
         """The location plus every place transitively located in it (LOCATED_IN, wd:P131, wd:P706)."""
         found, stack = {location_id}, [location_id]
@@ -2241,6 +2249,7 @@ class GraphStore:
         date_from: str | None = None,
         date_to: str | None = None,
         relation_limit: int | None = None,
+        place_id: str | None = None,
     ) -> dict[str, Any]:
         """Composite point query: nearby places, then their events and relations.
 
@@ -2263,9 +2272,13 @@ class GraphStore:
         hits = self.near(lat, lon, radius_km, limit=None)  # the tool caps and reports totals
         places = [h for h in hits if h["type"] in PLACE_TYPES]
         place_ids = {p["id"] for p in places}
-        edges = [e for pid in place_ids for e in self.in_edges[pid] + self.out_edges[pid] if e.type != WEAK_RELATION]
-        event_ids = {e.source for e in edges if self.nodes[e.source].type == "event"}
+        # spec R90: events only through "happened at" links and their own coordinates; of the places' other
+        # relations only place roles count, so Australia's polygon doesn't bring in the Battle of Britain
+        edges = [e for pid in place_ids for e in self.in_edges[pid] + self.out_edges[pid]
+                 if any(role_dir(r, e.type) is not None for r in PLACE_ROLES)]
+        event_ids = {ev for pid in place_ids for _, ev in self._subjects(pid, "occurred_at") if self.nodes[ev].type == "event"}
         event_ids |= {h["id"] for h in hits if h["type"] == "event"}  # events with their own coordinates
+        event_ids = {ev for ev in event_ids if not self.is_war_level(ev)}  # spec R83
         edges += [e for ev in event_ids for e in self.in_edges[ev] if e.type != WEAK_RELATION]  # spec R76
         unique = list({id(e): e for e in edges}.values())
         if date_from or date_to:
@@ -2288,13 +2301,42 @@ class GraphStore:
             row["excerpt"] = self.safe_text[ev][:text_chars]
             return {**row, **({"text_redacted": True} if ev in self.redacted_ids else {})}
 
-        events = sorted((event_row(ev) for ev in event_ids), key=lambda x: x.get("start_date", "9999"))
+        nearby: set[str] = set()
+        extra: dict[str, Any] = {}
+        if place_id is None:  # spec R90: a location's own point is that place, even when the model passes no id
+            own = [h["id"] for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"
+                   and h.get("distance_km", 1) <= PLACE_POINT_KM]  # a polygon containing the point names nothing
+            place_id = own[0] if len(own) == 1 else None
+        if place_id is not None and (place := self.canonical_id(place_id)) in self.nodes:  # spec R90: a named place
+            at = {ev for loc in self.sublocations(place) for _, ev in self._subjects(loc, "occurred_at")}
+            names = [normalize_name(x) for x in (self.nodes[place].name, *self.nodes[place].aliases) if len(x) >= 4]
+            others = event_ids - at
+            nearby = {ev for ev in others if any(n in normalize_name(self.nodes[ev].text or "") for n in names)}
+            extra["nearby_dropped"] = len(others - nearby)
+            event_ids = (event_ids & at) | nearby
+            unique = [e for e in unique if not ({e.source, e.target} & (others - nearby))]
+        # spec R91: events stated one level up (Kiska -> Aleutian Islands -> the Aleutian campaign), kept apart
+        anchor = place if place_id is not None and place in self.nodes else next(
+            (h["id"] for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"), None)
+        region: dict[str, str] = {}
+        for parent in self.parent_places(anchor) if anchor else []:
+            for _, ev in self._subjects(parent, "occurred_at"):
+                if self.nodes[ev].type == "event" and ev not in event_ids and not self.is_war_level(ev):
+                    region.setdefault(ev, self.nodes[parent].name)
+        if date_from or date_to:
+            region = {ev: r for ev, r in region.items() if dates_overlap(*self.node_dates(ev), date_from, date_to)}
+        if region:
+            extra["region_events"] = sorted(({**event_row(ev), "region": r} for ev, r in region.items()), key=lambda x: x.get("start_date", "9999"))
+        by_date = lambda x: x.get("start_date", "9999")
+        events = sorted((event_row(ev) for ev in event_ids - nearby), key=by_date)
         relations = [e for e in unique if not role_dir("located_in", e.type)]
-        extra = {} if relation_limit is None else {"relations_total": len(relations)}
+        if relation_limit is not None:
+            extra["relations_total"] = len(relations)
         return {
             **extra,
             "places": places,
             "events": events,
+            **({"nearby_events": sorted((event_row(ev) for ev in nearby), key=by_date)} if place_id is not None else {}),
             "relations": [self.summarize_edge(e) for e in relations[:relation_limit]],
         }
 

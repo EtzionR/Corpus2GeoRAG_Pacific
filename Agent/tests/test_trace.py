@@ -526,7 +526,8 @@ def test_finalize_event_and_dropped_id_warning(isolated_env, caplog):
         ("uncertain_match_used", "What happened at Tara?",
          [ai(call("search_entities", "a", query="Tara")), final("Tarawa", ["loc:tarawa"])]),
         ("model_rewritten_query", "Who bombed China's wartime capital?",
-         [ai(call("search_entities", "a", query="Chongqing")), final("Japan", ["loc:chongqing"])]),
+         [ai(call("search_entities", "a", query="Chongqing")), final("Japan", ["loc:chongqing"]),
+          final("Japan", ["loc:chongqing"])]),  # spec R95: a who answer with no actor is sent back once; resent unchanged
         ("context_mismatch", "What happened in the Battle of Midway in 1944?",
          [ai(call("search_entities", "a", query="Battle of Midway")), final("It was 1942", ["event:battle_of_midway"])]),
     ],
@@ -788,3 +789,41 @@ def test_no_answer_reply_with_outside_facts_is_sent_back_once(isolated_env):
                 answer_ids=[], context_ids=["org:1st_infantry_division"], sources=[], answer_sets=[])),
     ], question="Where did the Big Red One fight?")
     assert "Normandy" not in out["answer"] and out["ungrounded_names"] == []
+
+
+def test_r94_a_raw_answer_is_sent_back_once(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Corregidor")), final('["Corregidor"]'),
+               final("The graph links it to the Japanese capture in 1942.", ["loc:corregidor"])])
+    assert out["answer"].startswith("The graph links it") and "raw_answer" not in out["warnings"]
+
+
+def test_r94_a_raw_answer_twice_becomes_the_fixed_sentence(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Corregidor")), final('["Corregidor"]'), final('{"name": "x"}')])
+    assert out["answer"] == agent_mod.EMPTY_ANSWER and "raw_answer" in out["warnings"]
+
+
+def test_r94_only_bare_json_is_raw():
+    assert agent_mod.is_raw_answer('["Holland Smith"]') and agent_mod.is_raw_answer(' "x" ')
+    assert not agent_mod.is_raw_answer("[Note] The graph has no battles for him.")
+    assert not agent_mod.is_raw_answer("Holland Smith commanded at Saipan.") and not agent_mod.is_raw_answer("")
+
+
+def test_r95_a_who_answer_without_actors_is_sent_back_once(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Corregidor"), call("find_relations", "b", target_id="loc:corregidor")), final("The Japanese army attacked it.", ["loc:corregidor"]),
+               final("The Japanese army attacked it.", ["org:ija", "loc:corregidor"])], question="Who attacked Corregidor in 1942?")
+    assert "org:ija" in out["answer_ids"]
+
+
+def test_r95_a_who_answer_with_an_actor_or_a_where_question_is_untouched(isolated_env):
+    # one scripted final each: a send-back would leave the fake model without a reply
+    out = ask([ai(call("search_entities", "a", query="Corregidor"), call("find_relations", "b", target_id="loc:corregidor")), final("The Japanese army.", ["org:ija"])],
+              question="Who attacked Corregidor in 1942?")
+    assert out["error"] is None and out["answer_ids"] == ["org:ija"]
+    out = ask([ai(call("search_entities", "a", query="Corregidor")), final("At the island.", ["loc:corregidor"])],
+              question="Where is Corregidor?")
+    assert out["error"] is None and out["answer_ids"] == ["loc:corregidor"]
+    assert agent_mod.WHO_QUESTION_RE.match("Which side captured the island?") and not agent_mod.WHO_QUESTION_RE.match("Which battles did he fight?")
+
+
+def test_r96_the_prompt_keeps_a_place_to_what_the_tool_placed_there():
+    assert "only\n    what this tool returned" in agent_mod.SYSTEM_PROMPT or "not placed there by the graph" in agent_mod.SYSTEM_PROMPT
