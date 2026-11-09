@@ -61,7 +61,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from rapidfuzz import fuzz
 
-from geo_agent.graph_store import LOCATION_RELATIONS, QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, normalize_name, source_ref
+from geo_agent.graph_store import (LOCATION_RELATIONS, QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, edge_side, normalize_name,
+                                  source_ref)
 from geo_agent.schema import SCHEMA_VERSION
 from geo_agent.tools import build_tools
 from geo_agent.trace import DEFAULT_TOKEN_BUDGET, RunTrace, TraceWriter, diagnostics, env_int, env_on, file_hash, short_hash, tool_calls_of, trace_warnings
@@ -150,6 +151,11 @@ Final answer fields (all required):
 - answer_ids: ids of the entities that directly answer the question, and nothing else.
   * "who attacked/bombed/captured X": only the side that did it (the attackers), never the defenders. Include
     every attacker in the relation results, also those that attacked places inside X (e.g. an airfield on X).
+  * `side` (1 or 2) on a participant or commander relation is the column of the battle's Wikipedia infobox:
+    everyone with the same side fought together in that battle. Use it to say who was on which side (name each
+    side by its countries), to answer "who commanded the Japanese forces at X", and to keep a one-sided answer
+    ("who attacked / captured / won") to that one side on answer_ids. A side number alone doesn't
+    say who attacked. A relation without `side` says nothing about sides.
   * "where did X happen" / "which places ...": the places.
   * Location first (this is a geo agent): when a question could be about an event or its place ("where was
     the Long Lance used", "what happened in Ironbottom Sound / on Guam in 1944"), the PLACE goes in answer_ids;
@@ -490,6 +496,60 @@ class WhoAnswerGuard(AgentMiddleware):
             return response
         log.info("who question answered without an actor id; sending it back once")
         return await handler(_send_back(request, response, WHO_ANSWER_NOTE))
+
+
+ONE_SIDE_RE = re.compile(r"^\W*(who|which (sides?|forces?|countr(y|ies)|nations?|units?|armies|army|navy|navies|fleets?))\b.*?"
+                         r"\b(attack|bomb|raid|invad|land(ed|s)?\b|captur|occup|sank|sink|won\b|win\b|seiz|struck|strike)", re.I)
+ONE_SIDE_NOTE = ("Rejected: the question asks for one side, but answer_ids holds actors on both sides of {battle}: "
+                 "side 1 {one}; side 2 {two} (the `side` of their participant or commander relations). Keep on answer_ids only "
+                 "the side the question asks for; the others may go on context_ids. If that is what you meant, resend with that change.")
+
+
+class OneSideGuard(AgentMiddleware):
+    """Send back once an answer to a one-sided question ("who attacked Midway") whose answer_ids hold both
+    sides of one battle, by the R98 `side` of their relations (spec R99). The self-fix eval listed Nimitz
+    and Spruance among Midway's attackers."""
+
+    def __init__(self, store: GraphStore):
+        super().__init__()
+        self.store = store
+        self._sides: dict[str, dict[str, int]] | None = None
+
+    def sides(self) -> dict[str, dict[str, int]]:
+        """actor id -> {event id: side}, from relations whose assertions agree on one side."""
+        if self._sides is None:
+            out: dict[str, dict[str, int]] = {}
+            for e in self.store.edges:
+                found = {s for a in self.store.group(e) if (s := edge_side(a)) is not None}
+                if len(found) != 1:
+                    continue
+                event, actor = (e.source, e.target) if self.store.nodes[e.source].type == "event" else (e.target, e.source)
+                if self.store.nodes[event].type == "event":
+                    out.setdefault(actor, {})[event] = found.pop()
+            self._sides = out
+        return self._sides
+
+    def mixed(self, answer_ids: list[str]) -> tuple[str, list[str], list[str]] | None:
+        """The first battle with answer actors on both sides: (battle id, side-1 ids, side-2 ids)."""
+        sides, by_event = self.sides(), {}
+        for i in dict.fromkeys(self.store.canonical_id(x) for x in answer_ids):
+            for event, side in sides.get(i, {}).items():
+                by_event.setdefault(event, {1: [], 2: []})[side].append(i)
+        return next(((ev, g[1], g[2]) for ev, g in by_event.items() if g[1] and g[2]), None)
+
+    async def awrap_model_call(self, request: Any, handler: Any) -> Any:
+        response = await handler(request)
+        parsed = getattr(response, "structured_response", None)
+        if not isinstance(parsed, AgentAnswer) or parsed.answer_sets:
+            return response
+        question = next((str(m.content) for m in reversed(request.messages) if m.type == "human"), "")
+        if not ONE_SIDE_RE.match(question) or not (hit := self.mixed(parsed.answer_ids)):
+            return response
+        event, one, two = hit
+        name = lambda ids: ", ".join(f"{self.store.nodes[i].name} ({i})" for i in ids)
+        log.info("one-sided question answered with both sides of %s; sending it back once", event)
+        note = ONE_SIDE_NOTE.format(battle=f"{self.store.nodes[event].name} ({event})", one=name(one), two=name(two))
+        return await handler(_send_back(request, response, note))
 
 
 TOOL_CAP_NOTE = ("TOOL CALL LIMIT: {dropped} of your last tool calls did not run. Don't repeat calls. For many entities, use one "
@@ -1512,6 +1572,7 @@ class GeoAgent:
                 GroundingGuard(store, retries=1),
                 RawAnswerGuard(),
                 WhoAnswerGuard(store),
+                OneSideGuard(store),
                 EmptyReplyRetry(),
                 ToolCallCap(env_int("GEO_AGENT_MAX_TOOLS_PER_TURN", 12), env_int("GEO_AGENT_MAX_TOOL_CALLS", 30)),
             ],

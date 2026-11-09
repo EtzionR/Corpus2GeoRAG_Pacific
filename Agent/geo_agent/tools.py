@@ -166,7 +166,8 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None) -> list[BaseT
         date_to: str | None = None,
     ) -> str:
         """List entities directly connected to `entity_id`, with the relation, its
-        dates, combined support (`count`) and sources.
+        dates, combined support (`count`) and sources. A participant or commander relation
+        may carry `side` (1 or 2): the battle's infobox column, so the same side fought together.
 
         Args:
             relation_types: optional filter, e.g. ["PARTICIPATED_IN", "COMMANDED"]. Each value is
@@ -204,6 +205,8 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None) -> list[BaseT
         Results are sorted by `count`, the combined support (mentions, or source assertions
         when several sources state the same relation; higher = better supported). `providers`
         and `source_refs` name the source records; `sources` holds Wikipedia pages only.
+        `side` (1 or 2), when present on a participant or commander relation, is the battle's
+        infobox column: the same side fought together. It doesn't say who attacked.
         """
         f, t = _year_range(year, date_from, date_to)
         hits = store.find_relation_edges(source_id, target_id, relation_type, f, t, include_sublocations)

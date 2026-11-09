@@ -14,3 +14,13 @@ Project_*.pdf
 
 # Agent worktrees (parallel workstreams)
 .claude/worktrees/
+
+# Wikidata enrichment (graph_enrichment/): cache and graphs stay outside git
+graph_enrichment_cache/
+wikidata_cache/
+*.enriched.json
+
+# Self-fix build (graph_enrichment.selffix): caches and built graphs stay outside git
+wikipedia_cache/
+selffix/
+*.selffix*.json

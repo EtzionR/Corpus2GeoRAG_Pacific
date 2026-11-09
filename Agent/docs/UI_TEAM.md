@@ -1,6 +1,6 @@
 # Notes for the UI team: connecting the Streamlit app to the agent
 
-**From:** the agent (Michael) · **Date:** 2026-10-13, updated 2026-10-18 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract"), rechecked at `2411e43`, and the agent in `Agent/`
+**From:** the agent (Michael) · **Date:** 2026-10-13, updated 2026-11-09 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract"), rechecked at `2411e43`, and the agent in `Agent/`
 
 ## Summary
 - **The app's latest version already does most of the integration well.**
@@ -14,6 +14,12 @@
 - **The reply format grew to `schema_version` "1.4"** (1.2: `source_refs`, `bbox`, `center`, feature `geometry_source`, new error stages; 1.3: `ungrounded_names`; 1.4: `resolved_entities[].match` can be `nickname`, `hull_number` or `alias_part`). Nothing the app reads today changed name or type. Don't compare the version to a fixed string: additions are minor versions.
 - **The graph is getting broader.** The team's next graph covers World War II beyond the Pacific (`metadata.scope`), and ids become Wikidata QIDs. Don't hard-code "Pacific" assumptions or id formats.
 - **English only.**
+
+## What changed for the app (2026-11-09)
+The reply format is unchanged (`schema_version` stays "1.4"), so the app needs no code change.
+- **Use the self-fixed graph:** set `GRAPH_PATH` to `graph.selffix.json`, which `Agent/graph_enrichment` builds from the team's delivery (see the agent README, "Building the graph the agent should use"). It loads in about 10 s. The sample graph stays the default, for tests and mock mode.
+- **"Who commanded" and "which side" now have data.** Battles carry their two infobox sides, with commanders and units. The tool results the app shows under "graph queries" can include `side: 1` or `side: 2` on a relation. That number is the infobox column, not attacker or defender.
+- **Entity cards have new attributes** (`birth_date`, `death_date`, `ner_type`, `wikidata_type`, `selffix`). The app doesn't render attributes today; if it ever does, leave out the internal ones (`selffix`, `merged_from`, `mention_types`).
 
 ## What changed for the app (2026-11-05)
 The reply format is unchanged (`schema_version` stays "1.4"), so nothing has to change. Worth knowing:

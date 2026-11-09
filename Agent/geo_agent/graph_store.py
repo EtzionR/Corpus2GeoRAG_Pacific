@@ -381,6 +381,12 @@ def edge_dates(e: Edge) -> tuple[str | None, str | None]:
 SCOPE_START, SCOPE_END = "1938", "1948"  # the agent's window: nothing before or after these years (spec R84)
 
 
+def edge_side(e: "Edge") -> int | None:
+    """The `side` (1 or 2, an infobox column) a participant or commander assertion carries, else None (spec R98)."""
+    v = (e.model_extra or {}).get("side", e.attributes.get("side"))
+    return v if v in (1, 2) else int(v) if isinstance(v, str) and v in ("1", "2") else None
+
+
 def outside_scope(start: Any, end: Any) -> bool:
     """Entirely before or after the window; undated or open-ended stays (an end after 1938 isn't known to be before it)."""
     return bool((end and str(end)[:4] < SCOPE_START) or (start and str(start)[:4] > SCOPE_END))
@@ -1274,6 +1280,9 @@ class GraphStore:
         if e.point_date:  # kept as given: a point in time, not a period
             out["point_date"] = e.point_date
         group = self.group(e)
+        sides = {s for a in group if (s := edge_side(a)) is not None}
+        if len(sides) == 1:  # spec R98: the infobox column; folded assertions that disagree show none
+            out["side"] = sides.pop()
         srcs = [s for a in group for s in a.sources]
         if srcs:
             out["sources"] = list(dict.fromkeys(s.page for s in srcs if s.page))
@@ -1712,6 +1721,35 @@ class GraphStore:
             return event is not None and dates_overlap(*self.node_dates(event), date_from, date_to)
         return False
 
+    BATTLE_KINDS = frozenset({"battle", "attack", "raid", "landing", "siege"})  # spec R100: no sub-operations from an actor
+
+    def event_cast(self, event_id: str) -> set[str]:
+        """The participants and commanders an event names (event_link relations to it), cached (spec R100)."""
+        cache = self.__dict__.setdefault("_event_cast", {})
+        if event_id not in cache:
+            cache[event_id] = {actor for _, actor in self._subjects(event_id, "event_link")}
+        return cache[event_id]
+
+    SUB_EVENT_FAR_KM = 300  # spec R100: a battle's sub-event this far from all the battle's places is a separate action
+
+    def far_from(self, sub: str, battle: str) -> bool:
+        """Whether every place `sub` is stated at lies over SUB_EVENT_FAR_KM from every place of `battle`.
+        False when either has no placed point: then nothing says they are apart (spec R100)."""
+        def places(ev: str) -> list[str]:
+            return [p for e, p in self._objects(ev, "occurred_at") if self.is_place_via(e, p) and p in self.geoms]
+
+        def apart(x: str, y: str) -> float:  # nearest-point distance; a polygon's centroid can lie far outside it (Tokyo)
+            rx, ry = self.geoms[x].representative_point(), self.geoms[y].representative_point()
+            return min(self.distance_km(x, ry.y, ry.x), self.distance_km(y, rx.y, rx.x))
+        a, b = places(sub), places(battle)
+        return bool(a and b) and all(apart(x, y) > self.SUB_EVENT_FAR_KM for x in a for y in b)
+
+    def death_date(self, node_id: str) -> str | None:
+        """A person's death date as a partial ISO date (spec R100: the enrichment's P570), else None."""
+        node = self.nodes[node_id]
+        value = node.attributes.get("death_date") if node.type == "person" else None
+        return iso_date(value, node.attributes.get("death_date_precision")) if value else None
+
     def _profile_paths(self, entity_id: str, ok, include_weak: bool, min_weak_count: int, seen: set[str]):
         """Yield (location_id, [edges]) for every path the entity's profile allows.
 
@@ -1730,11 +1768,14 @@ class GraphStore:
             return
         seen.add(entity_id)
         node = self.nodes[entity_id]
+        died = self.death_date(entity_id)
 
         def event_paths(event_id: str, prefix: list[Edge], visited: set[str], from_actor: bool):
             if event_id in visited:
                 return
             visited.add(event_id)
+            if from_actor and died and (start := self.node_dates(event_id)[0]) and str(start)[:len(died)] > died:
+                return  # spec R100: an event that began after the person's death isn't theirs
             war_level = self.is_war_level(event_id)
             if from_actor and (war_level or self.sub_event_count(event_id) > HUB_SUB_EVENTS):
                 return  # a war or theatre the actor took part in: neither all its battles nor its countries
@@ -1747,8 +1788,11 @@ class GraphStore:
                         yield place, prefix + [e]
             elif event_id in self.geoms:  # geometry rule: otherwise an event's own coordinates are its site
                 yield event_id, prefix
+            in_battle = from_actor and self.nodes[event_id].attributes.get("kind") in self.BATTLE_KINDS
             for e, sub in self._subjects(event_id, "part_of"):
                 if self.nodes[sub].type == "event" and ok(e):
+                    if in_battle and entity_id not in self.event_cast(sub) and self.far_from(sub, event_id):
+                        continue  # spec R100: Ten-Go, 550 km from Okinawa, isn't every Okinawa unit's
                     yield from event_paths(sub, prefix + [e], visited, from_actor)
 
         if node.type == "location":
@@ -2319,7 +2363,16 @@ class GraphStore:
         anchor = place if place_id is not None and place in self.nodes else next(
             (h["id"] for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"), None)
         region: dict[str, str] = {}
-        for parent in self.parent_places(anchor) if anchor else []:
+        parents = self.parent_places(anchor) if anchor else []
+        if place_id is None and anchor:
+            # spec R91 amendment: the nearest point place that has a parent outside the point's places
+            # (Kiska Harbor has none; Kiska, also at the point, is part of the Aleutian Islands)
+            at_point = {h["id"] for h in hits if h["type"] == "location"}
+            for h in (h for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"):
+                parents = [p for p in self.parent_places(h["id"]) if p not in at_point]
+                if parents:
+                    break
+        for parent in parents:
             for _, ev in self._subjects(parent, "occurred_at"):
                 if self.nodes[ev].type == "event" and ev not in event_ids and not self.is_war_level(ev):
                     region.setdefault(ev, self.nodes[parent].name)

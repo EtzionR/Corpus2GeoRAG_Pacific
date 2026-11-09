@@ -12,7 +12,7 @@ uv run geo-agent                   # interactive session
 GEO_AGENT_JSON=1 uv run geo-agent "Show me where the Battle of Midway happened"   # full UI payload
 uv run geo-agent --trace last      # timeline of the last run (see "Debugging a run")
 GEO_AGENT_MOCK=1 uv run python -c "from geo_agent.runner import AgentRunner; print(AgentRunner().ask_sync('Who attacked Guadalcanal in 1942?')['answer'])"   # no API key needed
-GRAPH_PATH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run geo-agent "Where did the Battle of Midway happen?"   # the team's full graph
+GRAPH_PATH=/path/to/graph.selffix.json uv run geo-agent "Who commanded at Leyte Gulf?"   # the graph to use: built by graph_enrichment (below)
 GEO_AGENT_BIG_GRAPH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run pytest tests/test_big_graph.py   # acceptance checks on it
 ```
 
@@ -28,6 +28,7 @@ GEO_AGENT_BIG_GRAPH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run pytest te
 | `geo_agent/mock.py`, `geo_agent/mock_fixtures/` | Mock mode: recorded replies on the sample graph, generated through the real answer code (`uv run python -m geo_agent.mock`). |
 | `data/sample_graph.json` | Hand-written WWII Pacific fixture (sample vocabulary, plus a few draft-style QID nodes and edges) for tests and mock mode. It includes edge cases: meridian (Kiska/Adak, Taveuni), near-tied names (Guam 1941/1944), Chungking alias, Tarawa/Tarakan, and set-question structure (kinds, countries, `PART_OF` campaigns, the Combined Fleet, the Manhattan Project chain), and `loc:nauru`, whose text holds a deliberate prompt-injection test. |
 | `mcp_servers.json` | Allowlist of optional external MCP servers/tools (empty by default). |
+| `graph_enrichment/` | Build-time tool that turns the graph team's delivery into the graph the agent loads: Wikidata enrichment (`enrich.py`) and the self-fix layer (`selffix.py`, with `wikipedia.py`, `infobox.py`, `classes.py`, and the measuring tool `impact.py`). The only code that uses the network, and only while building. Its own README is `graph_enrichment/README.md`. |
 | `tests/test_tools.py` | Tool/store tests: the three example questions, name matching, meridian and date cases. |
 | `tests/test_trace.py`, `tests/test_agent.py` | Tracing, failure stages, viewer/replay/report, error results. Fake model, no network. |
 | `tests/test_runner.py`, `tests/test_schema.py`, `tests/test_mock.py` | The UI interface: runner, reply schema, mock fixtures. |
@@ -69,6 +70,9 @@ GEO_AGENT_BIG_GRAPH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run pytest te
 32. **What happened at a place is what's stated there.** Events come from "happened at" links and events' own coordinates, never from a nearby place's other relations: Australia's polygon covers Milne Bay, and its participant links once listed the Battle of Britain there. Asked about a named place, the agent separates the events stated there from nearby ones, and keeps a nearby event only if its own text mentions the place. So Ironbottom Sound keeps the naval battles and drops the land battles on Guadalcanal. A land/sea rule couldn't do this: only a few events are marked naval, and all of Savo Island's battles were at sea. Questions given as coordinates stay purely spatial.
 33. **Events of the containing region are listed apart.** Kiska is part of the Aleutian Islands, and the Aleutian Islands campaign is linked only to the islands as a whole. So `what_happened_at` also gives, as `region_events`, events stated one level up, with the region's name. Countries and broad regions (an ocean, a continent, Micronesia) never count as a containing region; through the Pacific Ocean, Pearl Harbor got the Battle of Balikpapan. Most places gain nothing.
 34. **Final answers are checked for shape.** The model gets one more try when its final answer is raw data (`["Holland Smith"]`) instead of sentences, or answers a "who" question with no person, unit or country in `answer_ids`. A raw answer that comes back again is replaced by the fixed "couldn't finish" sentence. For a named place, the answer lists only the events the place tool returned. A battle the model looked up because it expected it there isn't presented as having happened there.
+35. **Sides come from the graph, not from the model.** A participant or commander relation may carry `side` (1 or 2), the column of the battle's Wikipedia infobox, and the relation tools show it. Everyone with the same side fought together, so the agent can say who commanded the Japanese forces at Leyte Gulf. A side number doesn't say who attacked, and when the sources behind one relation give different sides, none is shown.
+36. **A one-sided answer keeps one side.** When a question asks for one side (who attacked, bombed, captured, won) and the answer's ids include actors on both sides of the same battle, going by the `side` of their relations, the model gets one more try, told which actors are on which side. Without this check, the attackers of Midway included Nimitz and Spruance.
+37. **An actor's places stop at its life and at the battle's edge.** A person's map skips events that began after their death (the enrichment adds Wikidata's birth and death dates): Yamamoto, killed in April 1943, no longer gets the 1944 New Guinea battles. A battle's sub-action far from the battle (over 300 km) that names its own forces is theirs alone: Operation Ten-Go, off Kyushu, belongs to the Fifth Fleet and the Japanese 2nd Fleet, not to every unit at Okinawa.
 
 ## Input schema (for the knowledge-graph builder)
 The agent reads **one JSON file**, set by `GRAPH_PATH` (default `data/sample_graph.json`; a relative path that doesn't exist from the working directory is read from the agent's project root, so a UI started in another folder finds the `.env` value):
@@ -253,6 +257,22 @@ The agent behaves fully only when four things are filled. In both checkpoints th
 - **a point for every place**
 
 Without them, the time window removes little, battles load as places, and those places can't be found or mapped.
+
+### Building the graph the agent should use
+The team's delivery is not loaded as is. Two build steps in `graph_enrichment/` turn it into **`graph.selffix.json`**, the graph to set as `GRAPH_PATH`. Both run once per checkpoint, cache every response, and can rebuild offline:
+```bash
+uv run python -m graph_enrichment.selffix --graph graph.json --out selffix/graph.selffix.json --cache selffix/cache \
+    --wikidata-cache wikidata_cache/ --wikipedia-cache wikipedia_cache/ [--offline]
+```
+- **Wikidata enrichment, run first by the same command:** names for records named only by their QID, dates, event kinds, entity classes, points, typed relations, and birth and death dates for people.
+- **Self-fix layer:**
+  - entities the corpus's own Wikipedia links name but the graph lacks, such as the Battle of Savo Island and Hickam Field;
+  - the sides, commanders, units and places in battle infoboxes, as `wd:P710` / `wd:P4791` / `wd:P276` edges with `side` 1 or 2;
+  - battles from people's and units' infoboxes;
+  - types from Wikidata classes, so a ship is never a place and a battle is never a place.
+- **Additions only:** team records and edges are never removed. A corrected type keeps the team's own in `attributes.ner_type`, and every added fact names its source (page, revision, field; Wikipedia facts are CC BY-SA).
+
+On partof521, the build added 647 entities and about 5,100 edges, and retyped 609 records. Of 300 battles, those with both sides stated rose from 0 to 234, and those with a commander from 5 to 240. The build loads in about 10 s. `graph_enrichment/README.md` has the rules, and `python -m graph_enrichment.impact` compares two builds through the agent's own queries.
 
 ## Tools
 | Tool | Purpose |
@@ -510,6 +530,6 @@ Add a server to `mcp_servers.json`. Every key except `allowed_tools`/`enabled` i
 
 ## Next steps
 - Load the full graph: at the current size per record it won't fit in memory. Text search will probably move out of memory too.
-- Sides and commanders per battle, for "who attacked" and "who commanded"; neither checkpoint has them.
+- "Who attacked": the infobox gives each battle's two sides, not which one attacked; the agent says which side each actor was on and keeps one-sided answers to one side.
 - Use node/edge `embedding`s for semantic search once the graph team fixes the embedding model; the query must use the same model.
 - Expose `GraphStore` to the UI, via an MCP server or a small API, if the map needs direct queries without the LLM.
