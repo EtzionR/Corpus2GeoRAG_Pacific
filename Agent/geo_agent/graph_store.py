@@ -49,6 +49,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from rank_bm25 import BM25Okapi
 from rapidfuzz import fuzz, process
 import shapely
+import shapely.affinity
+import shapely.ops
 from shapely.geometry import Point, box, mapping, shape
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import nearest_points
@@ -193,6 +195,37 @@ class Source(BaseModel):
             if QID_RE.fullmatch(qid):
                 return f"https://www.wikidata.org/wiki/{qid}"
         return None
+
+
+WIKI_PAGE_ID = re.compile(r"enwiki:\d+")
+
+
+def title_pages(nodes: list["Node"], edges: list["Edge"], metadata: Any = None) -> tuple[int, int]:
+    """Spec R103: a source page written as a page id ("enwiki:189095") gets its title ("Battle of Leyte Gulf"),
+    so the model cites, and the answer check verifies, real titles. Titles come from the graph itself: the
+    `page_title` some sources carry for the same page id, and `metadata.page_titles` {page id: title}
+    (written by the graph build). The id stays in the source's `page_ref`.
+    Returns (sources retitled, distinct page ids left without a title)."""
+    sources = [s for n in nodes for s in n.sources] + [s for e in edges for s in e.sources]
+    titles: dict[str, str] = {}
+    for s in sources:
+        t = (s.model_extra or {}).get("page_title")
+        if s.page and t.__class__ is str and t and WIKI_PAGE_ID.fullmatch(s.page):
+            titles.setdefault(s.page, t)
+    given = metadata.get("page_titles") if isinstance(metadata, dict) else None
+    if isinstance(given, dict):
+        titles.update({k: v for k, v in given.items() if isinstance(v, str) and v and WIKI_PAGE_ID.fullmatch(str(k))})
+    done, untitled = 0, set()
+    for s in sources:
+        if s.page and s.page[:7] == "enwiki:":
+            title = titles.get(s.page)
+            if title is None:
+                untitled.add(s.page)
+                continue
+            s.__pydantic_extra__["page_ref"] = s.page
+            s.page = title
+            done += 1
+    return done, len(untitled)
 
 
 MAX_SOURCES_SHOWN = 5  # sources per entity in tool output (spec R80): a merged entity has over 1,300 mentions
@@ -841,6 +874,148 @@ class ResultSets:
         return entry
 
 
+# --------------------------------------------------------------------------- areas (spec R102)
+
+AREA_MIN_KM, AREA_MAX_KM = 1.0, 1000.0  # a circle's radius; a polygon may be no larger than the largest circle
+AREA_MAX_VERTICES = 200
+AREA_CIRCLE_POINTS = 64
+AREA_CONTAINING_FACTOR = 10  # a place over this many times the area's size that only contains it is context
+_WORLD = box(-180.0, -90.0, 180.0, 90.0)
+
+
+class AreaError(ValueError):
+    """A marked map area the agent can't use; the message says why, for the user."""
+
+
+def approx_area_km2(g: BaseGeometry) -> float:
+    """Area of a lon/lat geometry in km², scaled at its centroid's latitude (good to a few percent at these sizes)."""
+    if g.is_empty or g.area == 0:
+        return 0.0
+    return g.area * 111.32 ** 2 * math.cos(math.radians(g.centroid.y))
+
+
+def _wrap_lon(lon: float) -> float:
+    return (lon + 180.0) % 360.0 - 180.0
+
+
+def _onto_world(poly: BaseGeometry) -> BaseGeometry:
+    """A shape drawn on an unwrapped map (Leaflet gives 202 for -158) moved and split onto -180..180."""
+    k = round(poly.centroid.x / 360.0)
+    poly = shapely.affinity.translate(poly, xoff=-360.0 * k)
+    parts = [shapely.affinity.translate(poly, xoff=dx).intersection(_WORLD) for dx in (-360.0, 0.0, 360.0)]
+    return shapely.ops.unary_union([p for p in parts if not p.is_empty])
+
+
+def _number(v: Any) -> float:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        raise AreaError("the area's coordinates aren't numbers")
+    return float(v)
+
+
+def circle_ring(lat: float, lon: float, radius_km: float, n: int = AREA_CIRCLE_POINTS) -> list[tuple[float, float]]:
+    """A closed ring of n points at radius_km around (lat, lon), longitudes unwrapped around lon."""
+    d, la, lo = radius_km / 6371.0088, math.radians(lat), math.radians(lon)
+    ring = []
+    for i in range(n):
+        b = 2 * math.pi * i / n
+        la2 = math.asin(math.sin(la) * math.cos(d) + math.cos(la) * math.sin(d) * math.cos(b))
+        lo2 = lo + math.atan2(math.sin(b) * math.sin(d) * math.cos(la), math.cos(d) - math.sin(la) * math.sin(la2))
+        ring.append((round(math.degrees(lo2), 5), round(math.degrees(la2), 5)))
+    return ring + ring[:1]
+
+
+def parse_area(geometry: Any) -> dict[str, Any]:
+    """Check and normalize a marked map area (spec R102): a GeoJSON `Polygon`, or a circle as a `Point`
+    with `radius_km`. Returns {kind, shape (shapely, on -180..180), geometry (GeoJSON to draw), center,
+    radius_km | bbox, area_km2, label (the code-written description)}. Raises AreaError."""
+    if not isinstance(geometry, dict):
+        raise AreaError("the area isn't a GeoJSON geometry")
+    kind = geometry.get("type")
+    if kind == "Point":
+        coords = geometry.get("coordinates")
+        if not isinstance(coords, (list, tuple)) or len(coords) < 2:
+            raise AreaError("the circle has no center")
+        lon, lat = _number(coords[0]), _number(coords[1])
+        r = _number(geometry.get("radius_km"))
+        if not -90 <= lat <= 90:
+            raise AreaError("the circle's center isn't on the map")
+        if not AREA_MIN_KM <= r <= AREA_MAX_KM:
+            raise AreaError(f"the circle's radius must be {AREA_MIN_KM:g} to {AREA_MAX_KM:,.0f} km (it is {r:,.1f} km)")
+        lon = _wrap_lon(lon)
+        drawn = _onto_world(shapely.Polygon(circle_ring(lat, lon, r)))
+        ns, ew = ("N" if lat >= 0 else "S"), ("E" if lon >= 0 else "W")
+        label = f"a circle of {r:,.1f} km around {abs(lat):.2f}°{ns}, {abs(lon):.2f}°{ew}"
+        out = {"kind": "circle", "shape": drawn, "center": {"lat": round(lat, 5), "lon": round(lon, 5)},
+               "radius_km": round(r, 3), "area_km2": math.pi * r * r}
+    elif kind == "Polygon":
+        rings = geometry.get("coordinates")
+        if not isinstance(rings, list) or not rings or not isinstance(rings[0], list):
+            raise AreaError("the polygon has no outline")
+        ring = [(_number(p[0]), _number(p[1])) for p in rings[0] if isinstance(p, (list, tuple)) and len(p) >= 2]
+        if len(ring) != len(rings[0]):
+            raise AreaError("the polygon has a malformed point")
+        if ring and ring[0] != ring[-1]:
+            ring.append(ring[0])
+        if len(ring) < 4:
+            raise AreaError("the polygon needs at least three corners")
+        if len(ring) - 1 > AREA_MAX_VERTICES:
+            raise AreaError(f"the polygon has over {AREA_MAX_VERTICES} corners")
+        if any(not -90 <= la <= 90 for _, la in ring):
+            raise AreaError("the polygon isn't on the map")
+        poly = shapely.Polygon(ring)  # holes are ignored: an area is its outline
+        if not poly.is_valid:
+            raise AreaError("the polygon's outline crosses itself")
+        drawn = _onto_world(poly)
+        size = approx_area_km2(poly)
+        if size > math.pi * AREA_MAX_KM ** 2:
+            raise AreaError(f"the area is too large (about {size:,.0f} km²; at most a {AREA_MAX_KM:,.0f} km circle)")
+        c = poly.centroid
+        w, s, e, n = poly.bounds
+        bbox = [round(_wrap_lon(w), 5), round(s, 5), round(_wrap_lon(e), 5), round(n, 5)]
+        label = (f"a polygon of about {size:,.0f} km² from {abs(s):.2f}°{'N' if s >= 0 else 'S'} to "
+                 f"{abs(n):.2f}°{'N' if n >= 0 else 'S'} and {abs(bbox[0]):.2f}°{'E' if bbox[0] >= 0 else 'W'} to "
+                 f"{abs(bbox[2]):.2f}°{'E' if bbox[2] >= 0 else 'W'}")
+        out = {"kind": "polygon", "shape": drawn, "center": {"lat": round(c.y, 5), "lon": round(_wrap_lon(c.x), 5)},
+               "bbox": bbox, "area_km2": size}
+    else:
+        raise AreaError("mark a circle, a rectangle or a polygon")
+    geo = json.loads(json.dumps(mapping(drawn)))  # tuples -> lists
+    return {**out, "geometry": geo, "label": label}
+
+
+class Areas:
+    """Marked map areas behind short handles (spec R102), like ResultSets: the model only sees the handle."""
+
+    def __init__(self, max_areas: int = 200):
+        self.max_areas = max_areas
+        self._areas: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._count = 0
+
+    def add(self, area: dict[str, Any]) -> str:
+        self._count += 1
+        handle = f"area-{self._count}"  # per agent; the model only knows handles a code-written line gave it
+        self._areas[handle] = {**area, "handle": handle}
+        while len(self._areas) > self.max_areas:
+            self._areas.popitem(last=False)
+        return handle
+
+    def get(self, handle: str) -> dict[str, Any] | None:
+        return self._areas.get(handle)
+
+
+def area_view(area: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The reply's `area` key: what the user marked, without the shape."""
+    if area is None:
+        return None
+    return {k: area[k] for k in ("handle", "kind", "center", "radius_km", "bbox") if k in area}
+
+
+def area_feature(area: dict[str, Any]) -> dict[str, Any]:
+    """The marked area as a map feature, drawn first (spec R102)."""
+    return {"type": "Feature", "geometry": area["geometry"],
+            "properties": {"id": area["handle"], "name": "Marked area", "type": "area", "role": "area"}}
+
+
 class GraphStore:
     """Loads the graph JSON and exposes the query primitives used by the tools."""
 
@@ -862,6 +1037,7 @@ class GraphStore:
         gone = {n.id for n in outside} | {w for n in outside if (w := wikidata_id_of(n))}
         nodes = [n for n in nodes if n.id not in gone]
         self.id_redirect = {old: new for old, new in self.id_redirect.items() if new not in gone}
+        self.pages_titled, self.pages_untitled = title_pages(nodes, edges, metadata)  # spec R103
         self.text_from_sources, self._paragraph_source = text_from_sources(nodes)  # spec R82
         self.nodes: dict[str, Node] = {n.id: n for n in nodes}
         self.metadata: dict[str, Any] = metadata if isinstance(metadata, dict) else {}
@@ -1440,8 +1616,11 @@ class GraphStore:
             results.append(r)
 
         scores = [r["score"] for r in results]
+        exact = [r["match"] != "fuzzy" and r["score"] >= 100 for r in results]
         for i, r in enumerate(results):
-            others = scores[:i] + scores[i + 1:]
+            # spec R103: a fuzzy near-miss ("Battle of Leyte", 95) doesn't tie with a literal exact match
+            # ("Battle of Leyte Gulf", 100); two exact matches (the two Battles of Guam) still do
+            others = [s for j, s in enumerate(scores) if j != i and (exact[j] or not exact[i])]
             r["ambiguous"] = any(abs(r["score"] - s) <= AMBIGUITY_MARGIN for s in others)
             clear = i == 0 and r["score"] >= CLEAR_SCORE and not r["ambiguous"]
             r["quality"] = "clear" if clear else "uncertain"
@@ -2299,6 +2478,7 @@ class GraphStore:
         date_to: str | None = None,
         relation_limit: int | None = None,
         place_id: str | None = None,
+        hits: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Composite point query: nearby places, then their events and relations.
 
@@ -2318,7 +2498,9 @@ class GraphStore:
         With `relation_limit`, only that many relations are summarized and
         `relations_total` gives the full number.
         """
-        hits = self.near(lat, lon, radius_km, limit=None)  # the tool caps and reports totals
+        area = hits is not None  # spec R102: the places and events of a marked area, no point rules (R90, R91)
+        if hits is None:
+            hits = self.near(lat, lon, radius_km, limit=None)  # the tool caps and reports totals
         places = [h for h in hits if h["type"] in PLACE_TYPES]
         place_ids = {p["id"] for p in places}
         # spec R90: events only through "happened at" links and their own coordinates; of the places' other
@@ -2352,7 +2534,7 @@ class GraphStore:
 
         nearby: set[str] = set()
         extra: dict[str, Any] = {}
-        if place_id is None:  # spec R90: a location's own point is that place, even when the model passes no id
+        if place_id is None and not area:  # spec R90: a location's own point is that place, even when the model passes no id
             own = [h["id"] for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"
                    and h.get("distance_km", 1) <= PLACE_POINT_KM]  # a polygon containing the point names nothing
             place_id = own[0] if len(own) == 1 else None
@@ -2368,6 +2550,8 @@ class GraphStore:
         anchor = place if place_id is not None and place in self.nodes else next(
             (h["id"] for h in hits if h["type"] == "location" and h.get("geometry_type") == "Point"), None)
         region: dict[str, str] = {}
+        if area:
+            anchor = None
         parents = self.parent_places(anchor) if anchor else []
         if place_id is None and anchor:
             # spec R91 amendment: the nearest point place that has a parent outside the point's places
@@ -2397,6 +2581,37 @@ class GraphStore:
             **({"nearby_events": sorted((event_row(ev) for ev in nearby), key=by_date)} if place_id is not None else {}),
             "relations": [self.summarize_edge(e) for e in relations[:relation_limit]],
         }
+
+    def area_hits(self, area: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """(entities in a marked area, places that only contain it) (spec R102). A circle uses the exact
+        distance rule of `near`; a polygon, the places and events whose geometry lies in it or crosses it.
+        A place over AREA_CONTAINING_FACTOR times the area's size that isn't inside it (Oahu, Hawaii, the
+        United States around a Pearl Harbor box) goes to the second list."""
+        if area["kind"] == "circle":
+            c = area["center"]
+            hits = self.near(c["lat"], c["lon"], area["radius_km"], limit=None)
+        else:
+            region = area["shape"]
+            cand = [i for i, g in self.geoms.items() if g.intersects(region)]
+            hits = [self.summarize_node(i) for i in cand]
+        inside, containing = [], []
+        limit = AREA_CONTAINING_FACTOR * area["area_km2"]
+        for h in hits:
+            g = self.geoms.get(h["id"])
+            big = (h["type"] in PLACE_TYPES and g is not None and g.geom_type in ("Polygon", "MultiPolygon")
+                   and approx_area_km2(g) > limit and not g.within(area["shape"]))
+            (containing if big else inside).append(h)
+        return inside, [{"id": h["id"], "name": h["name"], "type": h["type"]} for h in containing]
+
+    def what_happened_in_area(self, area: dict[str, Any], text_chars: int = 400, date_from: str | None = None,
+                              date_to: str | None = None, relation_limit: int | None = None) -> dict[str, Any]:
+        """`what_happened_at` over a marked area instead of a point and radius (spec R102)."""
+        inside, containing = self.area_hits(area)
+        c = area["center"]
+        out = self.what_happened_at(c["lat"], c["lon"], text_chars=text_chars, date_from=date_from, date_to=date_to,
+                                    relation_limit=relation_limit, hits=inside)
+        return {"area": area["handle"], "area_description": area["label"], **out,
+                **({"containing": containing} if containing else {})}
 
     def search_text(self, query: str, entity_ids: list[str] | None = None, k: int = 5) -> list[dict[str, Any]]:
         """BM25 search over node text paragraphs, optionally limited to `entity_ids`."""
@@ -2473,10 +2688,16 @@ class GraphStore:
             if eid in self.geoms:
                 add(eid)
             else:
-                is_event = self.nodes[eid].type == "event"
+                sites = self.event_sites(eid)
                 for loc in self.locations_of(eid):
-                    site = is_event and any(isinstance(r, dict) and r.get("type") in RELATION_ROLES["occurred_at"]
-                                            for r in loc.get("relations") or [])
-                    if loc["id"] != eid and (restrict_to is None or loc["id"] in restrict_to or site):
+                    if loc["id"] != eid and (restrict_to is None or loc["id"] in restrict_to or loc["id"] in sites):
                         add(loc["id"], via=eid)
         return {"type": "FeatureCollection", "features": features}
+
+    def event_sites(self, node_id: str) -> set[str]:
+        """The places an event occurred at (an `occurred_at` relation); empty for a non-event."""
+        node_id = self.canonical_id(node_id)
+        if node_id not in self.nodes or self.nodes[node_id].type != "event":
+            return set()
+        return {loc["id"] for loc in self.locations_of(node_id)
+                if any(isinstance(r, dict) and r.get("type") in RELATION_ROLES["occurred_at"] for r in loc.get("relations") or [])}

@@ -2,7 +2,7 @@
   "question": "Simulate an error",
   "after": null,
   "reply": {
-    "schema_version": "1.4",
+    "schema_version": "1.6",
     "answer": "",
     "answer_ids": [],
     "context_ids": [],
@@ -26,6 +26,7 @@
     "interpretation": [],
     "result_sets": [],
     "dropped_sets": [],
+    "area": null,
     "confidence": {
       "level": "low",
       "basis": {

@@ -2,7 +2,7 @@
   "question": "Who attacked Guadalcanal in 1942?",
   "after": null,
   "reply": {
-    "schema_version": "1.4",
+    "schema_version": "1.6",
     "answer": "In 1942 the **United States Marine Corps** attacked Guadalcanal, landing on 7 August 1942 (Guadalcanal campaign, to 9 February 1943). The **Imperial Japanese Army** attacked Henderson Field on Guadalcanal from 12 September to 26 October 1942.",
     "answer_ids": [
       "org:usmc",
@@ -157,6 +157,7 @@
     },
     "result_sets": [],
     "dropped_sets": [],
+    "area": null,
     "run_id": "",
     "warnings": [],
     "error": null

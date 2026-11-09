@@ -15,6 +15,18 @@
 - **The graph is getting broader.** The team's next graph covers World War II beyond the Pacific (`metadata.scope`), and ids become Wikidata QIDs. Don't hard-code "Pacific" assumptions or id formats.
 - **English only.**
 
+## What changed for the app (2026-11-09, later)
+`schema_version` is now "1.5". One new optional feature property, so nothing breaks:
+- **`answer_for`** on a map feature lists the answer people or units shown there. A "who commanded at Leyte Gulf?" answer now highlights the gulf as `answer`, with `answer_for: [Halsey, Kurita, …]` (ids). Show their names in the popup ("Shown for").
+- Sources on the real graph now carry page titles instead of `enwiki:<id>`, so the source links read as titles.
+
+## Marking an area on the map (R102, 2026-11-09)
+`schema_version` "1.6". The agent developer writes this part of `App/app.py`, as agreed, with **no change to the layout or sizes**: map left, chat right.
+- **What the user does:** the map gets a draw control (circle, rectangle, polygon) inside the map frame. Drawing a shape asks "What happened in the marked area?" at once. While the shape stays marked, every typed question is sent with it ("who fought here in 1942?"). A line at the top of the chat box says an area is marked and offers "clear area"; New chat clears it too.
+- **What the app sends:** `runner.submit(question, thread_id, area=...)` with a GeoJSON `Polygon` in lon/lat, or a circle as `{"type": "Point", "coordinates": [lon, lat], "radius_km": r}` (Leaflet gives the radius in metres).
+- **What comes back:** a new key `area` (`{handle, kind, center, radius_km | bbox}` or null), and the area as the first map feature, with `type` and `role` `area`: draw it as a dashed outline without fill. An area the agent can't use (too large, a crossed outline) comes back as a short reply with warning `area_invalid`.
+- `role` can now be `area` as well as `answer` and `context`; treat any other value as `context`.
+
 ## What changed for the app (2026-11-09)
 The reply format is unchanged (`schema_version` stays "1.4"), so the app needs no code change.
 - **Use the self-fixed graph:** set `GRAPH_PATH` to `data/partof521/graph.selffix.json`, a Git LFS file in `Agent/` (run `git lfs pull`; on Streamlit Cloud, make sure the deploy fetches LFS files). `Agent/graph_enrichment` builds it from the team's delivery; see the agent README, "Building the graph the agent should use". It loads in about 10 s. The sample graph stays the default, for tests and mock mode.

@@ -61,7 +61,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from rapidfuzz import fuzz
 
-from geo_agent.graph_store import (LOCATION_RELATIONS, QID_RE, RECORD_PROVIDERS, GraphStore, ResultSets, edge_side, normalize_name,
+from geo_agent.graph_store import (LOCATION_RELATIONS, QID_RE, RECORD_PROVIDERS, AreaError, Areas, GraphStore, ResultSets,
+                                   area_feature, area_view, edge_side, normalize_name, parse_area,
                                   source_ref)
 from geo_agent.schema import SCHEMA_VERSION
 from geo_agent.tools import build_tools
@@ -117,6 +118,8 @@ How to work:
     exactly that
   * what happened at (lat, lon) -> what_happened_at (widen radius_km if nothing is found; pass year or
     date_from/date_to when the question names a period)
+  * a question with a "[Map area]" line (an area the user marked) -> what_happened_in_area(area_id=<its handle>):
+    answer from what lies in the area; `containing` places are only context; don't widen it to places outside
   * call graph_schema when you are unsure which relation or entity types exist.
 - Back claims with evidence: prefer relations with higher counts, and use search_source_text for supporting text.
 - "Show me all locations connected to / associated with X", "all islands of X", "major battles" (of the whole graph),
@@ -1074,8 +1077,10 @@ def ungrounded_names(store: GraphStore, answer: str, turn: list[Any], question: 
     # a name a tool printed counts too (e.g. an overview row's "place": "Iwo Jima", which has no id)
     words = lambda t: f" {re.sub(r'[^0-9a-z]+', ' ', normalize_name(t)).strip()} "
     tool_text = words(" ".join(str(m.content) for m in turn if m.type == "tool"))
+    # spec R103: a record named by a common word ("Japanese", "Allied") is not a fact the model added
+    common = lambda name: all(w in COMMON_CAPITALIZED for w in _words(name))
     return [name for name, ids in store.names_in_text(answer).items()
-            if not set(ids) & (seen | asked) and words(name) not in tool_text]
+            if not set(ids) & (seen | asked) and words(name) not in tool_text and not common(name)]
 
 
 def resolution_records(store: GraphStore, kept_ids: list[str], turn: list[Any], question: str) -> list[dict[str, Any]]:
@@ -1222,6 +1227,25 @@ def map_view(geojson: dict[str, Any]) -> dict[str, Any]:
             "center": {"lat": round((min(lats) + max(lats)) / 2, 6), "lon": round(center_lon, 6)}}
 
 
+def mark_actor_sites(store: GraphStore, features: list[dict[str, Any]], answer_ids: list[str], kept: list[str]) -> None:
+    """Spec R103: an answer person or unit drawn nowhere ("who commanded at Leyte Gulf?": people have no
+    place) is shown at the sites of this answer's events it took part in. Those features become `answer`
+    and list the actors in `answer_for`; nothing new is drawn and no other place is added."""
+    def drawn_for(f: dict[str, Any]) -> str:
+        return f["properties"].get("related_to") or f["properties"]["id"]
+    shown = {drawn_for(f) for f in features if f["properties"]["role"] == "answer"}
+    events = [i for i in kept if store.nodes[i].type == "event"]
+    for actor in answer_ids:
+        if actor in shown or store.nodes[actor].type == "event":
+            continue
+        cast_in = {ev for ev in events if actor in store.event_cast(ev)}
+        sites = cast_in | {loc for ev in cast_in for loc in store.event_sites(ev)}
+        for f in features:
+            if drawn_for(f) in sites:
+                f["properties"]["role"] = "answer"
+                f["properties"].setdefault("answer_for", []).append(actor)
+
+
 def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any], sets: ResultSets | None = None) -> dict[str, Any]:
     """Turn the model's parsed answer and this run's messages into the UI output.
 
@@ -1365,6 +1389,7 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         props["role"] = "answer" if in_answer else "context"
         if props["id"] in set_meta:
             props["via"], props["strength"] = set_meta[props["id"]]["via"], set_meta[props["id"]]["strength"]
+    mark_actor_sites(store, geojson["features"], answer_ids, kept)
     drawn = {f["properties"]["id"] for f in geojson["features"]}
     if kept and not drawn:
         warnings.append("nothing_on_map")  # the answer's entities have no place in the graph to draw
@@ -1402,6 +1427,7 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         "confidence": conf,
         "result_sets": result_sets,
         "dropped_sets": dropped_sets,
+        "area": None,
     }
 
 
@@ -1436,7 +1462,7 @@ def off_topic_result(model_text: str, store: GraphStore | None = None) -> dict[s
         "tool_calls": [], "warnings": ["off_topic"],
         "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [], "ungrounded_names": [], "resolved_entities": [], "interpretation": [],
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "n_providers": 0, "uncertain_match_used": False}},
-        "result_sets": [], "dropped_sets": [], "off_topic_model_text": model_text,
+        "result_sets": [], "dropped_sets": [], "area": None, "off_topic_model_text": model_text,
     }
 
 
@@ -1464,6 +1490,7 @@ def error_result(run_id: str, exc: BaseException, stage: str, tool_calls: list[d
         "interpretation": [],
         "result_sets": [],
         "dropped_sets": [],
+        "area": None,
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "n_providers": 0, "uncertain_match_used": False}},
         "error": {"type": type(exc).__name__, "message": str(exc), "stage": stage},
     }
@@ -1492,6 +1519,41 @@ def stopped_result(run_id: str, reason: str, tool_calls: list[dict[str, Any]], m
     return error_result(run_id, STOP_STAGES[reason](message or default), reason, tool_calls)
 
 
+AREA_NOTE = ('[Map area] The user marked an area on the map: {handle}, {label}. For a question about it, call '
+             'what_happened_in_area(area_id="{handle}"); "here", "there" and "this area" mean it.')
+
+
+def area_question(question: str, area: dict[str, Any]) -> str:
+    """The question with the code-written area line (spec R102): the model sees the handle and a description, never
+    coordinates typed by the user."""
+    return f"{question}\n\n{AREA_NOTE.format(handle=area['handle'], label=area['label'])}"
+
+
+def area_invalid_result(run_id: str, reason: str) -> dict[str, Any]:
+    """Reply for a marked area the agent can't use (spec R102): code-written, no model call."""
+    out = off_topic_result("", None)
+    out.pop("off_topic_model_text")
+    return {**out, "answer": f"I can't use the marked area: {reason}. Mark it again on the map.",
+            "warnings": ["area_invalid"], "run_id": run_id, "error": None}
+
+
+def add_area(out: dict[str, Any], area: dict[str, Any] | None) -> dict[str, Any]:
+    """Put the area the answer used in the reply: the `area` key and the first map feature (spec R102)."""
+    if area is None or out.get("error") or "off_topic" in out.get("warnings", []):
+        return out
+    out["area"] = area_view(area)
+    out["geojson"]["features"].insert(0, area_feature(area))
+    out.update(map_view(out["geojson"]))
+    return out
+
+
+def area_used(areas: "Areas", turn: list[Any]) -> dict[str, Any] | None:
+    """The last marked area this turn's what_happened_in_area calls used, if any (a follow-up in the thread)."""
+    handles = [(c.get("args") or {}).get("area_id") for m in turn for c in getattr(m, "tool_calls", None) or []
+               if c["name"] == "what_happened_in_area"]
+    return next((a for h in reversed(handles) if isinstance(h, str) and (a := areas.get(h))), None)
+
+
 class GeoAgent:
     """Wires the graph, tools and LLM together. `ask()` returns a UI-ready dict."""
 
@@ -1507,10 +1569,12 @@ class GeoAgent:
         mcp_loaded: list[str] | None = None,
         mcp_skipped: list[str] | None = None,
         sets: ResultSets | None = None,
+        areas: Areas | None = None,
     ):
         self.store = store
         self.agent = agent
         self.sets = sets if sets is not None else ResultSets()  # shared with the set tools (spec R27)
+        self.areas = areas if areas is not None else Areas()  # marked map areas, shared with what_happened_in_area (R102)
         self.max_steps = env_int("GEO_AGENT_MAX_STEPS", 25)
         self.writer = TraceWriter.from_env()
         self.log_questions = env_on("GEO_AGENT_LOG_QUESTIONS", True)
@@ -1548,8 +1612,8 @@ class GeoAgent:
         mcp_config = resolve_path(mcp_config or os.getenv("MCP_CONFIG_PATH", ROOT / "mcp_servers.json"))
 
         store = GraphStore.from_json(graph_path)
-        sets = ResultSets()
-        tools = build_tools(store, sets)
+        sets, areas = ResultSets(), Areas()
+        tools = build_tools(store, sets, areas)
         builtin = [t.name for t in tools]
         skipped: list[str] = []
         mcp_tools = await load_mcp_tools(mcp_config, set(builtin), skipped)
@@ -1587,10 +1651,12 @@ class GeoAgent:
             mcp_loaded=[t.name for t in mcp_tools],
             mcp_skipped=skipped,
             sets=sets,
+            areas=areas,
         )
 
     async def ask(self, question: str, thread_id: str = "default", *, run_id: str | None = None,
-                  on_progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+                  on_progress: Callable[[dict[str, Any]], None] | None = None,
+                  area: dict[str, Any] | None = None) -> dict[str, Any]:
         """Run one question and return the UI output.
 
         Keys: answer, entity_ids, sources, geojson, tool_calls, run_id, warnings,
@@ -1603,6 +1669,9 @@ class GeoAgent:
         Cancellation (asyncio.CancelledError) is re-raised, as asyncio requires; the
         trace's run_end then has stage `timeout` or `cancelled` (from the cancel
         message), and the error result is attached to the exception as `geo_result`.
+
+        `area` (spec R102) is a map area the user marked, a GeoJSON `Polygon` or a circle as a `Point` with
+        `radius_km`. It is checked and registered here; the model gets its handle in a code-written line.
         """
         run_id = run_id or uuid.uuid4().hex
         trace = RunTrace(run_id, self.writer, on_progress)
@@ -1612,10 +1681,21 @@ class GeoAgent:
         out: dict[str, Any] | None = None
         warnings: list[str] = []
         stage: str | None = None
+        marked: dict[str, Any] | None = None
         try:
+            content = question
+            if area is not None:
+                try:
+                    marked = self.areas.get(self.areas.add(parse_area(area)))
+                except AreaError as exc:
+                    out = area_invalid_result(run_id, str(exc))
+                    trace.emit("area", ok=False, reason=str(exc))
+                    return out
+                trace.emit("area", ok=True, area=area_view(marked), label=marked["label"])
+                content = area_question(question, marked)
             try:
                 result = await self.agent.ainvoke(
-                    {"messages": [{"role": "user", "content": question}]},
+                    {"messages": [{"role": "user", "content": content}]},
                     config={
                         "configurable": {"thread_id": thread_id},
                         "callbacks": [trace],
@@ -1646,6 +1726,7 @@ class GeoAgent:
 
             try:
                 out = finalize_answer(self.store, parsed, messages, self.sets)
+                add_area(out, marked or area_used(self.areas, turn_messages(messages)))
             except Exception as exc:
                 stage = "post_processing"
                 log.error("%s post-processing failed", run_id[:8], exc_info=exc)

@@ -892,3 +892,22 @@ def test_r100_people_added_by_the_build_get_their_life_dates():
     assert sf.apply_life_dates(graph, lite) == 1
     assert graph["nodes"][0]["attributes"]["death_date"] == "+1943-04-18T00:00:00Z"
     assert "attributes" not in graph["nodes"][1]   # not a person record
+
+
+def test_r103_page_titles_pass_names_the_pages_the_graph_gives_by_id_only(tmp_path, monkeypatch):
+    graph = {"nodes": [{"id": "a", "sources": [{"page": "enwiki:1", "page_title": "Battle of Leyte Gulf"}]},
+                       {"id": "b", "sources": [{"page": "enwiki:2"}, {"page": "enwiki:3"}, {"page": "Midway Atoll"}]}],
+             "edges": [{"source": "a", "target": "b", "sources": [{"page": "enwiki:2"}]}]}
+    assert sf.untitled_pages(graph) == {2, 3}
+    asked = []
+
+    def get(url, params):
+        asked.append(params["pageids"])
+        return {"query": {"pages": [{"pageid": 2, "title": "William Halsey Jr."}, {"pageid": 3, "missing": True}]}}
+
+    real = wp.fetch_page_titles
+    monkeypatch.setattr(wp, "fetch_page_titles", lambda ids, cache, offline: real(ids, cache, offline, get=get))
+    report = sf.stage_titles(graph, sf.Ctx(tmp_path, tmp_path, tmp_path))
+    assert graph["metadata"]["page_titles"] == {"enwiki:2": "William Halsey Jr."}  # a deleted page is left out
+    assert report == {"pages_without_title": 2, "titles_added": 1} and asked == ["2|3"]
+    assert real([2, 3], tmp_path, offline=True) == {2: "William Halsey Jr.", 3: None}  # cached

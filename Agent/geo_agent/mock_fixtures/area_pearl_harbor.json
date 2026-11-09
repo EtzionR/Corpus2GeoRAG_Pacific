@@ -1,0 +1,186 @@
+{
+  "question": "What happened in the marked area?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.6",
+    "answer": "The marked area holds **Pearl Harbor** and **Hickam Field**. The graph records one event there: the **Attack on Pearl Harbor** (7 December 1941), commanded by Chuichi Nagumo and planned by Isoroku Yamamoto, with the Imperial Japanese Navy attacking and the US Navy defending.",
+    "answer_ids": [
+      "event:attack_on_pearl_harbor",
+      "loc:pearl_harbor",
+      "loc:hickam_field"
+    ],
+    "context_ids": [
+      "per:nagumo",
+      "per:yamamoto",
+      "org:ijn",
+      "org:us_navy"
+    ],
+    "entity_ids": [
+      "event:attack_on_pearl_harbor",
+      "loc:pearl_harbor",
+      "loc:hickam_field",
+      "per:nagumo",
+      "per:yamamoto",
+      "org:ijn",
+      "org:us_navy"
+    ],
+    "sources": [
+      "Attack on Pearl Harbor"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Attack_on_Pearl_Harbor",
+        "page": "Attack on Pearl Harbor"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Combined_Fleet",
+        "page": "Combined Fleet"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Pearl_Harbor",
+        "page": "Pearl Harbor"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Hickam_Field",
+        "page": "Hickam Field"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  -158.05,
+                  21.42
+                ],
+                [
+                  -157.9,
+                  21.42
+                ],
+                [
+                  -157.9,
+                  21.3
+                ],
+                [
+                  -158.05,
+                  21.3
+                ],
+                [
+                  -158.05,
+                  21.42
+                ]
+              ]
+            ]
+          },
+          "properties": {
+            "id": "area-1",
+            "name": "Marked area",
+            "type": "area",
+            "role": "area"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -157.95,
+              21.35
+            ]
+          },
+          "properties": {
+            "id": "loc:pearl_harbor",
+            "name": "Pearl Harbor",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:attack_on_pearl_harbor",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -157.94,
+              21.33
+            ]
+          },
+          "properties": {
+            "id": "loc:hickam_field",
+            "name": "Hickam Field",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:attack_on_pearl_harbor",
+            "role": "answer"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      -158.05,
+      21.3,
+      -157.9,
+      21.42
+    ],
+    "center": {
+      "lat": 21.36,
+      "lon": -157.975
+    },
+    "tool_calls": [
+      {
+        "name": "what_happened_in_area",
+        "args": {
+          "area_id": "area-1"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 9,
+        "n_source_pages": 1,
+        "n_providers": 1,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "area": {
+      "handle": "area-1",
+      "kind": "polygon",
+      "center": {
+        "lat": 21.36,
+        "lon": -157.975
+      },
+      "bbox": [
+        -158.05,
+        21.3,
+        -157.9,
+        21.42
+      ]
+    },
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}
