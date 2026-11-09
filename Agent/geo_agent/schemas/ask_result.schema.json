@@ -1,5 +1,62 @@
 {
   "$defs": {
+    "AreaInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "handle": {
+          "description": "The area's handle in this conversation, e.g. 'area-1'; also the area feature's id",
+          "title": "Handle",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "circle",
+            "polygon"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "center": {
+          "$ref": "#/$defs/Center"
+        },
+        "radius_km": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A circle's radius",
+          "title": "Radius Km"
+        },
+        "bbox": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A polygon's [min_lon, min_lat, max_lon, max_lat]",
+          "title": "Bbox"
+        }
+      },
+      "required": [
+        "handle",
+        "kind",
+        "center"
+      ],
+      "title": "AreaInfo",
+      "type": "object"
+    },
     "Center": {
       "additionalProperties": true,
       "properties": {
@@ -268,10 +325,11 @@
           "type": "string"
         },
         "role": {
-          "description": "`answer` when the feature (or the entity it is drawn for) answers the question",
+          "description": "`answer` when the feature (or the entity it is drawn for) answers the question; `area` for the area the user marked (spec R102)",
           "enum": [
             "answer",
-            "context"
+            "context",
+            "area"
           ],
           "title": "Role",
           "type": "string"
@@ -327,6 +385,22 @@
           "default": null,
           "description": "Set questions: how well supported that path is (higher is stronger)",
           "title": "Strength"
+        },
+        "answer_for": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Answer people or units with no place of their own, shown at this site of a battle they took part in (role is then `answer`)",
+          "title": "Answer For"
         }
       },
       "required": [
@@ -759,6 +833,17 @@
       "title": "Dropped Sets",
       "type": "array"
     },
+    "area": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AreaInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The marked map area this answer used (spec R102); null without one"
+    },
     "error": {
       "anyOf": [
         {
@@ -794,9 +879,10 @@
     "confidence",
     "result_sets",
     "dropped_sets",
+    "area",
     "error"
   ],
   "title": "AskResult",
   "type": "object",
-  "$id": "geo_agent/ask_result/1.4"
+  "$id": "geo_agent/ask_result/1.6"
 }

@@ -867,3 +867,107 @@ def test_r99_two_sided_questions_are_untouched(isolated_env, tmp_path):
     out = _ask_on(_sides_graph_file(tmp_path), [look, final("Both navies.", ["org:ijn", "org:usn"])],
                   "Who fought in the Battle of Midway?")
     assert sorted(out["answer_ids"]) == ["org:ijn", "org:usn"]
+
+
+# --- spec R102: questions about an area marked on the map ------------------------------------------
+
+from geo_agent.graph_store import AreaError, Areas, parse_area  # noqa: E402
+
+PEARL_BOX = {"type": "Polygon", "coordinates": [[[-158.05, 21.30], [-157.90, 21.30], [-157.90, 21.42], [-158.05, 21.42], [-158.05, 21.30]]]}
+
+
+def test_r102_area_checks_and_wraps():
+    shifted = {"type": "Polygon", "coordinates": [[[lon + 360, lat] for lon, lat in PEARL_BOX["coordinates"][0]]]}
+    a = parse_area(shifted)  # Leaflet gives 201.95 for -158.05 on a map shifted across the date line
+    assert a["kind"] == "polygon" and a["center"] == {"lat": 21.36, "lon": -157.975} and a["bbox"][0] == -158.05
+    c = parse_area({"type": "Point", "coordinates": [-177.37, 28.21], "radius_km": 300})  # Midway: crosses 180°
+    assert c["geometry"]["type"] == "MultiPolygon" and c["label"].startswith("a circle of 300.0 km around 28.21°N, 177.37°W")
+    for bad, why in [({"type": "Point", "coordinates": [0, 0], "radius_km": 5000}, "radius"),
+                     ({"type": "Point", "coordinates": [0, 95], "radius_km": 10}, "isn't on the map"),
+                     ({"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [0, 1], [1, 0], [0, 0]]]}, "crosses itself"),
+                     ({"type": "Polygon", "coordinates": [[[100, -20], [170, -20], [170, 20], [100, 20]]]}, "too large"),
+                     ({"type": "LineString", "coordinates": [[0, 0], [1, 1]]}, "circle, a rectangle or a polygon"),
+                     ({"type": "Point", "coordinates": ["x", 0], "radius_km": 10}, "aren't numbers")]:
+        with pytest.raises(AreaError, match=why):
+            parse_area(bad)
+
+
+def test_r102_pearl_harbor_box_finds_the_attack_and_who_took_part():
+    s = GraphStore.from_json(GRAPH)
+    area = {**parse_area(PEARL_BOX), "handle": "area-1"}
+    out = s.what_happened_in_area(area)
+    assert {p["id"] for p in out["places"]} == {"loc:pearl_harbor", "loc:hickam_field"}  # Oahu's point lies outside
+    assert [e["id"] for e in out["events"]] == ["event:attack_on_pearl_harbor"]
+    actors = {r["source"]["id"] for r in out["relations"]}
+    assert {"per:yamamoto", "per:nagumo", "org:ijn", "org:us_navy"} <= actors
+    assert out["area"] == "area-1" and out["area_description"].startswith("a polygon of about")
+    assert s.what_happened_in_area(area, date_from="1943", date_to="1945")["events"] == []
+
+
+def test_r102_a_large_place_that_only_contains_the_area_is_context():
+    sq = lambda w, s_, e, n: {"type": "Polygon", "coordinates": [[[w, s_], [e, s_], [e, n], [w, n], [w, s_]]]}
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "loc:oahu", "name": "Oahu", "type": "location", "geometry": sq(-158.3, 21.2, -157.6, 21.75)},
+        {"id": "loc:ph", "name": "Pearl Harbor", "type": "location", "geometry": {"type": "Point", "coordinates": [-157.95, 21.35]}}],
+        "edges": []})
+    out = s.what_happened_in_area({**parse_area(PEARL_BOX), "handle": "area-1"})
+    assert [p["id"] for p in out["places"]] == ["loc:ph"] and out["containing"] == [{"id": "loc:oahu", "name": "Oahu", "type": "location"}]
+    big = {**parse_area({"type": "Point", "coordinates": [-157.95, 21.45], "radius_km": 60}), "handle": "area-2"}
+    assert {p["id"] for p in s.what_happened_in_area(big)["places"]} == {"loc:ph", "loc:oahu"}  # not 10x larger
+
+
+def test_r102_tool_refuses_an_unknown_handle_and_names_the_nearest_place_when_empty():
+    areas = Areas()
+    tools = {t.name: t for t in build_tools(GraphStore.from_json(GRAPH), areas=areas)}
+    assert "unknown area" in json.loads(tools["what_happened_in_area"].invoke({"area_id": "area-9"}))["error"]
+    h = areas.add(parse_area({"type": "Point", "coordinates": [-150.0, 30.0], "radius_km": 50}))
+    out = json.loads(tools["what_happened_in_area"].invoke({"area_id": h}))
+    assert out["result"] == "nothing in the graph inside the area" and out["events"] == []
+    assert all("id" not in n for n in out["nearest_outside"])  # named, never drawn
+
+
+def _area_run(responses_for, questions):
+    async def go():
+        agent = await GeoAgent.create(graph_path=GRAPH, llm=FakeToolModel(responses=responses_for))
+        return [await agent.ask(q, "t", area=a) for q, a in questions]
+    return asyncio.run(go())
+
+
+def test_r102_ask_with_an_area_answers_from_it_and_draws_it_first(isolated_env):
+    look = ai(call("what_happened_in_area", "a", area_id="area-1"))
+    answer = final("The attack on Pearl Harbor, 7 December 1941.", ["event:attack_on_pearl_harbor"])
+    again = ai(call("what_happened_in_area", "b", area_id="area-1", year=1941))
+    who = final("Nagumo commanded it.", ["per:nagumo"])
+    first, follow = _area_run([look, answer, again, who],
+                              [("What happened in the marked area?", PEARL_BOX), ("Who commanded there in 1941?", None)])
+    feats = first["geojson"]["features"]
+    assert feats[0]["properties"] == {"id": "area-1", "name": "Marked area", "type": "area", "role": "area"}
+    assert first["area"]["handle"] == "area-1" and first["area"]["kind"] == "polygon"
+    assert first["answer_ids"] == ["event:attack_on_pearl_harbor"]
+    assert any(f["properties"]["role"] == "answer" for f in feats[1:])
+    assert follow["area"]["handle"] == "area-1" and follow["geojson"]["features"][0]["properties"]["role"] == "area"
+    assert follow["answer_ids"] == ["per:nagumo"]
+
+
+def test_r102_the_model_sees_a_code_written_line_not_the_coordinates(isolated_env):
+    seen = []
+
+    class Spy(FakeToolModel):
+        def _generate(self, messages, *a, **k):
+            seen.append(messages)
+            return super()._generate(messages, *a, **k)
+
+    async def go():
+        agent = await GeoAgent.create(graph_path=GRAPH, llm=Spy(responses=[
+            ai(call("what_happened_in_area", "a", area_id="area-1")), final("The attack.", ["event:attack_on_pearl_harbor"])]))
+        return await agent.ask("What happened here?", area=PEARL_BOX)
+    asyncio.run(go())
+    human = next(m for m in seen[0] if m.type == "human").content
+    assert human.startswith("What happened here?\n\n[Map area] The user marked an area on the map: area-1, a polygon of about")
+    assert "-158.05" not in human
+
+
+def test_r102_an_unusable_area_is_answered_by_code(isolated_env):
+    (out,) = _area_run([], [("What happened here?", {"type": "Point", "coordinates": [0, 0], "radius_km": 9000})])
+    assert out["warnings"] == ["area_invalid"] and out["error"] is None and out["answer_ids"] == []
+    assert out["answer"].startswith("I can't use the marked area: the circle's radius must be")

@@ -2,7 +2,7 @@
   "question": "What happened in the battle at Tara?",
   "after": null,
   "reply": {
-    "schema_version": "1.4",
+    "schema_version": "1.6",
     "answer": "Did you mean the Battle of Tarawa (November 1943) or the Battle of Tarakan (1942)?",
     "answer_ids": [],
     "context_ids": [],
@@ -40,6 +40,7 @@
     },
     "result_sets": [],
     "dropped_sets": [],
+    "area": null,
     "run_id": "",
     "warnings": [],
     "error": null

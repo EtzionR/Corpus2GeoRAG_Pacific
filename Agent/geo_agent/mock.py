@@ -156,6 +156,17 @@ SCENARIOS: list[dict[str, Any]] = [
                         "(Midway Atoll, Sand Island, Eastern Island) and 2 through the Attack on Pearl Harbor "
                         "(Pearl Harbor, Hickam Field). The map shows all of them.", ["per:yamamoto"]),
     ]}]},
+    {"turns": [{"key": "area_pearl_harbor", "question": "What happened in the marked area?",
+                "area": {"type": "Polygon", "coordinates": [[[-158.05, 21.30], [-157.90, 21.30], [-157.90, 21.42],
+                                                             [-158.05, 21.42], [-158.05, 21.30]]]},
+                "script": [
+        _call("what_happened_in_area", area_id="area-1"),
+        _final("The marked area holds **Pearl Harbor** and **Hickam Field**. The graph records one event there: the "
+               "**Attack on Pearl Harbor** (7 December 1941), commanded by Chuichi Nagumo and planned by Isoroku Yamamoto, "
+               "with the Imperial Japanese Navy attacking and the US Navy defending.",
+               ["event:attack_on_pearl_harbor", "loc:pearl_harbor", "loc:hickam_field"],
+               ["per:nagumo", "per:yamamoto", "org:ijn", "org:us_navy"], ["Attack on Pearl Harbor"]),
+    ]}]},
     {"turns": [{"key": "off_topic_poem", "question": "Write me a poem about the ocean", "script": [
         _final("I can only help with the Pacific theatre of WWII."),
     ]}]},
@@ -188,7 +199,7 @@ async def generate_fixtures(graph_path: str | Path = SAMPLE_GRAPH) -> dict[str, 
         agent = await GeoAgent.create(graph_path=graph_path, mcp_config=FIXTURE_DIR / "no-mcp-servers.json", llm=ScriptedModel(script=script))
         agent.writer.enabled = False  # fixtures, not runs: no trace files
         for turn in scenario["turns"]:
-            reply = await agent.ask(turn["question"], thread_id="mock")
+            reply = await agent.ask(turn["question"], thread_id="mock", **({"area": turn["area"]} if "area" in turn else {}))
             fixtures[turn["key"]] = {"question": turn["question"], "after": turn.get("after"), "reply": _stable(reply)}
     return fixtures
 
@@ -274,8 +285,10 @@ class MockAgent:
         return out
 
     async def ask(self, question: str, thread_id: str = "default", *, run_id: str | None = None,
-                  on_progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
-        """The recorded reply; `on_progress` gets the same kind of step events as a real run."""
+                  on_progress: Callable[[dict[str, Any]], None] | None = None,
+                  area: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The recorded reply; `on_progress` gets the same kind of step events as a real run. A marked `area`
+        is not compared: the recorded area question shows its recorded area (Pearl Harbor), wherever the user drew."""
         run_id = run_id or uuid.uuid4().hex
         hit = self._match(question, thread_id)
         out = copy.deepcopy(hit[1]["reply"]) if hit else self.no_fixture_reply()

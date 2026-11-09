@@ -113,9 +113,10 @@ class PendingAnswer:
     """
 
     def __init__(self, runner: "AgentRunner", question: str, thread_id: str, run_id: str, timeout: float,
-                 on_progress: Callable[[dict[str, Any]], None] | None = None):
+                 on_progress: Callable[[dict[str, Any]], None] | None = None, area: dict[str, Any] | None = None):
         self.runner = runner
         self.question = question
+        self.area = area  # spec R102: a marked map area, passed to ask() as data
         self.thread_id = thread_id
         self.run_id = run_id
         self.timeout = timeout
@@ -219,7 +220,8 @@ class PendingAnswer:
         internal = self.runner._internal_thread(self.thread_id)
         timer = asyncio.get_running_loop().call_later(max(self.deadline - time.monotonic(), 0.0), self._deadline_on_loop)
         try:
-            return await agent.ask(self.question, internal, run_id=self.run_id, on_progress=self._progress)
+            return await agent.ask(self.question, internal, run_id=self.run_id, on_progress=self._progress,
+                                   **({"area": self.area} if self.area is not None else {}))
         except asyncio.CancelledError as exc:
             self.runner._reset_thread(self.thread_id)
             out = getattr(exc, "geo_result", None)
@@ -288,8 +290,13 @@ class AgentRunner:
         return uuid.uuid4().hex
 
     def submit(self, question: str, thread_id: str = "default", *, timeout: float | None = None,
-               if_busy: str = "reject", on_progress: Callable[[dict[str, Any]], None] | None = None) -> PendingAnswer:
+               if_busy: str = "reject", on_progress: Callable[[dict[str, Any]], None] | None = None,
+               area: dict[str, Any] | None = None) -> PendingAnswer:
         """Start a question without waiting. Use `.result()`, `.done()`, `.poll_progress()` or `.cancel()`.
+
+        `area` (spec R102): an area the user marked on the map, a GeoJSON `Polygon` (lon/lat) or a circle
+        as `{"type": "Point", "coordinates": [lon, lat], "radius_km": r}`. Send it with every question
+        while it stays marked. An area the agent can't use comes back as a reply with warning `area_invalid`.
 
         If `thread_id` already has a running question, `if_busy="reject"` (default) returns a
         finished handle whose result is a `busy` error; `"wait"` waits up to `timeout` for it.
@@ -303,7 +310,7 @@ class AgentRunner:
         if if_busy not in ("reject", "wait"):
             raise ValueError("if_busy must be 'reject' or 'wait'")
         limit = self.timeout if timeout is None else timeout
-        pending = PendingAnswer(self, question, thread_id, uuid.uuid4().hex, limit, on_progress)
+        pending = PendingAnswer(self, question, thread_id, uuid.uuid4().hex, limit, on_progress, area)
         deadline = pending.deadline
         while True:
             with self._mutex:
@@ -324,9 +331,11 @@ class AgentRunner:
         return pending
 
     def ask_sync(self, question: str, thread_id: str = "default", *, timeout: float | None = None,
-                 if_busy: str = "reject", on_progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+                 if_busy: str = "reject", on_progress: Callable[[dict[str, Any]], None] | None = None,
+                 area: dict[str, Any] | None = None) -> dict[str, Any]:
         """Ask a question and wait for the output dict (same keys as `GeoAgent.ask`). Never raises for run problems."""
-        return self.submit(question, thread_id, timeout=timeout, if_busy=if_busy, on_progress=on_progress).result()
+        return self.submit(question, thread_id, timeout=timeout, if_busy=if_busy, on_progress=on_progress,
+                           area=area).result()
 
     def is_busy(self, thread_id: str) -> bool:
         """True while a question of this conversation is running (e.g. to disable the input box)."""

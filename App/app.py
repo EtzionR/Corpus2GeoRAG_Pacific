@@ -13,7 +13,9 @@ from urllib.parse import quote, urlsplit
 
 import folium
 import streamlit as st
-from folium.plugins import MarkerCluster
+import json
+
+from folium.plugins import Draw, MarkerCluster
 from streamlit_folium import st_folium
 
 # ==========================================
@@ -137,8 +139,12 @@ WARNING_LABELS = {
     "token_budget": "The question used more tokens than the budget; the answer may be incomplete",
     "mock_no_fixture": "Mock mode has no recorded reply for this question",
 }
-# Shown in their own way, not in the generic warning line.
-SPECIAL_WARNINGS = {"off_topic", "low_confidence", "nothing_on_map", "ungrounded_names"}
+# Shown in their own way, not in the generic warning line (area_invalid: the answer text says why).
+SPECIAL_WARNINGS = {"off_topic", "low_confidence", "nothing_on_map", "ungrounded_names", "area_invalid"}
+
+# A marked map area (agent spec R102): drawing one asks this at once; later questions are sent with it.
+AREA_QUESTION = "What happened in the marked area?"
+AREA_STYLE = {"color": "#0284C7", "weight": 2, "dashArray": "6 4", "fill": False}
 
 ERROR_MESSAGES = {
     "busy": "Another question is still running in this conversation. Wait for its answer.",
@@ -266,6 +272,10 @@ if "last_reply" not in st.session_state:
 if "map_reply" not in st.session_state:
     st.session_state.map_reply = None  # latest reply that had map features
 
+if "area" not in st.session_state:
+    st.session_state.area = None  # the marked map area sent with each question (GeoJSON for the agent)
+    st.session_state.area_seen = None  # the last drawing already turned into an area
+
 if "pending" not in st.session_state:
     # The running question's PendingAnswer. Kept here so a click while the agent works
     # (which reruns the script) doesn't lose the answer: every run checks it.
@@ -285,7 +295,9 @@ def submit_question(question: str):
     if runner is None or st.session_state.pending is not None:
         return
     st.session_state.messages.append({"role": "user", "content": question})
-    st.session_state.pending = runner.submit(question, st.session_state.thread_id)
+    area = st.session_state.area
+    st.session_state.pending = runner.submit(question, st.session_state.thread_id,
+                                             **({"area": area["geometry"]} if area else {}))
     st.rerun()
 
 
@@ -297,6 +309,36 @@ def reset_conversation():
     st.session_state.last_reply = None
     st.session_state.map_reply = None
     st.session_state.pending = None
+    st.session_state.area = None
+
+
+def area_from_drawing(drawing: Any) -> Optional[Dict[str, Any]]:
+    """The agent's area for a shape drawn on the map: a polygon (rectangles too) as it is, a circle as its
+    center with `radius_km` (Leaflet gives the radius in metres). None for anything else."""
+    if not isinstance(drawing, dict):
+        return None
+    geometry = drawing.get("geometry") or {}
+    radius = (drawing.get("properties") or {}).get("radius")
+    if geometry.get("type") == "Point" and isinstance(radius, (int, float)) and radius > 0:
+        return {"geometry": {"type": "Point", "coordinates": geometry.get("coordinates"), "radius_km": radius / 1000},
+                "label": f"a circle of {radius / 1000:,.1f} km"}
+    if geometry.get("type") == "Polygon":
+        return {"geometry": geometry, "label": "a marked polygon"}
+    return None
+
+
+def take_new_drawing(map_state: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """The newest shape drawn since the last run, once. A drawn shape has no `id`, unlike a clicked answer
+    feature (both arrive in `last_active_drawing`), so the drawings are read from `all_drawings`."""
+    drawings = (map_state or {}).get("all_drawings") or []
+    if not drawings:
+        return None
+    newest = drawings[-1]
+    key = json.dumps(newest, sort_keys=True)
+    if key == st.session_state.area_seen:
+        return None
+    st.session_state.area_seen = key
+    return area_from_drawing(newest)
 
 
 # ==========================================
@@ -512,10 +554,12 @@ def prepare_geojson(fc: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[List[L
 
     for f in features:
         props = f.get("properties") or {}
-        role = props.get("role") if props.get("role") in ROLE_STYLES else "context"
+        role = props.get("role") if props.get("role") in ROLE_STYLES or props.get("role") == "area" else "context"
         strength = props.get("strength")
         related = props.get("geometry_source") == "related"
-        f["properties"] = {key: html.escape(str(value)) for key, value in props.items()}
+        answer_for = props.get("answer_for") if isinstance(props.get("answer_for"), list) else []
+        f["properties"] = {key: html.escape(str(value)) for key, value in props.items() if key != "answer_for"}
+        f["properties"]["_answer_for"] = [html.escape(str(i)) for i in answer_for]
         for key in ("name", "via", "related_to", "geometry_source"):
             f["properties"].setdefault(key, "")
         f["properties"]["role"] = role  # whitelisted, used by the style function
@@ -558,7 +602,7 @@ def _legend_html(counts: Dict[str, int], has_related: bool) -> str:
     return f'<div class="c2g-legend">{rows}{note}</div>'
 
 
-def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.Map:
+def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Optional[Dict[str, Any]] = None) -> folium.Map:
     tiles = {
         "OpenStreetMap (Standard)": "OpenStreetMap",
         "CartoDB Positron (Minimal)": "CartoDB positron",
@@ -570,7 +614,26 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.M
     m = folium.Map(location=bounds[0] if single_point else DEFAULT_CENTER,
                    zoom_start=6 if single_point else DEFAULT_ZOOM, tiles=tiles,
                    control_scale=True, prefer_canvas=True, world_copy_jump=True)
+    # Mark an area to ask about (agent spec R102): circle, rectangle or polygon; no markers or lines.
+    Draw(draw_options={"polyline": False, "marker": False, "circlemarker": False,
+                       "polygon": {"allowIntersection": False}, "rectangle": True, "circle": True},
+         edit_options={"edit": False, "remove": False}).add_to(m)
+    # The marked area the reply used is its first feature (role "area"): an outline under the answer.
+    areas = [f for f in fc["features"] if f["properties"].get("role") == "area"]
+    fc["features"] = [f for f in fc["features"] if f["properties"].get("role") != "area"]
+    if areas:
+        folium.GeoJson({"type": "FeatureCollection", "features": areas}, style_function=lambda _: AREA_STYLE,
+                       tooltip=folium.GeoJsonTooltip(fields=["name"], labels=False)).add_to(m)
+    elif marked:  # still marked, but this reply didn't use it: show it anyway, so the user sees what is sent
+        g = marked["geometry"]
+        if g.get("type") == "Point":
+            lon, lat = g["coordinates"][:2]
+            folium.Circle(location=[lat, lon], radius=g["radius_km"] * 1000, tooltip="Marked area", **AREA_STYLE).add_to(m)
+        else:
+            folium.GeoJson(g, style_function=lambda _: AREA_STYLE, tooltip="Marked area").add_to(m)
     if not fc["features"]:
+        if bounds and not single_point:
+            m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
         return m
 
     # Each feature gets the type of what it stands for: its own type, or, for a place drawn
@@ -593,6 +656,10 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str) -> folium.M
             props["type_label"] = "Location (linked place)"
         props["_type"] = etype
         props["role_label"] = ROLE_LABELS[props["role"]]
+        answer_for = [html.unescape(i) for i in props.pop("_answer_for", [])]
+        if answer_for:  # answer people or units shown at this battle site (agent schema 1.5)
+            names = [(runner.get_entity_feature(i) or {}).get("name") or i if runner else i for i in answer_for[:6]]
+            props["drawn_for"] = html.escape(", ".join(names) + (" …" if len(answer_for) > 6 else ""))
         props["via"] = props.get("via") or "—"
         groups[etype].append(f)
 
@@ -732,6 +799,11 @@ with col_chat:
     st.markdown("#### 💬 Ask the GeoAI Agent")
     chat_box = st.container(height=CHAT_HEIGHT, border=True)
     with chat_box:
+        if st.session_state.area:  # inside the chat box, so the layout and sizes don't change
+            st.caption(f"📐 Questions are about {md_text(st.session_state.area['label'])} marked on the map.")
+            if st.button("Clear area", key="clear_area", type="tertiary", disabled=busy):
+                st.session_state.area = None
+                st.rerun()
         if not st.session_state.messages:
             st.caption("Ask a question in English below or pick a suggestion. Answers appear here, and their places on the map.")
             if agent["mode"] == "mock":
@@ -756,11 +828,20 @@ with col_chat:
         st.rerun()
 
 with col_map:
-    folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice)
+    folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice, marked=st.session_state.area)
     map_state = st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, key="agent_map",
-                          returned_objects=["last_active_drawing"])
+                          returned_objects=["last_active_drawing", "all_drawings"])
     st.caption("Icons show what each place stands for: a place, event, person, organization or other · "
-               "click one for its details · use the box at the top right to show or hide a type")
+               "click one for its details · use the box at the top right to show or hide a type · "
+               "draw a circle, rectangle or polygon (tools at the top left) to ask about an area")
+
+    # A newly drawn shape becomes the marked area and is asked about at once (agent spec R102).
+    drawn_area = take_new_drawing(map_state)
+    if drawn_area:
+        st.session_state.area = drawn_area
+        if not busy and runner is not None:
+            submit_question(AREA_QUESTION)
+        st.rerun()
 
     # A click on a map feature opens it in the entity details panel below. The feature's
     # properties were HTML-escaped for the map, so the id is unescaped back.
@@ -808,7 +889,7 @@ else:
     with col_entity:
         # The reply's entities plus the places on the map (they can come from an earlier reply).
         map_ids = [str((f.get("properties") or {}).get("id")) for f in reply_features(st.session_state.map_reply)
-                   if (f.get("properties") or {}).get("id")]
+                   if (f.get("properties") or {}).get("id") and (f.get("properties") or {}).get("role") != "area"]
         entity_ids = list(dict.fromkeys((last.get("entity_ids") or []) + map_ids))[:100]
         if entity_ids and runner is not None:
             st.markdown("##### 🔍 Entity details")

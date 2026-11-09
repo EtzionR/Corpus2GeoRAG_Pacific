@@ -268,6 +268,32 @@ def fetch_revisions(revids: Iterable[int], cache_dir: Path, offline: bool = Fals
     return {r: json.loads((folder / f"{r}.json").read_text(encoding="utf-8")) for r in wanted}
 
 
+PAGEID_BATCH = 50
+
+
+def fetch_page_titles(page_ids: Iterable[int], cache_dir: Path, offline: bool = False, get: Getter = http_get_json
+                      ) -> dict[int, str | None]:
+    """{page id: current enwiki title, or None for a deleted page}, cached in `cache_dir/page_titles.json`
+    (spec R103: the graph names its corpus pages by id only)."""
+    path = cache_dir / "page_titles.json"
+    cache: dict[str, str | None] = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    wanted = sorted({int(p) for p in page_ids})
+    absent = [p for p in wanted if str(p) not in cache]
+    if absent and offline:
+        raise _offline_error("page titles", len(absent), path)
+    for i in range(0, len(absent), PAGEID_BATCH):
+        batch = absent[i:i + PAGEID_BATCH]
+        data = get(WIKIPEDIA_API, {"action": "query", "pageids": "|".join(map(str, batch)), "formatversion": "2"})
+        for page in (data.get("query") or {}).get("pages") or []:
+            if isinstance(page.get("pageid"), int):
+                cache[str(page["pageid"])] = None if page.get("missing") else page.get("title")
+        for p in batch:
+            cache.setdefault(str(p), None)  # not returned at all: treated as missing
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True), encoding="utf-8")
+    return {p: cache.get(str(p)) for p in wanted}
+
+
 # ----------------------------------------------------------------- titles
 
 

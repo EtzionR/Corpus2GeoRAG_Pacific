@@ -111,7 +111,7 @@ def test_env_example_holds_no_secrets():
 import json
 from types import SimpleNamespace
 
-from geo_agent.agent import AgentAnswer, coordinates_in_text, finalize_answer
+from geo_agent.agent import AgentAnswer, coordinates_in_text, finalize_answer, turn_messages
 
 STORE = GraphStore.from_json(GRAPH)
 NEW_KEYS = {"dropped_ids", "unverified_sources", "unverified_numbers"}
@@ -837,3 +837,63 @@ def test_r24a_place_found_by_another_tool_still_moves_to_the_answer():
 def test_r4_look_alike_names_always_ask():
     """amb-4 (user decision 2026-10-25): Tarawa / Tarakan only look alike, so the agent asks."""
     assert "Names that only look alike" in agent_mod.SYSTEM_PROMPT and "always ask" in agent_mod.SYSTEM_PROMPT
+
+
+# --- spec R103: four fixes from the agent explainer's worked example (Leyte Gulf) ---------------------
+
+def _r103_store():
+    return GraphStore.from_dict({"metadata": {"page_titles": {"enwiki:2": "William Halsey Jr."}}, "nodes": [
+        {"id": "lg", "name": "Battle of Leyte Gulf", "type": "event", "attributes": {"start_date": "1944-10-23"},
+         "sources": [{"page": "enwiki:1", "page_title": "Battle of Leyte Gulf", "url": "https://en.wikipedia.org/?curid=1"}]},
+        {"id": "leyte", "name": "Battle of Leyte", "type": "event", "attributes": {"start_date": "1944-10-17"},
+         "sources": [{"page": "enwiki:1", "url": "https://en.wikipedia.org/?curid=1"}]},
+        {"id": "loc:gulf", "name": "Leyte Gulf", "type": "location", "geometry": {"type": "Point", "coordinates": [125.4, 10.8]}},
+        {"id": "halsey", "name": "William Halsey Jr.", "type": "person",
+         "sources": [{"page": "enwiki:2", "url": "https://en.wikipedia.org/?curid=2"}]},
+        {"id": "kurita", "name": "Takeo Kurita", "type": "person", "sources": [{"page": "enwiki:3"}]},
+        {"id": "jp", "name": "Japanese", "type": "location", "geometry": {"type": "Point", "coordinates": [139.7, 35.7]}}],
+        "edges": [{"source": "lg", "target": "loc:gulf", "type": "wd:P276"},
+                  {"source": "lg", "target": "halsey", "type": "wd:P710", "side": 1},
+                  {"source": "lg", "target": "kurita", "type": "wd:P710", "side": 2}]})
+
+
+def test_r103_an_exact_name_is_clear_next_to_a_fuzzy_near_miss():
+    s = _r103_store()
+    top, near = s.search_entities("Battle of Leyte Gulf")[:2]
+    assert (top["id"], top["quality"], top["ambiguous"]) == ("lg", "clear", False)
+    assert near["id"] == "leyte" and near["quality"] == "uncertain"
+
+
+def test_r103_page_ids_get_their_titles_from_the_graph():
+    s = _r103_store()
+    assert [x.page for x in s.nodes["leyte"].sources] == ["Battle of Leyte Gulf"]  # titled by another source
+    assert [x.page for x in s.nodes["halsey"].sources] == ["William Halsey Jr."]  # from metadata.page_titles
+    assert s.nodes["halsey"].sources[0].model_extra["page_ref"] == "enwiki:2"
+    assert [x.page for x in s.nodes["kurita"].sources] == ["enwiki:3"] and s.pages_untitled == 1
+
+
+def _r103_turn(question, answer_text):
+    s = _r103_store()
+    msgs = turn(("search_entities", s.search_entities("Battle of Leyte Gulf")),
+                ("find_relations", [{"source": {"id": "lg"}, "target": {"id": "halsey"}, "relation": "wd:P710",
+                                     "side": 1, "sources": ["Battle of Leyte Gulf"]},
+                                    {"source": {"id": "lg"}, "target": {"id": "kurita"}, "relation": "wd:P710", "side": 2}]),
+                question=question)
+    return s, msgs
+
+
+def test_r103_commanders_are_shown_at_their_battles_site():
+    s, msgs = _r103_turn("Who commanded at Leyte Gulf?", "Halsey and Kurita.")
+    out = finalize_answer(s, AgentAnswer(answer_sets=[], answer="Halsey and Kurita.", answer_ids=["halsey", "kurita"],
+                                         context_ids=["lg"], sources=["Battle of Leyte Gulf"]), msgs)
+    (f,) = out["geojson"]["features"]
+    assert f["properties"]["id"] == "loc:gulf" and f["properties"]["role"] == "answer"
+    assert f["properties"]["answer_for"] == ["halsey", "kurita"]
+    assert out["answer_ids"] == ["halsey", "kurita"] and "nothing_on_map" not in out["warnings"]
+    assert out["sources"] == ["Battle of Leyte Gulf"] and "uncertain_match_used" not in out["warnings"]
+
+
+def test_r103_a_common_word_record_is_not_an_ungrounded_name():
+    from geo_agent.agent import ungrounded_names
+    s, msgs = _r103_turn("Who commanded at Leyte Gulf?", "")
+    assert ungrounded_names(s, "Kurita led the Japanese fleet.", turn_messages(msgs), "Who commanded at Leyte Gulf?") == []

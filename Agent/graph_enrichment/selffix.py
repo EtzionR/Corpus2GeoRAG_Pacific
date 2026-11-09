@@ -1451,6 +1451,29 @@ def stage_life(graph: dict[str, Any], ctx: Ctx) -> dict[str, Any]:
     return {"people_checked": len(people), "life_dates_added": apply_life_dates(graph, lite)}
 
 
+def untitled_pages(graph: dict[str, Any]) -> set[int]:
+    """Page ids of `enwiki:<id>` source pages that no source of the graph gives a `page_title` for (spec R103)."""
+    pages, titled = set(), set()
+    for rec in (graph.get("nodes") or []) + (graph.get("edges") or []):
+        for s in rec.get("sources") or []:
+            page = s.get("page") if isinstance(s, dict) else None
+            if isinstance(page, str) and page.startswith("enwiki:") and page[7:].isdigit():
+                pages.add(int(page[7:]))
+                if s.get("page_title"):
+                    titled.add(int(page[7:]))
+    return pages - titled
+
+
+def stage_titles(graph: dict[str, Any], ctx: Ctx) -> dict[str, Any]:
+    """The page-title pass (spec R103): `metadata.page_titles` {"enwiki:<id>": title} for the corpus pages
+    the graph names by id only, so the agent can show and verify titles. Deleted pages are left out."""
+    need = untitled_pages(graph)
+    got = wp.fetch_page_titles(need, ctx.wikipedia_cache, ctx.offline)
+    titles = {f"enwiki:{p}": t for p, t in sorted(got.items()) if t}
+    graph.setdefault("metadata", {})["page_titles"] = titles
+    return {"pages_without_title": len(need), "titles_added": len(titles)}
+
+
 STEPS = {"1": step1_resolve, "3": step3_add_entities, "5": step5_infoboxes, "6": step6_types}
 
 
@@ -1484,6 +1507,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.keep_stages:
             write_graph(graph, out_dir / f"graph.stage-{step}.json")
     reports["life"] = stage_life(graph, ctx)
+    reports["titles"] = stage_titles(graph, ctx)
     graph.setdefault("metadata", {})["selffix"] = {
         "tool_version": TOOL_VERSION, "steps": steps, "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "input_sha256": sha256_file(args.graph), "license_note": "Facts from Wikipedia links and infoboxes: " + LICENSE,

@@ -146,3 +146,34 @@ def test_large_set_across_the_meridian_renders_quickly(n):
     at.run()
     assert not at.exception, at.exception
     assert time.time() - started < 15
+
+
+# --- a marked map area (agent spec R102) ---------------------------------------------------------
+
+PEARL_BOX = {"type": "Polygon", "coordinates": [[[-158.05, 21.30], [-157.90, 21.30], [-157.90, 21.42], [-158.05, 21.42], [-158.05, 21.30]]]}
+
+
+def test_a_drawn_shape_becomes_the_agents_area():
+    src = Path(APP).read_text(encoding="utf-8")
+    ns: dict = {}
+    # only the pure helper, without running the Streamlit page
+    start = src.index("def area_from_drawing")
+    exec("from typing import Any, Dict, Optional\n" + src[start:src.index("def take_new_drawing")], ns)
+    f = ns["area_from_drawing"]
+    circle = f({"type": "Feature", "geometry": {"type": "Point", "coordinates": [-157.95, 21.35]}, "properties": {"radius": 25000}})
+    assert circle["geometry"] == {"type": "Point", "coordinates": [-157.95, 21.35], "radius_km": 25.0}
+    assert f({"type": "Feature", "geometry": PEARL_BOX, "properties": {}})["geometry"] == PEARL_BOX
+    assert f({"type": "Feature", "geometry": {"type": "LineString", "coordinates": []}}) is None
+    assert f({"type": "Feature", "geometry": {"type": "Point", "coordinates": [0, 0]}, "properties": {}}) is None  # a marker
+
+
+def test_a_marked_area_is_sent_drawn_and_cleared():
+    at = new_app()
+    at.session_state["area"] = {"geometry": PEARL_BOX, "label": "a marked polygon"}
+    at.run()
+    assert any("marked on the map" in c.value for c in at.caption)
+    reply = ask(at, "What happened in the marked area?")
+    assert reply["area"]["kind"] == "polygon" and reply["geojson"]["features"][0]["properties"]["role"] == "area"
+    assert "event:attack_on_pearl_harbor" in reply["answer_ids"]
+    at.button(key="clear_area").click().run()
+    assert at.session_state.area is None and not any("marked on the map" in c.value for c in at.caption)

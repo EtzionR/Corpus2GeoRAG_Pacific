@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from geo_agent.trace import FAILURE_STAGES
 
-SCHEMA_VERSION = "1.4"  # 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names; 1.4: match nickname/hull_number/alias_part, resolved evidence and model_reading
+SCHEMA_VERSION = "1.6"  # 1.6: area, feature role "area"; 1.5: feature answer_for; 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names; 1.4: match nickname/hull_number/alias_part, resolved evidence and model_reading
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "ask_result.schema.json"
 
 
@@ -54,11 +54,14 @@ class FeatureProperties(_Open):
     id: str = Field(description="Graph id; matches entity_ids")
     name: str = Field(description="Display name")
     type: str = Field(description="Node type, `location` today")
-    role: Literal["answer", "context"] = Field(description="`answer` when the feature (or the entity it is drawn for) answers the question")
+    role: Literal["answer", "context", "area"] = Field(description="`answer` when the feature (or the entity it is drawn for) answers "
+                                                      "the question; `area` for the area the user marked (spec R102)")
     related_to: str | None = Field(None, description="Present when the place is drawn on behalf of a non-spatial entity (event, org, person)")
     geometry_source: str | None = Field(None, description="'direct' when the entity's own geometry is drawn, 'related' when it is drawn at a linked place")
     via: str | None = Field(None, description="Set questions: the path that connects the place")
     strength: float | None = Field(None, description="Set questions: how well supported that path is (higher is stronger)")
+    answer_for: list[str] | None = Field(None, description="Answer people or units with no place of their own, shown at this "
+                                         "site of a battle they took part in (role is then `answer`)")
 
 
 class Feature(_Open):
@@ -128,6 +131,14 @@ class DroppedSet(_Open):
     reason: Literal["unknown", "not_in_tool_output"]
 
 
+class AreaInfo(_Open):
+    handle: str = Field(description="The area's handle in this conversation, e.g. 'area-1'; also the area feature's id")
+    kind: Literal["circle", "polygon"]
+    center: Center
+    radius_km: float | None = Field(None, description="A circle's radius")
+    bbox: list[float] | None = Field(None, description="A polygon's [min_lon, min_lat, max_lon, max_lat]")
+
+
 class ErrorInfo(_Open):
     type: str = Field(description="Exception class name")
     message: str
@@ -166,6 +177,7 @@ class AskResult(_Open):
     confidence: Confidence
     result_sets: list[ResultSetInfo]
     dropped_sets: list[DroppedSet]
+    area: AreaInfo | None = Field(description="The marked map area this answer used (spec R102); null without one")
     error: ErrorInfo | None = Field(description="null on success")
 
 
