@@ -12,7 +12,7 @@ uv run geo-agent                   # interactive session
 GEO_AGENT_JSON=1 uv run geo-agent "Show me where the Battle of Midway happened"   # full UI payload
 uv run geo-agent --trace last      # timeline of the last run (see "Debugging a run")
 GEO_AGENT_MOCK=1 uv run python -c "from geo_agent.runner import AgentRunner; print(AgentRunner().ask_sync('Who attacked Guadalcanal in 1942?')['answer'])"   # no API key needed
-GRAPH_PATH=/path/to/graph.selffix.json uv run geo-agent "Who commanded at Leyte Gulf?"   # the graph to use: built by graph_enrichment (below)
+git lfs pull && GRAPH_PATH=data/partof521/graph.selffix.json uv run geo-agent "Who commanded at Leyte Gulf?"   # the graph to use (below)
 GEO_AGENT_BIG_GRAPH=/path/to/wwii_agent_graph_draft_v0.1.0.json uv run pytest tests/test_big_graph.py   # acceptance checks on it
 ```
 
@@ -259,7 +259,7 @@ The agent behaves fully only when four things are filled. In both checkpoints th
 Without them, the time window removes little, battles load as places, and those places can't be found or mapped.
 
 ### Building the graph the agent should use
-The team's delivery is not loaded as is. Two build steps in `graph_enrichment/` turn it into **`graph.selffix.json`**, the graph to set as `GRAPH_PATH`. Both run once per checkpoint, cache every response, and can rebuild offline:
+The team's delivery is not loaded as is. Two build steps in `graph_enrichment/` turn it into **`graph.selffix.json`**, the graph to set as `GRAPH_PATH`. The current build is in the repo, at **`data/partof521/graph.selffix.json`** (Git LFS, 140 MB; run `git lfs pull`, and see `data/partof521/README.md` for the checksum and the licence). Rebuild it only for a new checkpoint. Both run once per checkpoint, cache every response, and can rebuild offline:
 ```bash
 uv run python -m graph_enrichment.selffix --graph graph.json --out selffix/graph.selffix.json --cache selffix/cache \
     --wikidata-cache wikidata_cache/ --wikipedia-cache wikipedia_cache/ [--offline]

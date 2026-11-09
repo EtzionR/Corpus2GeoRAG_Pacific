@@ -792,6 +792,7 @@ def role_dir(role: str, type: str) -> int | None:
 # location_kind values that cover several graph kinds
 KIND_GROUPS = {"island": {"island", "atoll"}, "city": {"city", "town", "village", "port"}}
 SELF_STRENGTH = 99  # strength of an entity's own location (no path needed)
+LFS_POINTER = "version https://git-lfs.github.com/spec/v1"  # first line of a Git LFS pointer file
 PLACE_POINT_KM = 0.05  # coordinates this close to a location's own point name that place (spec R90)
 
 # Flagged approximations while the graph lacks kinds / countries (spec R30). Each one is
@@ -1045,6 +1046,10 @@ class GraphStore:
         gc.disable()
         try:
             with open(path, encoding="utf-8") as f:
+                if f.read(len(LFS_POINTER)) == LFS_POINTER:  # spec R101: a clone without Git LFS
+                    raise ValueError(f"{path} is a Git LFS pointer, not the graph: run `git lfs pull` in the repo, "
+                                     "or download the file and check it against SHA256SUMS next to it")
+                f.seek(0)
                 data = json.load(f)
             store = cls.from_dict(data)
             del data

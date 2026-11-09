@@ -17,7 +17,7 @@
 
 ## What changed for the app (2026-11-09)
 The reply format is unchanged (`schema_version` stays "1.4"), so the app needs no code change.
-- **Use the self-fixed graph:** set `GRAPH_PATH` to `graph.selffix.json`, which `Agent/graph_enrichment` builds from the team's delivery (see the agent README, "Building the graph the agent should use"). It loads in about 10 s. The sample graph stays the default, for tests and mock mode.
+- **Use the self-fixed graph:** set `GRAPH_PATH` to `data/partof521/graph.selffix.json`, a Git LFS file in `Agent/` (run `git lfs pull`; on Streamlit Cloud, make sure the deploy fetches LFS files). `Agent/graph_enrichment` builds it from the team's delivery; see the agent README, "Building the graph the agent should use". It loads in about 10 s. The sample graph stays the default, for tests and mock mode.
 - **"Who commanded" and "which side" now have data.** Battles carry their two infobox sides, with commanders and units. The tool results the app shows under "graph queries" can include `side: 1` or `side: 2` on a relation. That number is the infobox column, not attacker or defender.
 - **Entity cards have new attributes** (`birth_date`, `death_date`, `ner_type`, `wikidata_type`, `selffix`). The app doesn't render attributes today; if it ever does, leave out the internal ones (`selffix`, `merged_from`, `mention_types`).
 

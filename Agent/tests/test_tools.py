@@ -1306,3 +1306,10 @@ def test_r100_a_battles_sub_operation_that_names_its_forces_goes_only_to_them():
     assert {r["name"] for r in s.connected_locations("unit")} == {"Okinawa"}            # not among Ten-Go's forces
     assert {r["name"] for r in s.connected_locations("tf58")} == {"Okinawa", "Kyushu"}  # among them
     assert {r["name"] for r in s.connected_locations("okinawa")} == {"Okinawa", "Kyushu"}  # the battle itself keeps them
+
+
+def test_r101_an_lfs_pointer_is_named_not_parsed(tmp_path):
+    p = tmp_path / "graph.selffix.json"
+    p.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 140527675\n")
+    with pytest.raises(ValueError, match="Git LFS pointer"):
+        GraphStore.from_json(p)
