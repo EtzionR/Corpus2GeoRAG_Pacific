@@ -1,0 +1,653 @@
+{
+ "rule": [
+  "The probe list is chosen by rule, not by hand: per class (event, person, unit, place, ship), the",
+  "most-mentioned entities plus a seeded random draw from the rest with at least 3 mentions, leaving",
+  "out every QID of the gold sets so the probes are a third, independent measure."
+ ],
+ "seed": 97,
+ "excluded_qids": 177,
+ "search_entities": [
+  {
+   "qid": "Q696462",
+   "name": "Philippines Campaign",
+   "mentions": 25,
+   "class": "event"
+  },
+  {
+   "qid": "Q356097",
+   "name": "Operation Magic Carpet",
+   "mentions": 19,
+   "class": "event"
+  },
+  {
+   "qid": "Q3951255",
+   "name": "Landings at Cape Torokina",
+   "mentions": 19,
+   "class": "event"
+  },
+  {
+   "qid": "Q221519",
+   "name": "Burma Campaign",
+   "mentions": 18,
+   "class": "event"
+  },
+  {
+   "qid": "Q8641370",
+   "name": "Operation Overlord",
+   "mentions": 14,
+   "class": "event"
+  },
+  {
+   "qid": "Q154295",
+   "name": "Take Ichi convoy",
+   "mentions": 6,
+   "class": "event"
+  },
+  {
+   "qid": "Q22115504",
+   "name": "Battle of Roosevelt Ridge",
+   "mentions": 4,
+   "class": "event"
+  },
+  {
+   "qid": "Q4872297",
+   "name": "Battle of Sansapor",
+   "mentions": 4,
+   "class": "event"
+  },
+  {
+   "qid": "Q42740",
+   "name": "Han Chinese people",
+   "mentions": 137,
+   "class": "person"
+  },
+  {
+   "qid": "Q16574",
+   "name": "Chiang Kai-shek",
+   "mentions": 97,
+   "class": "person"
+  },
+  {
+   "qid": "Q518209",
+   "name": "Harukichi Hyakutake",
+   "mentions": 85,
+   "class": "person"
+  },
+  {
+   "qid": "Q952813",
+   "name": "Thomas Blamey",
+   "mentions": 69,
+   "class": "person"
+  },
+  {
+   "qid": "Q74514",
+   "name": "Norman Scott",
+   "mentions": 30,
+   "class": "person"
+  },
+  {
+   "qid": "Q8056156",
+   "name": "Yoshimi Nishida",
+   "mentions": 5,
+   "class": "person"
+  },
+  {
+   "qid": "Q1356563",
+   "name": "Jesse B. Oldendorf",
+   "mentions": 4,
+   "class": "person"
+  },
+  {
+   "qid": "Q1387490",
+   "name": "John S. McCain, Sr.",
+   "mentions": 3,
+   "class": "person"
+  },
+  {
+   "qid": "Q6143152",
+   "name": "17th Army",
+   "mentions": 374,
+   "class": "unit"
+  },
+  {
+   "qid": "Q741691",
+   "name": "Royal Australian Navy",
+   "mentions": 265,
+   "class": "unit"
+  },
+  {
+   "qid": "Q5349071",
+   "name": "18th Army",
+   "mentions": 153,
+   "class": "unit"
+  },
+  {
+   "qid": "Q823635",
+   "name": "Royal Australian Air Force",
+   "mentions": 139,
+   "class": "unit"
+  },
+  {
+   "qid": "Q2892366",
+   "name": "I Corps",
+   "mentions": 77,
+   "class": "unit"
+  },
+  {
+   "qid": "Q156062",
+   "name": "Indian National Army",
+   "mentions": 51,
+   "class": "unit"
+  },
+  {
+   "qid": "Q11602331",
+   "name": "2nd Air Group",
+   "mentions": 3,
+   "class": "unit"
+  },
+  {
+   "qid": "Q4643956",
+   "name": "7th Air Division",
+   "mentions": 3,
+   "class": "unit"
+  },
+  {
+   "qid": "Q612250",
+   "name": "Lae",
+   "mentions": 172,
+   "class": "place"
+  },
+  {
+   "qid": "Q201766",
+   "name": "Bougainville Island",
+   "mentions": 160,
+   "class": "place"
+  },
+  {
+   "qid": "Q5287",
+   "name": "Japanese",
+   "mentions": 157,
+   "class": "place"
+  },
+  {
+   "qid": "Q59771",
+   "name": "New Britain",
+   "mentions": 143,
+   "class": "place"
+  },
+  {
+   "qid": "Q3334996",
+   "name": "Nadzab",
+   "mentions": 52,
+   "class": "place"
+  },
+  {
+   "qid": "Q33788",
+   "name": "New Caledonia",
+   "mentions": 30,
+   "class": "place"
+  },
+  {
+   "qid": "Q5061076",
+   "name": "Iwo Jima Air Base",
+   "mentions": 8,
+   "class": "place"
+  },
+  {
+   "qid": "Q35381",
+   "name": "Colombo",
+   "mentions": 5,
+   "class": "place"
+  },
+  {
+   "qid": "Q2463741",
+   "name": "Japanese destroyer Kazagumo",
+   "mentions": 28,
+   "class": "ship"
+  },
+  {
+   "qid": "Q311245",
+   "name": "USS Yorktown",
+   "mentions": 12,
+   "class": "ship"
+  },
+  {
+   "qid": "Q1031971",
+   "name": "HMAS Australia",
+   "mentions": 11,
+   "class": "ship"
+  },
+  {
+   "qid": "Q11416682",
+   "name": "Japanese submarine Ro-65",
+   "mentions": 11,
+   "class": "ship"
+  },
+  {
+   "qid": "Q160712",
+   "name": "Admiral Scheer",
+   "mentions": 4,
+   "class": "ship"
+  },
+  {
+   "qid": "Q1758469",
+   "name": "USS Liscome Bay",
+   "mentions": 4,
+   "class": "ship"
+  },
+  {
+   "qid": "Q935033",
+   "name": "Japanese battleship Kirishima",
+   "mentions": 4,
+   "class": "ship"
+  },
+  {
+   "qid": "Q1031986",
+   "name": "HMAS Sydney",
+   "mentions": 3,
+   "class": "ship"
+  }
+ ],
+ "connected_locations": [
+  {
+   "qid": "Q42740",
+   "name": "Han Chinese people",
+   "mentions": 137,
+   "class": "person"
+  },
+  {
+   "qid": "Q16574",
+   "name": "Chiang Kai-shek",
+   "mentions": 97,
+   "class": "person"
+  },
+  {
+   "qid": "Q518209",
+   "name": "Harukichi Hyakutake",
+   "mentions": 85,
+   "class": "person"
+  },
+  {
+   "qid": "Q952813",
+   "name": "Thomas Blamey",
+   "mentions": 69,
+   "class": "person"
+  },
+  {
+   "qid": "Q436102",
+   "name": "Henry H. Arnold",
+   "mentions": 48,
+   "class": "person"
+  },
+  {
+   "qid": "Q7448935",
+   "name": "Selwyn Porter",
+   "mentions": 18,
+   "class": "person"
+  },
+  {
+   "qid": "Q5739787",
+   "name": "Herman H. Hanneken",
+   "mentions": 10,
+   "class": "person"
+  },
+  {
+   "qid": "Q4707578",
+   "name": "Alan Ramsay",
+   "mentions": 8,
+   "class": "person"
+  },
+  {
+   "qid": "Q315594",
+   "name": "Fumimaro Konoe",
+   "mentions": 3,
+   "class": "person"
+  },
+  {
+   "qid": "Q5541953",
+   "name": "George M. Jones",
+   "mentions": 3,
+   "class": "person"
+  },
+  {
+   "qid": "Q6143152",
+   "name": "17th Army",
+   "mentions": 374,
+   "class": "unit"
+  },
+  {
+   "qid": "Q741691",
+   "name": "Royal Australian Navy",
+   "mentions": 265,
+   "class": "unit"
+  },
+  {
+   "qid": "Q5349071",
+   "name": "18th Army",
+   "mentions": 153,
+   "class": "unit"
+  },
+  {
+   "qid": "Q823635",
+   "name": "Royal Australian Air Force",
+   "mentions": 139,
+   "class": "unit"
+  },
+  {
+   "qid": "Q11229656",
+   "name": "tank landing ship",
+   "mentions": 113,
+   "class": "unit"
+  },
+  {
+   "qid": "Q706996",
+   "name": "Southern Expeditionary Army Group",
+   "mentions": 19,
+   "class": "unit"
+  },
+  {
+   "qid": "Q714326",
+   "name": "Douglas C-47",
+   "mentions": 15,
+   "class": "unit"
+  },
+  {
+   "qid": "Q707197",
+   "name": "32nd Division",
+   "mentions": 13,
+   "class": "unit"
+  },
+  {
+   "qid": "Q4639812",
+   "name": "505th Bombardment Group",
+   "mentions": 9,
+   "class": "unit"
+  },
+  {
+   "qid": "Q269574",
+   "name": "7th Cavalry Regiment",
+   "mentions": 3,
+   "class": "unit"
+  }
+ ],
+ "what_happened_at": [
+  {
+   "qid": "Q612250",
+   "name": "Lae",
+   "mentions": 172
+  },
+  {
+   "qid": "Q201766",
+   "name": "Bougainville Island",
+   "mentions": 160
+  },
+  {
+   "qid": "Q5287",
+   "name": "Japanese",
+   "mentions": 157
+  },
+  {
+   "qid": "Q59771",
+   "name": "New Britain",
+   "mentions": 143
+  },
+  {
+   "qid": "Q13989",
+   "name": "Honshu",
+   "mentions": 132
+  },
+  {
+   "qid": "Q144663",
+   "name": "Hengyang",
+   "mentions": 126
+  },
+  {
+   "qid": "Q349382",
+   "name": "Matanikau River",
+   "mentions": 115
+  },
+  {
+   "qid": "Q1044754",
+   "name": "New Georgia",
+   "mentions": 114
+  },
+  {
+   "qid": "Q185682",
+   "name": "French Indochina",
+   "mentions": 97
+  },
+  {
+   "qid": "Q19146",
+   "name": "Morotai Island",
+   "mentions": 92
+  },
+  {
+   "qid": "Q81126",
+   "name": "Manchuria",
+   "mentions": 89
+  },
+  {
+   "qid": "Q3757",
+   "name": "Java",
+   "mentions": 84
+  },
+  {
+   "qid": "Q870069",
+   "name": "Chindwin River",
+   "mentions": 30
+  },
+  {
+   "qid": "Q1017358",
+   "name": "Kavieng",
+   "mentions": 29
+  },
+  {
+   "qid": "Q221684",
+   "name": "Chuuk",
+   "mentions": 19
+  },
+  {
+   "qid": "Q602106",
+   "name": "Manus Island",
+   "mentions": 19
+  },
+  {
+   "qid": "Q1576377",
+   "name": "San Bernardino Strait",
+   "mentions": 16
+  },
+  {
+   "qid": "Q1536317",
+   "name": "Davao Gulf",
+   "mentions": 15
+  },
+  {
+   "qid": "Q578170",
+   "name": "contiguous United States",
+   "mentions": 12
+  },
+  {
+   "qid": "Q530813",
+   "name": "Angaur",
+   "mentions": 11
+  },
+  {
+   "qid": "Q45341",
+   "name": "East China Sea",
+   "mentions": 9
+  },
+  {
+   "qid": "Q404529",
+   "name": "Xuchang",
+   "mentions": 3
+  },
+  {
+   "qid": "Q427265",
+   "name": "Yibin",
+   "mentions": 3
+  },
+  {
+   "qid": "Q47136",
+   "name": "Laguna de Bay",
+   "mentions": 3
+  },
+  {
+   "qid": "Q6947277",
+   "name": "Myebon",
+   "mentions": 3
+  }
+ ],
+ "locations_of": [
+  {
+   "qid": "Q696462",
+   "name": "Philippines Campaign",
+   "mentions": 25
+  },
+  {
+   "qid": "Q356097",
+   "name": "Operation Magic Carpet",
+   "mentions": 19
+  },
+  {
+   "qid": "Q3951255",
+   "name": "Landings at Cape Torokina",
+   "mentions": 19
+  },
+  {
+   "qid": "Q221519",
+   "name": "Burma Campaign",
+   "mentions": 18
+  },
+  {
+   "qid": "Q658309",
+   "name": "Operation Mo",
+   "mentions": 17
+  },
+  {
+   "qid": "Q504347",
+   "name": "Battle of the Philippine Sea",
+   "mentions": 16
+  },
+  {
+   "qid": "Q1645012",
+   "name": "Operation Matterhorn",
+   "mentions": 15
+  },
+  {
+   "qid": "Q2276692",
+   "name": "New Guinea campaign",
+   "mentions": 15
+  },
+  {
+   "qid": "Q27628023",
+   "name": "Attack on Clark Field",
+   "mentions": 14
+  },
+  {
+   "qid": "Q696448",
+   "name": "Operation Ichi-Go",
+   "mentions": 14
+  },
+  {
+   "qid": "Q8641370",
+   "name": "Operation Overlord",
+   "mentions": 14
+  },
+  {
+   "qid": "Q300879",
+   "name": "Operation Downfall",
+   "mentions": 12
+  },
+  {
+   "qid": "Q110281318",
+   "name": "Operation Causeway",
+   "mentions": 10
+  },
+  {
+   "qid": "Q2917077",
+   "name": "Battle of Buna–Gona",
+   "mentions": 8
+  },
+  {
+   "qid": "Q665554",
+   "name": "Japanese Instrument of Surrender",
+   "mentions": 8
+  },
+  {
+   "qid": "Q7097734",
+   "name": "Operation Zipper",
+   "mentions": 8
+  },
+  {
+   "qid": "Q4872735",
+   "name": "Battle of Wickham Anchorage",
+   "mentions": 6
+  },
+  {
+   "qid": "Q157627",
+   "name": "Battle of the Atlantic",
+   "mentions": 5
+  },
+  {
+   "qid": "Q1753578",
+   "name": "Battle of the Bismarck Sea",
+   "mentions": 5
+  },
+  {
+   "qid": "Q65076334",
+   "name": "Operation Stab",
+   "mentions": 5
+  },
+  {
+   "qid": "Q16966601",
+   "name": "Battle of Piva Forks",
+   "mentions": 4
+  },
+  {
+   "qid": "Q4872297",
+   "name": "Battle of Sansapor",
+   "mentions": 4
+  },
+  {
+   "qid": "Q20981832",
+   "name": "Operation Agas",
+   "mentions": 3
+  },
+  {
+   "qid": "Q4871014",
+   "name": "Battle of Finschhafen",
+   "mentions": 3
+  },
+  {
+   "qid": "Q6484627",
+   "name": "Landing at Nassau Bay",
+   "mentions": 3
+  }
+ ],
+ "hubs": [
+  {
+   "qid": "Q30",
+   "name": "United States"
+  },
+  {
+   "qid": "Q188712",
+   "name": "Empire of Japan"
+  },
+  {
+   "qid": "Q219712",
+   "name": "Imperial Japanese Navy"
+  },
+  {
+   "qid": "Q11220",
+   "name": "United States Navy"
+  },
+  {
+   "qid": "Q184425",
+   "name": "Pacific War"
+  },
+  {
+   "qid": "Q11218",
+   "name": "United States Marine Corps"
+  }
+ ]
+}

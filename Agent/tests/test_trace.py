@@ -827,3 +827,43 @@ def test_r95_a_who_answer_with_an_actor_or_a_where_question_is_untouched(isolate
 
 def test_r96_the_prompt_keeps_a_place_to_what_the_tool_placed_there():
     assert "only\n    what this tool returned" in agent_mod.SYSTEM_PROMPT or "not placed there by the graph" in agent_mod.SYSTEM_PROMPT
+
+
+def test_r98_the_prompt_says_what_a_side_means():
+    p = agent_mod.SYSTEM_PROMPT
+    assert "`side` (1 or 2)" in p and "doesn't\n    say who attacked" in p
+
+
+# R99: one side for a one-sided question
+
+def _sides_graph_file(tmp_path):
+    p = tmp_path / "sides_graph.json"
+    p.write_text(json.dumps({"nodes": [
+        {"id": "event:midway", "name": "Battle of Midway", "type": "event", "attributes": {"start_date": "1942-06-04"}},
+        {"id": "org:usn", "name": "United States Navy", "type": "org"},
+        {"id": "org:ijn", "name": "Imperial Japanese Navy", "type": "org"}], "edges": [
+        {"source": "event:midway", "target": "org:usn", "type": "wd:P710", "side": 1},
+        {"source": "event:midway", "target": "org:ijn", "type": "wd:P710", "side": 2}]}))
+    return p
+
+
+def _ask_on(path, responses, question):
+    async def go():
+        agent = await GeoAgent.create(graph_path=path, llm=FakeToolModel(responses=responses))
+        return await agent.ask(question)
+    return asyncio.run(go())
+
+
+def test_r99_both_sides_on_a_one_sided_answer_are_sent_back_once(isolated_env, tmp_path):
+    look = ai(call("find_relations", "a", source_id="event:midway"))
+    out = _ask_on(_sides_graph_file(tmp_path), [look, final("Japan and the US.", ["org:ijn", "org:usn"]),
+                                                final("The Imperial Japanese Navy.", ["org:ijn"])],
+                  "Who attacked Midway in 1942?")
+    assert out["answer_ids"] == ["org:ijn"]
+
+
+def test_r99_two_sided_questions_are_untouched(isolated_env, tmp_path):
+    look = ai(call("find_relations", "a", source_id="event:midway"))
+    out = _ask_on(_sides_graph_file(tmp_path), [look, final("Both navies.", ["org:ijn", "org:usn"])],
+                  "Who fought in the Battle of Midway?")
+    assert sorted(out["answer_ids"]) == ["org:ijn", "org:usn"]

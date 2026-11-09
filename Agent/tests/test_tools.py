@@ -1218,3 +1218,98 @@ def test_r68_part_of_resolves_to_the_record_of_the_same_type():
         "edges": [{"source": "Q1", "target": "Q2", "type": "wd:P361"}]})
     assert [(e.source, e.target) for e in s.edges] == [("Q1::event", "Q2::event")]
     assert s.overview("Q2::event")["total"] == 1
+
+
+# Sides on relations (spec R98, plan step 81)
+
+def _sides_graph():
+    return GraphStore.from_dict({"nodes": [
+        {"id": "Q1", "name": "Battle of X", "type": "event"},
+        {"id": "Q2", "name": "Admiral A", "type": "person"},
+        {"id": "Q3", "name": "Admiral B", "type": "person"},
+        {"id": "Q4", "name": "Country C", "type": "org"},
+        {"id": "Q5", "name": "Admiral D", "type": "person"}], "edges": [
+        {"source": "Q1", "target": "Q2", "type": "wd:P4791", "side": 1},
+        {"source": "Q1", "target": "Q3", "type": "wd:P4791", "side": "2"},
+        {"source": "Q1", "target": "Q4", "type": "wd:P710"},                      # a team edge: no side
+        {"id": "a", "source": "Q1", "target": "Q5", "type": "wd:P4791", "side": 1},
+        {"id": "b", "source": "Q1", "target": "Q5", "type": "wd:P4791", "side": 2}]})  # folded, disagree
+
+
+def test_r98_relations_show_their_side():
+    s = _sides_graph()
+    rows = {r["target"]["id"]: r for r in s.find_relations(source_id="Q1")}
+    assert rows["Q2"]["side"] == 1 and rows["Q3"]["side"] == 2
+    assert "side" not in rows["Q4"]                       # no side stated: none shown
+    assert "side" not in rows["Q5"]                       # folded assertions disagree: none shown
+
+
+def test_r98_tool_output_carries_side():
+    tools = {t.name: t for t in build_tools(_sides_graph())}
+    out = json.loads(tools["find_relations"].invoke({"source_id": "Q1", "relation_type": "wd:P4791"}))
+    rows = out if isinstance(out, list) else out.get("results", out.get("relations", []))
+    assert {(r["target"]["name"], r.get("side")) for r in rows} >= {("Admiral A", 1), ("Admiral B", 2)}
+    out = json.loads(tools["get_neighbors"].invoke({"entity_id": "Q2"}))
+    rows = out if isinstance(out, list) else out.get("results", out.get("relations", out.get("neighbors", [])))
+    assert [r.get("side") for r in rows if r["neighbor"]["id"] == "Q1"] == [1]
+
+
+def test_r91_region_comes_from_the_nearest_point_place_with_a_parent():
+    """Kiska Harbor has no parent; Kiska, at the same point, is part of the Aleutian Islands (spec R91 amendment)."""
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "harbor", "name": "Kiska Harbor", "type": "location", "geometry": pt(177.60, 51.98)},
+        {"id": "kiska", "name": "Kiska", "type": "location", "geometry": pt(177.50, 51.97)},
+        {"id": "aleutians", "name": "Aleutian Islands", "type": "location", "geometry": pt(-170.0, 52.0)},
+        {"id": "camp", "name": "Aleutian Islands Campaign", "type": "event", "attributes": {"start_date": "1942-06-03"}}],
+        "edges": [{"source": "kiska", "target": "aleutians", "type": "wd:P361"},
+                  {"source": "camp", "target": "aleutians", "type": "wd:P276"}]})
+    r = s.what_happened_at(51.99, 177.57, 25)  # near both, at neither point
+    assert [(x["name"], x["region"]) for x in r["region_events"]] == [("Aleutian Islands Campaign", "Aleutian Islands")]
+
+
+# R100: an actor's places stop at its death and at a battle's own sub-operations
+
+def _r100_graph():
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}
+    return GraphStore.from_dict({"nodes": [
+        {"id": "yamamoto", "name": "Isoroku Yamamoto", "type": "person",
+         "attributes": {"death_date": "+1943-04-18T00:00:00Z", "death_date_precision": 11}},
+        {"id": "unit", "name": "11th Marine Regiment", "type": "org"},
+        {"id": "ng", "name": "New Guinea campaign", "type": "event", "attributes": {"kind": "campaign", "start_date": "1942-01-23"}},
+        {"id": "buna", "name": "Battle of Buna-Gona", "type": "event", "attributes": {"kind": "battle", "start_date": "1942-11-16"}},
+        {"id": "aitape", "name": "Battle of Driniumor River", "type": "event", "attributes": {"kind": "battle", "start_date": "1944-07-10"}},
+        {"id": "okinawa", "name": "Battle of Okinawa", "type": "event", "attributes": {"kind": "battle", "start_date": "1945-04-01"}},
+        {"id": "tengo", "name": "Operation Ten-Go", "type": "event", "attributes": {"kind": "operation", "start_date": "1945-04-07"}},
+        {"id": "loc:buna", "name": "Buna", "type": "location", "geometry": pt(148.4, -8.7)},
+        {"id": "loc:aitape", "name": "Aitape", "type": "location", "geometry": pt(142.4, -3.1)},
+        {"id": "loc:okinawa", "name": "Okinawa", "type": "location", "geometry": pt(127.9, 26.5)},
+        {"id": "loc:kyushu", "name": "Kyushu", "type": "location", "geometry": pt(131.0, 33.0)},
+        {"id": "fleet2", "name": "2nd Fleet", "type": "org"}, {"id": "tf58", "name": "Task Force 58", "type": "org"}], "edges": [
+        {"source": "tengo", "target": "fleet2", "type": "wd:P710", "side": 2},
+        {"source": "tengo", "target": "tf58", "type": "wd:P710", "side": 1},
+        {"source": "tf58", "target": "okinawa", "type": "wd:P607"},
+        {"source": "yamamoto", "target": "ng", "type": "wd:P607"},
+        {"source": "buna", "target": "ng", "type": "wd:P361"}, {"source": "aitape", "target": "ng", "type": "wd:P361"},
+        {"source": "buna", "target": "loc:buna", "type": "wd:P276"}, {"source": "aitape", "target": "loc:aitape", "type": "wd:P276"},
+        {"source": "unit", "target": "okinawa", "type": "wd:P607"}, {"source": "tengo", "target": "okinawa", "type": "wd:P361"},
+        {"source": "okinawa", "target": "loc:okinawa", "type": "wd:P276"}, {"source": "tengo", "target": "loc:kyushu", "type": "wd:P276"}]})
+
+
+def test_r100_no_places_from_events_after_a_persons_death():
+    s = _r100_graph()
+    assert {r["name"] for r in s.connected_locations("yamamoto")} == {"Buna"}
+
+
+def test_r100_a_battles_sub_operation_that_names_its_forces_goes_only_to_them():
+    s = _r100_graph()
+    assert {r["name"] for r in s.connected_locations("unit")} == {"Okinawa"}            # not among Ten-Go's forces
+    assert {r["name"] for r in s.connected_locations("tf58")} == {"Okinawa", "Kyushu"}  # among them
+    assert {r["name"] for r in s.connected_locations("okinawa")} == {"Okinawa", "Kyushu"}  # the battle itself keeps them
+
+
+def test_r101_an_lfs_pointer_is_named_not_parsed(tmp_path):
+    p = tmp_path / "graph.selffix.json"
+    p.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 140527675\n")
+    with pytest.raises(ValueError, match="Git LFS pointer"):
+        GraphStore.from_json(p)

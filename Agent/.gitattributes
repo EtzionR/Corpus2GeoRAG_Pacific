@@ -1,0 +1,2 @@
+# Built graphs are Git LFS files (spec: the self-fixed graph ships with the agent)
+data/*/graph.selffix.json filter=lfs diff=lfs merge=lfs -text
