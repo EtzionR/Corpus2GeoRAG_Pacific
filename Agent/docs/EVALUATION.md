@@ -1,11 +1,11 @@
 # How the agent is evaluated
 
-**Author:** Michael · **Date:** 2026-10-13 · **Model evaluated:** `z-ai/glm-5.2` through OpenRouter · **Graphs:** the sample graph (`data/sample_graph.json`), and the graph team's draft (`wwii_agent_graph_draft_v0.1.0.json`)
+**Author:** Michael · **Date:** 2026-10-13, updated 2026-11-10 · **Model evaluated:** `z-ai/glm-5.2` through OpenRouter · **Graphs:** the sample graph (`data/sample_graph.json`), and the graph team's draft (`wwii_agent_graph_draft_v0.1.0.json`)
 
 ## Why we evaluate this way
 An agent like this fails in ways unit tests don't see. The model picks the wrong entity, answers from general knowledge instead of the graph, loops, or puts a defender where an attacker belongs. So there are two layers:
 
-1. **Unit tests** (`uv run pytest`, about 250 tests, no model, no network) check every deterministic piece: the graph queries, the tools, the evidence checks, tracing, the runner and the reply schema. They run on every commit.
+1. **Unit tests** (`uv run pytest`, about 460 tests, no model, no network) check every deterministic piece: the graph queries, the tools, the evidence checks, tracing, the runner and the reply schema. They run on every commit.
 2. **The eval** runs real questions through the real agent and the real model, then scores the replies against hand-written expected answers (the **gold set**). It measures what users would see, and it's how every behaviour change was judged: a change had to improve its target category without making another worse.
 
 The eval runner is part of the agent developer's working repo (`evals/run_eval.py`, `evals/gold.jsonl`), not the published package. It calls the paid model, about 4 model steps and 15–20k input tokens per question.
@@ -111,11 +111,31 @@ Scoring is deterministic, so it's cheap and repeatable, and a failure can be tra
 Each fix was applied to every stored report before comparing again.
 
 ## Limits
-- **The gold set was written for the 75-node sample graph.** On the draft it measures the data more than the agent (see "On the graph team's draft" below). A real-graph gold set, with the same questions and expected answers written against the draft, is the next step once the data issues are fixed.
+- **The first gold set was written for the 75-node sample graph.** On the draft it measured the data more than the agent (see "On the graph team's draft" below). The real-graph gold set (next section) replaced it for the team's graphs.
 - **One model.** Results hold for `z-ai/glm-5.2`; a different model needs its own baseline.
 - **Scoring by phrases.** "Says not in the graph" and "refused" are recognised by phrase patterns. They were widened twice after misses and can still miss new wording.
 - **One judgment case:** amb-2, "Who commanded the US forces in the Battle of Guam?" Neither graph has a commander for either battle. Since 2026-10-16 the agent may answer for both battles; "the graph records no commander for either" then passes. The missing commanders remain a data gap for the graph team. (ctx-1, the other judgment case, now checks that the agent flags the false premise, its `context_mismatch` warning, whichever list the battle lands on.)
 - **Confidence thresholds aren't calibrated yet.** `high` / `medium` / `low` are starting values; show them as labels, never as probabilities.
+
+## The real-graph gold set (since 2026-11-04)
+A second gold set, `evals/gold_real.jsonl`, is written for the team's real graphs: 70 questions, with bare Wikidata ids and real names. Its expected answers are historically true, checked against Wikipedia and Wikidata, and never copied from the graph. A true fact the graph lacks stays in the gold row and counts as a finding for the graph (`missing_in_graph`), not as a reason to change the row.
+
+| Category | n |
+|---|---|
+| `example` | 23 |
+| `set_queries` | 12 |
+| `adversarial` | 6 |
+| `not_in_graph` | 5 |
+| `operational` | 5 |
+| `ambiguous`, `meridian`, `date_filtered` | 4 each |
+| `area` | 3 |
+| `name_variant`, `context_mismatch` | 2 each |
+
+**Operational questions** (one per family: a unit's path, events at the same time, sides at a battle, what came next, and a path the graph can only answer one level up). On the self-fixed partof521 graph on 2026-11-10, 4 of 5 passed. "What came next after the Battle of Edson's Ridge?" failed: the model answered with the literal word "placeholder". That led to a new check that sends such stub answers back to the model once. The question passed on a re-run. The path question finds 4 of the 1st Marine Division's 5 places, in the right order with the right years; the graph has no record of its stay in Melbourne.
+
+**Map-area questions** (a Pearl Harbor polygon, an Iwo Jima circle in 1945, an empty stretch of ocean) are in the set but haven't been run on the paid model yet.
+
+**Other categories:** the latest results are on the enriched cpu5747 checkpoint, as of 2026-11-07: 35 of 62 questions passed, and 35 of the 45 questions with no missing entity. That number mixes runs from several commits; only a full run on the current graph gives a real score.
 
 ## On the graph team's draft (2026-10-13)
 **How:**

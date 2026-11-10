@@ -177,6 +177,20 @@ def test_a_marked_area_is_sent_drawn_and_cleared():
     assert "event:attack_on_pearl_harbor" in reply["answer_ids"]
     at.button(key="clear_area").click().run()
     assert at.session_state.area is None and not any("marked on the map" in c.value for c in at.caption)
+    # Clear keeps the view on the cleared area (the area answer's context places can span half the globe)
+    assert at.session_state.view_hold == [[21.3, -158.05], [21.42, -157.9]]
+    page = _map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)", hold=at.session_state.view_hold).get_root().render()
+    assert "[[21.3, -158.05], [21.42, -157.9]]" in page
+    ask(at, "Where did the Battle of Midway happen?")
+    assert at.session_state.view_hold is None  # the next answer is framed again
+    # The map follows the marking, not the reply: after Clear area no outline, though the reply holds the area
+    render = _map_helpers()["render_agent_map"]
+    assert "Marked area" in render(reply, "OpenStreetMap (Standard)", marked={"geometry": PEARL_BOX}).get_root().render()
+    assert "Marked area" not in render(reply, "OpenStreetMap (Standard)", marked=None).get_root().render()
+    # A newly drawn area shows at once, while the old reply is still on the map
+    other = {"type": "Polygon", "coordinates": [[[150.0, 10.0], [151.0, 10.0], [151.0, 11.0], [150.0, 10.0]]]}
+    page = render(reply, "OpenStreetMap (Standard)", marked={"geometry": other}).get_root().render()
+    assert "151.0" in page and "[[10.0, 150.0], [11.0, 151.0]]" in page
 
 
 # --- operational answers on the map (agent schema 1.7) -------------------------------------------
@@ -229,6 +243,19 @@ def test_a_stop_at_a_battle_marker_becomes_a_badge_on_it():
     assert "[11.17, 125.01]" in page  # C is pinned to the battle marker, not to its own point
     assert '"iconAnchor": [-3, 29]' in page and '"iconAnchor": [13, 13]' in page  # C a badge, E centred
     assert '"zIndexOffset": 1000' in page
+
+def test_a_marked_area_keeps_the_map_on_it():
+    """Each rerun rebuilds the map: with an area marked it must frame the area, not jump back to the last reply."""
+    ns = _map_helpers()
+    box = {"type": "Polygon", "coordinates": [[[-158.1, 21.3], [-157.9, 21.3], [-157.9, 21.45], [-158.1, 21.45], [-158.1, 21.3]]]}
+    reply = ask(new_app(), "Where did the Battle of Midway happen?")
+    page = ns["render_agent_map"](reply, "OpenStreetMap (Standard)", marked={"geometry": box}).get_root().render()
+    assert "[[21.3, -158.1], [21.45, -157.9]]" in page  # the area's bounds, not Midway's
+    page = ns["render_agent_map"](None, "OpenStreetMap (Standard)", marked={"geometry": box}).get_root().render()
+    assert "[[21.3, -158.1], [21.45, -157.9]]" in page  # also before any reply
+    assert "Marked area" in page and "macro_element" not in page.split("L.control.layers")[-1][:2000]
+    circle = ns["area_bounds"]({"geometry": {"type": "Point", "coordinates": [141.3, 24.8], "radius_km": 111.0}})
+    assert circle[0][0] == 23.8 and circle[1][0] == 25.8 and circle[0][1] < 140.3
 
 def test_maps_without_a_path_keep_the_canvas_renderer():
     at = new_app()

@@ -236,8 +236,8 @@ Today it guesses which nodes are hubs from the graph's shape: an event with more
 
 When these attributes are present, the agent uses them and the shape-based guess switches off. This is the same rule as for event kinds (P7) and for country-scale locations (P4).
 
-### P11: data for operational questions (planned agent feature)
-The agent will answer operational questions:
+### P11: data for operational questions (built 2026-11-10, except control)
+The agent answers operational questions (control snapshots wait for dated control relations):
 - **a unit's path through the war:** "E Company from England to Normandy and Carentan", shown as stops A, B, C on the map with a timeline
 - **who controlled which places on a given date,** and how that changed
 - **what else happened at the same time**
