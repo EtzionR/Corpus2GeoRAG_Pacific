@@ -2,7 +2,7 @@
   "question": "Where did the Battle of Midway happen?",
   "after": null,
   "reply": {
-    "schema_version": "1.6",
+    "schema_version": "1.7",
     "answer": "The Battle of Midway (4-7 June 1942) was fought at **Midway Atoll** (28.21, -177.37), including Sand Island and Eastern Island.",
     "answer_ids": [
       "loc:midway_atoll",
@@ -166,6 +166,9 @@
     "result_sets": [],
     "dropped_sets": [],
     "area": null,
+    "timeline": null,
+    "operational": [],
+    "ungrounded_dates": [],
     "run_id": "",
     "warnings": [],
     "error": null

@@ -31,6 +31,8 @@ Design decisions:
 
 from __future__ import annotations
 
+import calendar
+import datetime
 import gc
 import html
 import json
@@ -2701,3 +2703,479 @@ class GraphStore:
             return set()
         return {loc["id"] for loc in self.locations_of(node_id)
                 if any(isinstance(r, dict) and r.get("type") in RELATION_ROLES["occurred_at"] for r in loc.get("relations") or [])}
+
+    # ------------------------------------------------------- Phase M: trajectory (spec R60, revision 41)
+
+    SPAN_KINDS = frozenset({"campaign", "operation"})  # spec R60 revision 44: such an event holding a shorter row is context
+
+    def unit_parents(self, unit_id: str) -> list[str]:
+        """The units one level up (`part of` to an org or unresolved record; never a country or an event)."""
+        return list(dict.fromkeys(
+            p for _, p in self._objects(unit_id, "part_of")
+            if p != unit_id and self.nodes[p].type in ("org", "other") and self.nodes[p].attributes.get("entity_class") != "country"))
+
+    def unit_children(self, unit_id: str) -> list[str]:
+        """The units one level down (`part of` from an org or unresolved record)."""
+        return list(dict.fromkeys(
+            c for _, c in self._subjects(unit_id, "part_of")
+            if c != unit_id and self.nodes[c].type in ("org", "other") and self.nodes[c].attributes.get("entity_class") != "country"))
+
+    def all_sub_units(self, unit_id: str) -> list[str]:
+        """Every unit transitively `part of` this one, nearest first."""
+        out, todo, seen = [], [unit_id], {unit_id}
+        while todo:
+            for child in self.unit_children(todo.pop(0)):
+                if child not in seen:
+                    seen.add(child)
+                    out.append(child)
+                    todo.append(child)
+        return out
+
+    def _timeline_rows(self, actor_id: str, rows: dict[tuple, dict[str, Any]]) -> None:
+        """Add the actor's events (participation and command) and dated stays to `rows`, keyed per event or stay."""
+        death = self.death_date(actor_id)
+        for e, ev in self._objects(actor_id, "event_link"):
+            if self.nodes[ev].type != "event" or self.is_war_level(ev) or self.sub_event_count(ev) > HUB_SUB_EVENTS:
+                continue  # a war, or a hub (spec R26, R83)
+            row = rows.setdefault(("event", ev), {"event_id": ev, "relations": [], "units": [], "rel_dates": []})
+            row["relations"].append(e.type)
+            row["units"].append(actor_id)
+            if edge_dates(e) != (None, None):
+                row["rel_dates"].append(edge_dates(e))
+            row.setdefault("death", death)
+        for e, place in self._objects(actor_id, "acted_at"):
+            if edge_dates(e) == (None, None) or not self.is_place_via(e, place):
+                continue  # an undated place relation says nothing about when
+            row = rows.setdefault(("stay", place, edge_dates(e)), {"event_id": None, "place": place, "relations": [], "units": [],
+                                                                   "rel_dates": [edge_dates(e)]})
+            row["relations"].append(e.type)
+            row["units"].append(actor_id)
+            row.setdefault("death", death)
+
+    def _event_places(self, event_id: str) -> list[str]:
+        return list(dict.fromkeys(p for e, p in self._objects(event_id, "occurred_at") if self.is_place_via(e, p)))
+
+    def entity_timeline(
+        self,
+        entity_id: str,
+        include_subunits: bool = False,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict[str, Any] | None:
+        """A person's, unit's or ship's events in date order, as map stops (spec R60, revision 41).
+
+        Rows are the entity's events (participation and command; wars and hubs left out, R83) and its
+        dated stays (based at, landed at, captured, ...). A row's date is the relation's own date when it
+        has one, else the event's. With `include_subunits`, rows of every unit `part of` it are merged
+        (one row per event, `units` names who was there). Then:
+        - `undated`: rows with no date, listed as "date unknown" whatever the date filter;
+        - `spans`: a dated event with sub-events in the graph that holds a shorter row (a campaign around
+          its battles, by sub-events in the graph or by kind campaign / operation): context, not a stop (a long
+          battle without parts stays a stop);
+        - `unplaced`: dated rows with no place and no own point, listed without a stop;
+        - `stops`: the rest in date order, consecutive rows at the same places merged, labelled A, B, C...
+          An event placed only by its own point is a stop with `place_ids` [] and `own_point` true.
+        Persons stop at their death (R100). Returns None for an unknown id.
+        """
+        eid = self.canonical_id(entity_id)
+        if eid not in self.nodes:
+            return None
+        units = [eid] + (self.all_sub_units(eid) if include_subunits else [])
+        raw: dict[tuple, dict[str, Any]] = {}
+        for u in units:
+            self._timeline_rows(u, raw)
+        dated, undated = [], []
+        for row in raw.values():
+            ev = row["event_id"]
+            if row["rel_dates"]:
+                start = min(s or e for s, e in row["rel_dates"])
+                end = max(e or s for s, e in row["rel_dates"])
+            else:
+                start, end = self.node_dates(ev) if ev else (None, None)
+                start, end = start or end, end or start
+            death = row["death"]
+            if death and start and _date_bounds(start, end=False) > _date_bounds(death, end=True):
+                continue  # spec R100: nothing after a person's death
+            places = self._event_places(ev) if ev else [row["place"]]
+            out = {"event_id": ev, "date": start, "end_date": end, "date_precision": date_precision(start),
+                   "place_ids": places, "own_point": bool(ev and not places and ev in self.geoms),
+                   "relations": list(dict.fromkeys(row["relations"])), "units": list(dict.fromkeys(row["units"]))}
+            if not start:
+                undated.append(out)
+            elif dates_overlap(start, end, date_from, date_to):
+                dated.append(out)
+        for r in dated:
+            r["_lo"], r["_hi"] = _as_date(r["date"], end=False), _as_date(r["end_date"], end=True)
+            r["_days"] = (r["_hi"] - r["_lo"]).days
+        def is_span(r: dict[str, Any]) -> bool:
+            ev = r["event_id"]  # revision 44: a campaign or operation by kind, or any event with parts in the graph
+            has_parts = bool(ev and (self.sub_event_count(ev) or self.nodes[ev].attributes.get("kind") in self.SPAN_KINDS))
+            return has_parts and any(o is not r and r["_lo"] <= o["_lo"] <= r["_hi"] and o["_days"] < r["_days"] for o in dated)
+        dated.sort(key=lambda r: (r["_lo"], r["_hi"], self.nodes[r["event_id"] or r["place_ids"][0]].name))
+        span_flags = [is_span(r) for r in dated]
+        spans = [r for r, f in zip(dated, span_flags) if f]
+        rest = [r for r, f in zip(dated, span_flags) if not f]
+        unplaced = [r for r in rest if not r["place_ids"] and not r["own_point"]]
+        stops: list[dict[str, Any]] = []
+        last_key = None
+        for r in rest:
+            if not r["place_ids"] and not r["own_point"]:
+                continue
+            key = tuple(sorted(r["place_ids"])) if r["place_ids"] else ("own", r["event_id"])
+            if stops and key == last_key:
+                s = stops[-1]
+                s["end_date"] = max(s["end_date"], r["end_date"], key=lambda d: _date_bounds(d, end=True))
+                for k, v in (("event_ids", [r["event_id"]] if r["event_id"] else []), ("relations", r["relations"]), ("units", r["units"])):
+                    s[k] = list(dict.fromkeys(s[k] + v))
+            else:
+                stops.append({"seq": len(stops) + 1, "label": stop_label(len(stops)), "date": r["date"], "end_date": r["end_date"],
+                              "date_precision": r["date_precision"], "place_ids": list(r["place_ids"]),
+                              "event_ids": [r["event_id"]] if r["event_id"] else [], "own_point": r["own_point"],
+                              "relations": list(r["relations"]), "units": list(r["units"])})
+            last_key = key
+        clean = lambda rs: [{k: v for k, v in r.items() if not k.startswith("_")} for r in rs]  # noqa: E731
+        kept = dated + undated
+        sub_units = [{"id": u, "name": self.nodes[u].name, "rows": n} for u in units[1:]
+                     if (n := sum(1 for r in kept if u in r["units"]))]
+        return {"entity": {"id": eid, "name": self.nodes[eid].name, "type": self.nodes[eid].type},
+                "stops": stops, "dated_stops": len(stops), "spans": clean(spans), "unplaced": clean(unplaced),
+                "undated": clean(undated), "sub_units": sub_units, "rows": len(kept)}
+
+    # ------------------------------------------------------- Phase M: coverage probe (spec R67, revision 41)
+
+    MIN_STOPS = 2  # fewer dated stops than this is no path: the probe offers what the graph can answer
+    MAX_OPTIONS = 3
+    COVERAGE_FAMILIES = ("trajectory",)  # control is deferred (R61); concurrency, order of battle, sequence: step 37
+
+    def is_class_record(self, node_id: str) -> bool:
+        """A generic class, not a unit: "division", "company", "task force" (a lowercase name, or `subclass of`)."""
+        n = self.nodes[node_id]
+        return n.name[:1].islower() or any(e.type == "wd:P279" for e in self.out_edges[node_id])
+
+    def _coverage_row(self, unit_id: str, date_from: str | None, date_to: str | None) -> dict[str, Any]:
+        tl = self.entity_timeline(unit_id, date_from=date_from, date_to=date_to)
+        dated = tl["stops"] + tl["spans"] + tl["unplaced"]
+        span = [min((r["date"] for r in dated), key=lambda d: _date_bounds(d, end=False)),
+                max((r["end_date"] for r in dated), key=lambda d: _date_bounds(d, end=True))] if dated else None
+        return {"id": unit_id, "name": self.nodes[unit_id].name, "type": self.nodes[unit_id].type,
+                "dated_events": tl["rows"] - len(tl["undated"]), "dated_stops": tl["dated_stops"],
+                "undated": len(tl["undated"]), "span": span}
+
+    def operational_coverage(
+        self,
+        entity_id: str,
+        family: str = "trajectory",
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict[str, Any] | None:
+        """A cheap probe before an operational answer (spec R67): what the graph holds for the entity, its
+        parent units and its sub-units, and, when that's too thin, the options it can answer.
+
+        `thin` is true when the entity has fewer than MIN_STOPS dated stops. `options` (at most MAX_OPTIONS,
+        computed here so every one is answerable): parent units with enough stops, then sub-units with enough,
+        then the entity's own undated events. Class records ("division") are never offered. An entity with
+        nothing above or below it and no events gets no options. Returns None for an unknown id.
+        """
+        eid = self.canonical_id(entity_id)
+        if eid not in self.nodes:
+            return None
+        if family not in self.COVERAGE_FAMILIES:
+            return {"error": f"family {family!r} is not available; available: {', '.join(self.COVERAGE_FAMILIES)}"}
+        entity = self._coverage_row(eid, date_from, date_to)
+        if self.is_class_record(eid):  # "E Company" fuzzy-matches the class "company": not a unit, nothing to offer
+            return {"family": family, "entity": {**entity, "class_record": True}, "parents": [], "children": [],
+                    "thin": True, "options": []}
+        units = lambda ids: [self._coverage_row(u, date_from, date_to) for u in ids if not self.is_class_record(u)]  # noqa: E731
+        parents, children = units(self.unit_parents(eid)), units(self.unit_children(eid))
+        thin = entity["dated_stops"] < self.MIN_STOPS
+        options: list[dict[str, Any]] = []
+        if thin:
+            for kind, rows in (("parent unit", parents), ("sub-unit", children)):
+                for r in sorted(rows, key=lambda r: -r["dated_stops"]):
+                    if r["dated_stops"] >= self.MIN_STOPS:
+                        options.append({"entity_id": r["id"], "kind": kind, "dated_events": r["dated_events"],
+                                        "dated_stops": r["dated_stops"], "span": r["span"],
+                                        "text": f"the {kind} {r['name']} ({r['dated_events']} dated events, {span_text(r['span'])})"})
+            own = entity["undated"] + entity["dated_stops"]
+            if own:
+                what = (f"{entity['undated']} recorded event{'s' if entity['undated'] != 1 else ''} without dates"
+                        + (f" and {entity['dated_stops']} dated stop" if entity["dated_stops"] else ""))
+                options.append({"entity_id": eid, "kind": "undated events" if entity["undated"] else "own events",
+                                "dated_stops": entity["dated_stops"], "undated": entity["undated"],
+                                "text": f"{entity['name']}'s {what}"})
+            options = options[:self.MAX_OPTIONS]
+        return {"family": family, "entity": entity, "parents": parents, "children": children, "thin": thin, "options": options}
+
+    # ------------------------------------------- Phase M: concurrency, order of battle, sequence (spec R62, revision 41)
+
+    CONCURRENT_DAYS = 30  # an overlapping event this short is `concurrent`; a longer one is `ongoing` context
+    CHAIN_DEPTH = 8
+
+    def _event_window(self, event_id: str) -> tuple[str | None, str | None]:
+        s, e = self.node_dates(event_id)
+        return s or e, e or s
+
+    def _days(self, start: str, end: str) -> int:
+        return (_as_date(end, end=True) - _as_date(start, end=False)).days + 1
+
+    def event_family(self, event_id: str) -> set[str]:
+        """The event, the events it is part of (up) and its sub-events (down), transitively."""
+        found = {event_id}
+        for role_side in (True, False):
+            stack = [event_id]
+            while stack:
+                cur = stack.pop()
+                for _, other in (self._objects(cur, "part_of") if role_side else self._subjects(cur, "part_of")):
+                    if other not in found and self.nodes[other].type == "event":
+                        found.add(other)
+                        stack.append(other)
+        return found
+
+    def _in_region(self, event_id: str, region: set[str] | None, shape_: BaseGeometry | None,
+                   point: tuple[float, float, float] | None) -> bool:
+        places = self._event_places(event_id)
+        if region is not None:
+            if set(places) & region:
+                return True
+            if shape_ is not None and shape_.geom_type != "Point":
+                pts = [self.geoms[p] for p in places if p in self.geoms] + ([self.geoms[event_id]] if event_id in self.geoms else [])
+                return any(shape_.intersects(g) for g in pts)
+            return False
+        if point is not None:
+            lat, lon, km = point
+            return any(self.distance_km(p, lat, lon) <= km for p in places + [event_id] if p in self.geoms)
+        return True
+
+    def events_during(
+        self,
+        event_id: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        place_id: str | None = None,
+        lat: float | None = None,
+        lon: float | None = None,
+        radius_km: float | None = None,
+    ) -> dict[str, Any] | None:
+        """Events whose dates overlap an event's dates or a period (spec R62, revision 41).
+
+        With `event_id`, its own dates are the window, and the event, the events it is part of and its
+        sub-events are left out ("what else"). The region is a place (its sublocations, and what lies in its
+        shape) or a point and radius; without one, the whole graph. War-level events are left out (R83).
+        Overlapping events are split into `concurrent` (at most CONCURRENT_DAYS long) and `ongoing` (longer
+        spans: campaigns, occupations), both in date order. Undated events can't overlap: `undated` counts them.
+        Returns None for an unknown id; {"error": ...} without a window.
+        """
+        skip: set[str] = set()
+        asked = None
+        if event_id:
+            asked = self.canonical_id(event_id)
+            if asked not in self.nodes:
+                return None
+            date_from, date_to = self._event_window(asked)
+            skip = self.event_family(asked)
+        if not date_from and not date_to:
+            return {"error": "no window: give an event with dates, or date_from / date_to"}
+        region = shape_ = point = None
+        if place_id:
+            pid = self.canonical_id(place_id)
+            if pid not in self.nodes:
+                return None
+            region, shape_ = self.sublocations(pid), self.geoms.get(pid)
+        elif lat is not None and lon is not None:
+            point = (lat, lon, radius_km or 500.0)
+        concurrent, ongoing, undated = [], [], 0
+        for nid, n in self.nodes.items():
+            if n.type != "event" or nid in skip or self.is_war_level(nid):
+                continue
+            s, e = self._event_window(nid)
+            if not s:
+                undated += 1
+                continue
+            if not dates_overlap(s, e, date_from, date_to) or not self._in_region(nid, region, shape_, point):
+                continue
+            days = self._days(s, e)
+            row = {"event_id": nid, "name": n.name, "date": s, "end_date": e, "days": days,
+                   "place_ids": self._event_places(nid), "kind": n.attributes.get("kind")}
+            (concurrent if days <= self.CONCURRENT_DAYS else ongoing).append({**row, "state": "concurrent" if days <= self.CONCURRENT_DAYS else "ongoing"})
+        key = lambda r: (_date_bounds(r["date"], end=False), r["name"])  # noqa: E731
+        concurrent.sort(key=key)
+        ongoing.sort(key=key)
+        return {"event": {"id": asked, "name": self.nodes[asked].name} if asked else None, "window": [date_from, date_to],
+                "concurrent": concurrent, "ongoing": ongoing, "undated": undated}
+
+    @property
+    def services(self) -> set[str]:
+        """Every node that is some unit's military branch (`wd:P241` target): where a unit chain stops."""
+        if "_services" not in self.__dict__:
+            self.__dict__["_services"] = {e.target for e in self.by_type.get("wd:P241", [])}
+        return self.__dict__["_services"]
+
+    def unit_chain(self, unit_id: str, prefer: set[str] = frozenset()) -> list[str]:
+        """The `part of` chain above a unit, up to and including the first service (R62 revision 41), at most
+        CHAIN_DEPTH long. At a fork the parent in `prefer` (e.g. this battle's cast) wins, else the first by name."""
+        chain, cur, seen = [], unit_id, {unit_id}
+        while len(chain) < self.CHAIN_DEPTH and (cur == unit_id or cur not in self.services):
+            parents = [p for p in self.unit_parents(cur) if p not in seen and not self.is_class_record(p)]
+            if not parents:
+                break
+            cur = next((p for p in parents if p in prefer), min(parents, key=lambda p: self.nodes[p].name))
+            seen.add(cur)
+            chain.append(cur)
+        return chain
+
+    def _ancestors_by_level(self, unit_id: str) -> list[set[str]]:
+        levels, seen, frontier = [], {unit_id}, {unit_id}
+        for _ in range(self.CHAIN_DEPTH):
+            frontier = {p for u in frontier for p in self.unit_parents(u) if p not in seen}
+            if not frontier:
+                break
+            seen |= frontier
+            levels.append(frontier)
+        return levels
+
+    def actor_kind(self, node_id: str) -> str:
+        n = self.nodes[node_id]
+        cls = n.attributes.get("entity_class")
+        return "person" if n.type == "person" else cls if cls in ("country", "ship") else "unit"
+
+    def order_of_battle(self, event_id: str) -> dict[str, Any] | None:
+        """Who fought in a battle, per side (spec R62, revision 41).
+
+        A side comes from R98 `side` on the participant or commander relation (assertions that disagree give
+        none). An unsided unit whose nearest sided `part of` ancestor in the same battle is on one side is placed
+        there with `side_via: "part_of"` (inferred, named in `via`). The rest are `side_not_stated`. Units carry
+        their `part of` chain up to the service. A side is named by its sided countries and by the services and
+        countries of its sided actors. Returns None for an unknown id or a non-event.
+        """
+        eid = self.canonical_id(event_id)
+        if eid not in self.nodes or self.nodes[eid].type != "event":
+            return None
+        rows: dict[str, dict[str, Any]] = {}
+        for e, actor in self._subjects(eid, "event_link"):
+            row = rows.setdefault(actor, {"id": actor, "name": self.nodes[actor].name, "kind": self.actor_kind(actor),
+                                          "_sides": set(), "relations": []})
+            row["relations"] = list(dict.fromkeys(row["relations"] + [e.type]))
+            row["_sides"] |= {s for a in self.group(e) if (s := edge_side(a))}
+        for r in rows.values():
+            r["side"] = next(iter(r["_sides"])) if len(r["_sides"]) == 1 else None
+            r["side_via"] = "stated" if r["side"] else None
+            if len(r["_sides"]) > 1:
+                r["sides_disagree"] = True
+        sided = {i: r["side"] for i, r in rows.items() if r["side"]}
+        for r in rows.values():
+            if r["side"] or r["kind"] not in ("unit", "ship"):
+                continue
+            for level in self._ancestors_by_level(r["id"]):
+                found = {sided[a]: a for a in sorted(level) if a in sided}
+                if found:
+                    if len(found) == 1:
+                        (r["side"], via), = found.items()
+                        r["side_via"], r["via"] = "part_of", via
+                    break
+        for r in rows.values():
+            if r["kind"] in ("unit", "ship"):
+                r["chain"] = self.unit_chain(r["id"], prefer=set(rows))
+            del r["_sides"]
+        sides = []
+        for s in sorted({r["side"] for r in rows.values() if r["side"]}):
+            members = [r for r in rows.values() if r["side"] == s]
+            names = Counter()
+            for r in members:
+                if r["kind"] == "country" and r["side_via"] == "stated":
+                    names[r["id"]] += 10
+                if r["side_via"] == "stated":
+                    for t in ("wd:P241", "wd:P17", "wd:P27"):
+                        for e in self.out_edges[r["id"]]:
+                            if e.type == t and e.target in self.nodes and not self.is_class_record(e.target):
+                                names[e.target] += 1
+            by = lambda k: sorted((r for r in members if r["kind"] == k), key=lambda r: (r["side_via"] != "stated", r["name"]))  # noqa: E731
+            sides.append({"side": s, "named_by": [i for i, _ in names.most_common(4)],
+                          "countries": [r["id"] for r in by("country")], "commanders": [r["id"] for r in by("person")],
+                          "units": [r["id"] for r in by("unit") + by("ship")]})
+        unstated = sorted((r for r in rows.values() if not r["side"]), key=lambda r: (r["kind"], r["name"]))
+        return {"event": {"id": eid, "name": self.nodes[eid].name, "date": self._event_window(eid)[0]},
+                "sides": sides, "actors": rows, "side_not_stated": [r["id"] for r in unstated],
+                "site_ids": self._event_places(eid)}
+
+    def event_chain(self, event_id: str) -> dict[str, Any] | None:
+        """What led to and followed an event, from the graph only (spec R62, narrowed in revision 41).
+
+        - `causes` / `effects`: events linked by `wd:P828` (has cause) or `wd:P1542` (has effect), either way.
+        - `sequences`: for each event it is part of (below the war level), the dated sub-events in date
+          order, each `before`, `asked` or `after` the event: a sequence, never a cause. Undated siblings
+          are listed apart. Returns None for an unknown id or a non-event.
+        """
+        eid = self.canonical_id(event_id)
+        if eid not in self.nodes or self.nodes[eid].type != "event":
+            return None
+        causes, effects = [], []
+        for e in self.out_edges[eid]:
+            if self.nodes[e.target].type == "event":
+                if e.type == "wd:P828":
+                    causes.append((e.target, e.type))
+                elif e.type == "wd:P1542":
+                    effects.append((e.target, e.type))
+        for e in self.in_edges[eid]:
+            if self.nodes[e.source].type == "event":
+                if e.type == "wd:P828":
+                    effects.append((e.source, e.type))
+                elif e.type == "wd:P1542":
+                    causes.append((e.source, e.type))
+        link = lambda lst, how: [{"event_id": i, "name": self.nodes[i].name, "relation": t, "link": how,  # noqa: E731
+                                  "date": self._event_window(i)[0]} for i, t in dict.fromkeys(lst)]
+        mine = self._event_window(eid)[0]
+        sequences = []
+        for _, parent in self._objects(eid, "part_of"):
+            if self.nodes[parent].type != "event" or self.is_war_level(parent):
+                continue
+            sibs = list(dict.fromkeys(s for _, s in self._subjects(parent, "part_of") if self.nodes[s].type == "event"))
+            dated = sorted((s for s in sibs if self._event_window(s)[0]),
+                           key=lambda s: (_date_bounds(self._event_window(s)[0], end=False), self.nodes[s].name))
+            rows = []
+            at = dated.index(eid) if eid in dated else None  # an undated event has no place in the order
+            for i, s in enumerate(dated):
+                start, end = self._event_window(s)
+                pos = "asked" if s == eid else None if at is None else "before" if i < at else "after"
+                rows.append({"seq": i + 1, "event_id": s, "name": self.nodes[s].name, "date": start, "end_date": end,
+                             "position": pos, "place_ids": self._event_places(s)})
+            sequences.append({"parent": {"id": parent, "name": self.nodes[parent].name}, "rows": rows,
+                              "undated": [s for s in sibs if not self._event_window(s)[0]]})
+        return {"event": {"id": eid, "name": self.nodes[eid].name, "date": mine},
+                "causes": link(causes, "cause"), "effects": link(effects, "effect"), "sequences": sequences}
+
+
+def span_text(span: list[str] | None) -> str:
+    """'Aug 1942–Jun 1945' from two partial ISO dates (a year alone stays a year)."""
+    def one(d: str) -> str:
+        parts = d.split("-")
+        return f"{calendar.month_abbr[int(parts[1])]} {parts[0]}" if len(parts) > 1 else parts[0]
+    if not span:
+        return "no dates"
+    a, b = one(span[0]), one(span[1])
+    return a if a == b else f"{a}–{b}"
+
+
+def date_precision(value: str | None) -> str | None:
+    """"day", "month" or "year" from a partial ISO date's length."""
+    if not value:
+        return None
+    return {4: "year", 7: "month"}.get(len(value.lstrip("-")), "day")
+
+
+def _as_date(value: str, *, end: bool) -> "datetime.date":
+    """A partial ISO date as a day: its first day, or with `end` its last ('1943-02' -> 1943-02-28)."""
+    parts = [int(p) for p in value.lstrip("-").split("-")[:3]]
+    year = parts[0]
+    month = parts[1] if len(parts) > 1 else (12 if end else 1)
+    day = parts[2] if len(parts) > 2 else (calendar.monthrange(year, month)[1] if end else 1)
+    return datetime.date(year, month, day)
+
+
+def stop_label(i: int) -> str:
+    """A, B, ..., Z, AA, AB, ...: the map label of the i-th stop (0-based)."""
+    label = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        label = chr(65 + r) + label
+    return label

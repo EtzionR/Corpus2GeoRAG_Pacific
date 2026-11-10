@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from geo_agent.trace import FAILURE_STAGES
 
-SCHEMA_VERSION = "1.6"  # 1.6: area, feature role "area"; 1.5: feature answer_for; 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names; 1.4: match nickname/hull_number/alias_part, resolved evidence and model_reading
+SCHEMA_VERSION = "1.7"  # 1.7: timeline, operational, ungrounded_dates, feature seq/label/state/side/side_via/date/members, role "path"; 1.6: area, feature role "area"; 1.5: feature answer_for; 1.1: bbox, center; 1.2: source_refs, feature geometry_source, confidence n_providers; 1.3: ungrounded_names; 1.4: match nickname/hull_number/alias_part, resolved evidence and model_reading
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "ask_result.schema.json"
 
 
@@ -54,14 +54,25 @@ class FeatureProperties(_Open):
     id: str = Field(description="Graph id; matches entity_ids")
     name: str = Field(description="Display name")
     type: str = Field(description="Node type, `location` today")
-    role: Literal["answer", "context", "area"] = Field(description="`answer` when the feature (or the entity it is drawn for) answers "
-                                                      "the question; `area` for the area the user marked (spec R102)")
+    role: Literal["answer", "context", "area", "path"] = Field(
+        description="`answer` when the feature (or the entity it is drawn for) answers the question; `area` for the area the "
+                    "user marked (spec R102); `path` for a timeline's directed line through its stops (spec R63)")
     related_to: str | None = Field(None, description="Present when the place is drawn on behalf of a non-spatial entity (event, org, person)")
     geometry_source: str | None = Field(None, description="'direct' when the entity's own geometry is drawn, 'related' when it is drawn at a linked place")
     via: str | None = Field(None, description="Set questions: the path that connects the place")
     strength: float | None = Field(None, description="Set questions: how well supported that path is (higher is stronger)")
     answer_for: list[str] | None = Field(None, description="Answer people or units with no place of their own, shown at this "
                                          "site of a battle they took part in (role is then `answer`)")
+    seq: int | None = Field(None, description="Order in a timeline or sequence (1, 2, 3...); draw it as a number (spec R63)")
+    label: str | None = Field(None, description="A timeline stop's letter (A, B, C...); 'B, D' when a place is two stops")
+    state: Literal["stop", "span", "concurrent", "ongoing", "asked", "sequence", "cause", "effect"] | None = Field(
+        None, description="Phase M family state: a timeline `stop` or `span` (context, faint); `concurrent` or `ongoing` "
+                          "(context) during an event; the `asked` event; a `sequence` row, `cause` or `effect`")
+    side: int | None = Field(None, description="Order of battle: the side (1, 2) the entity or side feature belongs to")
+    side_via: Literal["stated", "part_of"] | None = Field(
+        None, description="`stated` by the relation; `part_of`: inferred from a parent unit on that side (draw dashed)")
+    date: str | None = Field(None, description="A timeline stop's start date (partial ISO)")
+    members: list[str] | None = Field(None, description="A side feature's entity ids (type `side`)")
 
 
 class Feature(_Open):
@@ -139,6 +150,47 @@ class AreaInfo(_Open):
     bbox: list[float] | None = Field(None, description="A polygon's [min_lon, min_lat, max_lon, max_lat]")
 
 
+class TimelineStop(_Open):
+    seq: int
+    label: str = Field(description="A, B, C...: the marker label")
+    date: str = Field(description="Partial ISO date, with its precision")
+    end_date: str | None = None
+    date_precision: Literal["day", "month", "year"] | None = None
+    place_ids: list[str] = Field(description="Places of the stop; [] when the event is placed only by its own point")
+    event_ids: list[str] = Field(description="Events merged into this stop; [] for a stay (based at, landed at)")
+
+
+class TimelineRow(_Open):
+    event_id: str
+    date: str | None = None
+    end_date: str | None = None
+    place_ids: list[str] = []
+
+
+class Timeline(_Open):
+    entity_id: str
+    name: str
+    dated_stops: int = Field(description="Stops with a date; say this number")
+    stops: list[TimelineStop] = Field(description="In date order; draw numbered markers and the path")
+    spans: list[TimelineRow] = Field(description="Campaigns holding the stops: context, drawn faintly")
+    undated: list[TimelineRow] = Field(description="Events with no date: list as 'date unknown', never on the path")
+    path: Geometry | None = Field(description="LineString through the stops in order (longitudes continuous across 180°); null under 2 stops")
+
+
+class OperationalSide(_Open):
+    side: int
+    label: str = Field(description="The side's countries and services, e.g. 'United States / United States Navy'")
+    members: list[str] = Field(description="Ids whose relation states this side")
+    inferred: list[str] = Field(description="Ids placed on this side through a parent unit (side_via part_of)")
+
+
+class OperationalInfo(_Open):
+    family: Literal["trajectory", "concurrency", "order_of_battle", "sequence"]
+    handle: str = Field(description="The result set it came from")
+    event_id: str | None = Field(None, description="Order of battle: the battle")
+    sides: list[OperationalSide] | None = Field(None, description="Order of battle: one entry per side, for the legend")
+
+
 class ErrorInfo(_Open):
     type: str = Field(description="Exception class name")
     message: str
@@ -178,6 +230,10 @@ class AskResult(_Open):
     result_sets: list[ResultSetInfo]
     dropped_sets: list[DroppedSet]
     area: AreaInfo | None = Field(description="The marked map area this answer used (spec R102); null without one")
+    timeline: Timeline | None = Field(description="A unit's, person's or ship's path (spec R63); null without one")
+    operational: list[OperationalInfo] = Field(description="Phase M families in this answer and how to draw them (spec R63); [] when none")
+    ungrounded_dates: list[str] = Field(description="Years in an operational answer that no tool result holds (spec R64); "
+                                        "warning ungrounded_dates")
     error: ErrorInfo | None = Field(description="null on success")
 
 

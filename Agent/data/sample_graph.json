@@ -627,8 +627,7 @@
    "type": "org",
    "aliases": [
     "US Marines",
-    "USMC",
-    "1st Marine Division"
+    "USMC"
    ],
    "geometry": null,
    "sources": [
@@ -2063,6 +2062,276 @@
     "country": "United States"
    },
    "embedding": null
+  },
+  {
+   "id": "loc:melbourne",
+   "name": "Melbourne",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     144.96,
+     -37.81
+    ]
+   },
+   "sources": [
+    {
+     "page": "Melbourne",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Melbourne"
+    }
+   ],
+   "text": "Melbourne is a city in Victoria, Australia. The 1st Marine Division rested and refitted there in 1943 after Guadalcanal.",
+   "attributes": {
+    "kind": "city"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:cape_gloucester",
+   "name": "Cape Gloucester",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     148.43,
+     -5.45
+    ]
+   },
+   "sources": [
+    {
+     "page": "Cape Gloucester",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Cape_Gloucester"
+    }
+   ],
+   "text": "Cape Gloucester is a cape on the north-western coast of New Britain, in Papua New Guinea.",
+   "attributes": {
+    "kind": "cape"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:peleliu",
+   "name": "Peleliu",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     134.24,
+     7.0
+    ]
+   },
+   "sources": [
+    {
+     "page": "Peleliu",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Peleliu"
+    }
+   ],
+   "text": "Peleliu is an island in the Palau Islands, in the western Pacific.",
+   "attributes": {
+    "kind": "island"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:okinawa",
+   "name": "Okinawa",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     127.9,
+     26.4
+    ]
+   },
+   "sources": [
+    {
+     "page": "Okinawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Okinawa"
+    }
+   ],
+   "text": "Okinawa is the largest of the Ryukyu Islands, south of the Japanese home islands.",
+   "attributes": {
+    "kind": "island"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_cape_gloucester",
+   "name": "Battle of Cape Gloucester",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Cape Gloucester",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Cape_Gloucester"
+    }
+   ],
+   "text": "The Battle of Cape Gloucester was fought on New Britain from December 1943 by the 1st Marine Division against the Imperial Japanese Army.",
+   "attributes": {
+    "kind": "battle",
+    "start_date": "1943-12-26",
+    "end_date": "1944-01-16"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_peleliu",
+   "name": "Battle of Peleliu",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Peleliu",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Peleliu"
+    }
+   ],
+   "text": "The Battle of Peleliu was fought on Peleliu from September to November 1944; the 1st Marine Division landed on 15 September.",
+   "attributes": {
+    "kind": "battle",
+    "start_date": "1944-09-15",
+    "end_date": "1944-11-27"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_okinawa",
+   "name": "Battle of Okinawa",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Okinawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Okinawa"
+    }
+   ],
+   "text": "The Battle of Okinawa was fought on Okinawa from April to June 1945.",
+   "attributes": {
+    "kind": "battle",
+    "start_date": "1945-04-01",
+    "end_date": "1945-06-22"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_talasea",
+   "name": "Battle of Talasea",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Talasea",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Talasea"
+    }
+   ],
+   "text": "The Battle of Talasea was fought on the Willaumez Peninsula of New Britain by the 5th Marine Regiment.",
+   "attributes": {
+    "kind": "battle"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:1st_marines",
+   "name": "1st Marine Regiment",
+   "type": "org",
+   "aliases": [
+    "1st Marines"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "1st Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Regiment"
+    }
+   ],
+   "text": "The 1st Marine Regiment is an infantry regiment of the 1st Marine Division; it fought on Peleliu in 1944.",
+   "attributes": {
+    "kind": "military"
+   },
+   "embedding": null
+  },
+  {
+   "id": "org:5th_marines",
+   "name": "5th Marine Regiment",
+   "type": "org",
+   "aliases": [
+    "5th Marines"
+   ],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "5th Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/5th_Marine_Regiment"
+    }
+   ],
+   "text": "The 5th Marine Regiment is an infantry regiment of the 1st Marine Division; it landed at Talasea on New Britain.",
+   "attributes": {
+    "kind": "military"
+   },
+   "embedding": null
+  },
+  {
+   "id": "loc:unalaska",
+   "name": "Unalaska",
+   "type": "location",
+   "aliases": [],
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -166.54,
+     53.89
+    ]
+   },
+   "sources": [
+    {
+     "page": "Unalaska, Alaska",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Unalaska,_Alaska"
+    }
+   ],
+   "text": "Unalaska is an island town in the Aleutian Islands of Alaska, home of the Dutch Harbor naval base in 1942.",
+   "attributes": {
+    "kind": "town"
+   },
+   "embedding": null
+  },
+  {
+   "id": "event:battle_of_dutch_harbor",
+   "name": "Battle of Dutch Harbor",
+   "type": "event",
+   "aliases": [],
+   "geometry": null,
+   "sources": [
+    {
+     "page": "Battle of Dutch Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Dutch_Harbor"
+    }
+   ],
+   "text": "The Battle of Dutch Harbor took place on 3-4 June 1942, when Japanese carrier aircraft raided the Dutch Harbor Naval Operating Base on Unalaska.",
+   "attributes": {
+    "kind": "battle",
+    "start_date": "1942-06-03",
+    "end_date": "1942-06-04"
+   },
+   "embedding": null
   }
  ],
  "edges": [
@@ -2320,7 +2589,8 @@
      "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
     }
    ],
-   "embedding": null
+   "embedding": null,
+   "side": 2
   },
   {
    "source": "org:us_navy",
@@ -2336,7 +2606,8 @@
      "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
     }
    ],
-   "embedding": null
+   "embedding": null,
+   "side": 1
   },
   {
    "source": "per:yamamoto",
@@ -2352,7 +2623,8 @@
      "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
     }
    ],
-   "embedding": null
+   "embedding": null,
+   "side": 2
   },
   {
    "source": "per:nagumo",
@@ -2368,7 +2640,8 @@
      "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
     }
    ],
-   "embedding": null
+   "embedding": null,
+   "side": 2
   },
   {
    "source": "per:nimitz",
@@ -2384,7 +2657,8 @@
      "url": "https://en.wikipedia.org/wiki/Battle_of_Midway"
     }
    ],
-   "embedding": null
+   "embedding": null,
+   "side": 1
   },
   {
    "source": "event:guadalcanal_campaign",
@@ -3981,22 +4255,6 @@
    "embedding": null
   },
   {
-   "source": "org:1st_marine_division",
-   "target": "org:usmc",
-   "type": "PART_OF",
-   "count": 1,
-   "start_date": null,
-   "end_date": null,
-   "sources": [
-    {
-     "page": "1st Marine Division",
-     "paragraph": 0,
-     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
-    }
-   ],
-   "embedding": null
-  },
-  {
    "source": "ship:enterprise_cv6",
    "target": "event:battle_of_midway",
    "type": "PARTICIPATED_IN",
@@ -4088,6 +4346,230 @@
      "page": "1st Infantry Division (United States)",
      "paragraph": 0,
      "url": "https://en.wikipedia.org/wiki/1st_Infantry_Division_(United_States)"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "loc:melbourne",
+   "type": "BASED_AT",
+   "count": 1,
+   "start_date": "1943-01",
+   "end_date": "1943-09",
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_cape_gloucester",
+   "target": "loc:cape_gloucester",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1943-12-26",
+   "end_date": "1944-01-16",
+   "sources": [
+    {
+     "page": "Battle of Cape Gloucester",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Cape_Gloucester"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_peleliu",
+   "target": "loc:peleliu",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1944-09-15",
+   "end_date": "1944-11-27",
+   "sources": [
+    {
+     "page": "Battle of Peleliu",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Peleliu"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_okinawa",
+   "target": "loc:okinawa",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1945-04-01",
+   "end_date": "1945-06-22",
+   "sources": [
+    {
+     "page": "Battle of Okinawa",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Okinawa"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "event:battle_of_cape_gloucester",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "event:battle_of_peleliu",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "event:battle_of_okinawa",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marine_division",
+   "target": "event:battle_of_talasea",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Division",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Division"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marines",
+   "target": "org:1st_marine_division",
+   "type": "PART_OF",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Regiment"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:1st_marines",
+   "target": "event:battle_of_peleliu",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "1st Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/1st_Marine_Regiment"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:5th_marines",
+   "target": "org:1st_marine_division",
+   "type": "PART_OF",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "5th Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/5th_Marine_Regiment"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "org:5th_marines",
+   "target": "event:battle_of_talasea",
+   "type": "PARTICIPATED_IN",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "5th Marine Regiment",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/5th_Marine_Regiment"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_dutch_harbor",
+   "target": "loc:unalaska",
+   "type": "OCCURRED_AT",
+   "count": 1,
+   "start_date": "1942-06-03",
+   "end_date": "1942-06-04",
+   "sources": [
+    {
+     "page": "Battle of Dutch Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Dutch_Harbor"
+    }
+   ],
+   "embedding": null
+  },
+  {
+   "source": "event:battle_of_dutch_harbor",
+   "target": "event:aleutian_islands_campaign",
+   "type": "PART_OF",
+   "count": 1,
+   "start_date": null,
+   "end_date": null,
+   "sources": [
+    {
+     "page": "Battle of Dutch Harbor",
+     "paragraph": 0,
+     "url": "https://en.wikipedia.org/wiki/Battle_of_Dutch_Harbor"
     }
    ],
    "embedding": null

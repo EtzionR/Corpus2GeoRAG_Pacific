@@ -177,3 +177,90 @@ def test_a_marked_area_is_sent_drawn_and_cleared():
     assert "event:attack_on_pearl_harbor" in reply["answer_ids"]
     at.button(key="clear_area").click().run()
     assert at.session_state.area is None and not any("marked on the map" in c.value for c in at.caption)
+
+
+# --- operational answers on the map (agent schema 1.7) -------------------------------------------
+
+def _map_helpers():
+    """The App's map functions without running the page: its top part (constants, imports, the agent
+    loader) and its helper functions, with no runner (names fall back to ids)."""
+    src = Path(APP).read_text(encoding="utf-8")
+    ns: dict = {"__file__": APP}
+    exec(src[:src.index("agent = load_agent()")], ns)
+    ns["runner"] = None
+    exec(src[src.index("def finish_pending"):src.index("# A question that finished")], ns)
+    return ns
+
+
+def _map_html(at, question):
+    reply = ask(at, question)
+    assert reply["operational"], reply["answer"]
+    m = _map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)")
+    return reply, _decoded(m.get_root().render())
+
+
+def _decoded(page: str) -> str:
+    """The page as the browser's scripts see it: folium writes marker HTML as JSON strings (\\u003c for <)."""
+    return page.replace("\\u003c", "<").replace("\\u003e", ">").replace('\\"', '"').replace("\\u0026", "&")
+
+
+def test_a_path_is_drawn_as_lettered_stops_and_a_line_with_arrows():
+    at = new_app()
+    reply, page = _map_html(at, "Show the path of the 1st Marine Division")
+    assert "c2g-stop" in page and ">A</div>" in page and ">E</div>" in page
+    assert "setText" in page and "➤" in page  # PolyLineTextPath: the direction along the route
+    # Leaflet.TextPath only works on SVG lines: on a canvas map it throws and the whole map stays blank
+    assert '"preferCanvas": false' in page
+
+    strip = _map_helpers()["timeline_strip"](reply)
+    assert strip.startswith("🧭 **A**") and "→ **B**" in strip and "Aug 1942" in strip and "date unknown" in strip
+
+
+def test_a_stop_at_a_battle_marker_becomes_a_badge_on_it():
+    """The path reply also shows the unit's battles (R103): the stop letter must not hide under the battle marker."""
+    stop = lambda lon, lat, label: {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},  # noqa: E731
+                                    "properties": {"id": label, "name": label, "type": "location", "role": "answer",
+                                                   "state": "stop", "label": label}}
+    battle = {"type": "Feature", "geometry": {"type": "Point", "coordinates": [125.01, 11.17]},
+              "properties": {"id": "b", "name": "Battle of Leyte", "type": "event", "role": "answer"}}
+    reply = {"geojson": {"type": "FeatureCollection", "features": [stop(124.83, 10.83, "C"), stop(150.0, -30.0, "E"), battle]},
+             "operational": [{"family": "trajectory"}]}
+    page = _decoded(_map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)").get_root().render())
+    assert "[11.17, 125.01]" in page  # C is pinned to the battle marker, not to its own point
+    assert '"iconAnchor": [-3, 29]' in page and '"iconAnchor": [13, 13]' in page  # C a badge, E centred
+    assert '"zIndexOffset": 1000' in page
+
+def test_maps_without_a_path_keep_the_canvas_renderer():
+    at = new_app()
+    reply = ask(at, "Where did the Battle of Midway happen?")
+    page = _map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)").get_root().render()
+    assert '"preferCanvas": true' in page
+
+
+def test_concurrency_sides_and_sequence_have_their_own_styles():
+    at = new_app()
+    _, page = _map_html(at, "What else happened during the Battle of Midway?")
+    assert "c2g-concurrent" in page and "c2g-ongoing" in page and "c2g-asked" in page
+    _, page = _map_html(at, "Who fought on each side at the Battle of Midway?")
+    assert "#2563EB" in page and "#D97706" in page and "c2g-inferred" in page and "inferred: through a parent unit" in page
+    _, page = _map_html(at, "What came after the Battle of Tarawa in the island-hopping campaign?")
+    assert "c2g-sequence" in page and ">2</div>" in page and ">3</div>" in page
+
+
+def test_side_markers_sit_beside_the_site_and_faint_markers_show_an_icon():
+    at = new_app()
+    _, page = _map_html(at, "Who fought on each side at the Battle of Midway?")
+    # Midway Atoll, Sand Island and Eastern Island are one battle site: one marker per side, not three
+    assert page.count('#2563EB;border-color:#2563EB">1</div>') == 1
+    assert '"iconAnchor": [45, 13]' in page and '"iconAnchor": [-19, 13]' in page  # 32 px left, 32 px right
+    _, page = _map_html(at, "What else happened during the Battle of Midway?")
+    assert 'c2g-ongoing"><svg' in page and "campaign running at the time" in page and "the event you asked about" in page
+
+
+def test_operational_text_is_escaped_on_the_map():
+    reply = {"geojson": {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [160.0, -9.5]},
+         "properties": {"id": "x", "name": XSS, "type": "location", "role": "answer", "state": "stop", "label": XSS, "date": XSS}}]},
+        "operational": [{"family": "trajectory", "sides": [{"side": 1, "label": XSS}]}]}
+    page = _decoded(_map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)").get_root().render())
+    assert "<script>alert(2)" not in page and "<img src=x" not in page and "&lt;script&gt;" in page

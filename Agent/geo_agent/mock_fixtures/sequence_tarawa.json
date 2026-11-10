@@ -1,0 +1,182 @@
+{
+  "question": "What came after the Battle of Tarawa in the island-hopping campaign?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.7",
+    "answer": "In the island-hopping campaign the Battle of Tarawa (20-23 November 1943) was followed by the **Battle of Guam (1944)** (21 July - 10 August 1944) and then the **Battle of Iwo Jima** (February-March 1945). This is the order in time; the graph records no cause for it.",
+    "answer_ids": [
+      "event:battle_of_tarawa",
+      "event:battle_of_guam_1944",
+      "event:battle_of_iwo_jima"
+    ],
+    "context_ids": [],
+    "entity_ids": [
+      "event:battle_of_tarawa",
+      "event:battle_of_guam_1944",
+      "event:battle_of_iwo_jima"
+    ],
+    "sources": [
+      "Battle of Tarawa",
+      "Battle of Guam (1944)",
+      "Battle of Iwo Jima"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Tarawa",
+        "page": "Battle of Tarawa"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Guam_(1944)",
+        "page": "Battle of Guam (1944)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Iwo_Jima",
+        "page": "Battle of Iwo Jima"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              172.98,
+              1.42
+            ]
+          },
+          "properties": {
+            "id": "loc:tarawa",
+            "name": "Tarawa",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_tarawa",
+            "role": "context",
+            "seq": 1,
+            "state": "asked"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              144.79,
+              13.44
+            ]
+          },
+          "properties": {
+            "id": "loc:guam",
+            "name": "Guam",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_guam_1944",
+            "role": "answer",
+            "seq": 2,
+            "state": "sequence"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              141.32,
+              24.78
+            ]
+          },
+          "properties": {
+            "id": "loc:iwo_jima",
+            "name": "Iwo Jima",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_iwo_jima",
+            "role": "answer",
+            "seq": 3,
+            "state": "sequence"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      141.32,
+      1.42,
+      172.98,
+      24.78
+    ],
+    "center": {
+      "lat": 13.1,
+      "lon": 157.15
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Tarawa"
+        }
+      },
+      {
+        "name": "event_chain",
+        "args": {
+          "event_id": "event:battle_of_tarawa"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [
+      {
+        "id": "event:battle_of_tarawa",
+        "name": "Battle of Tarawa",
+        "typed": "Battle of Tarawa",
+        "matched_label": "Battle of Tarawa",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false,
+        "model_reading": false
+      }
+    ],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 3,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "cause and sequence of Battle of Tarawa",
+        "total": 3,
+        "on_map": 0,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "area": null,
+    "timeline": null,
+    "operational": [
+      {
+        "family": "sequence",
+        "handle": "rs-mock01"
+      }
+    ],
+    "ungrounded_dates": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

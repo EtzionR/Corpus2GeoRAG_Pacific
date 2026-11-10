@@ -802,6 +802,26 @@ def test_r94_a_raw_answer_twice_becomes_the_fixed_sentence(isolated_env):
     assert out["answer"] == agent_mod.EMPTY_ANSWER and "raw_answer" in out["warnings"]
 
 
+def test_r104_a_stub_answer_is_sent_back_once(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Corregidor")), final("placeholder"),
+               final("The graph links it to the Japanese capture in 1942.", ["loc:corregidor"])])
+    assert out["answer"].startswith("The graph links it") and "stub_answer" not in out["warnings"]
+
+
+def test_r104_a_stub_answer_twice_becomes_the_fixed_sentence(isolated_env):
+    out = ask([ai(call("search_entities", "a", query="Corregidor")), final("placeholder"), final("TODO.")])
+    assert out["answer"] == agent_mod.EMPTY_ANSWER and "stub_answer" in out["warnings"]
+
+
+def test_r104_only_a_whole_placeholder_is_a_stub():
+    for stub in ("placeholder", " Placeholder. ", "TODO", "TBD", "N/A", "none", '"answer"', "...", "…", "<answer>",
+                 "[your answer here]", "{placeholder}", "**placeholder**"):
+        assert agent_mod.is_stub_answer(stub), stub
+    for real in ("", "The placeholder garrison held Wake Island.", "None of the graph's events are dated.",
+                 "No.", "Answer: the 1st Marine Division.", "[Note] The graph has no battles for him.", "Tarawa"):
+        assert not agent_mod.is_stub_answer(real), real
+
+
 def test_r94_only_bare_json_is_raw():
     assert agent_mod.is_raw_answer('["Holland Smith"]') and agent_mod.is_raw_answer(' "x" ')
     assert not agent_mod.is_raw_answer("[Note] The graph has no battles for him.")

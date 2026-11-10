@@ -1,0 +1,298 @@
+{
+  "question": "What else happened during the Battle of Midway?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.7",
+    "answer": "During the Battle of Midway (4-7 June 1942) the graph has one short event: the **Battle of Dutch Harbor** (3-4 June 1942) on Unalaska. Ongoing at the time were the Aleutian Islands campaign (from 3 June 1942), the New Guinea campaign, the Bombing of Chongqing and the Manhattan Project.",
+    "answer_ids": [
+      "event:battle_of_dutch_harbor"
+    ],
+    "context_ids": [
+      "event:battle_of_midway"
+    ],
+    "entity_ids": [
+      "event:battle_of_dutch_harbor",
+      "event:battle_of_midway"
+    ],
+    "sources": [
+      "Battle of Dutch Harbor",
+      "Battle of Midway"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Dutch_Harbor",
+        "page": "Battle of Dutch Harbor"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -166.54,
+              53.89
+            ]
+          },
+          "properties": {
+            "id": "loc:unalaska",
+            "name": "Unalaska",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_dutch_harbor",
+            "role": "answer",
+            "state": "concurrent"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.37,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:midway_atoll",
+            "name": "Midway Atoll",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "context",
+            "state": "asked"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.36,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:sand_island",
+            "name": "Sand Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "context",
+            "state": "asked"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.33,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:eastern_island",
+            "name": "Eastern Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "context",
+            "state": "asked"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              106.55,
+              29.56
+            ]
+          },
+          "properties": {
+            "id": "loc:chongqing",
+            "name": "Chongqing",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:bombing_of_chongqing",
+            "role": "context",
+            "state": "ongoing"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              147.18,
+              -9.44
+            ]
+          },
+          "properties": {
+            "id": "loc:port_moresby",
+            "name": "Port Moresby",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:new_guinea_campaign",
+            "role": "context",
+            "state": "ongoing"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              148.4,
+              -8.66
+            ]
+          },
+          "properties": {
+            "id": "loc:buna",
+            "name": "Buna",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:new_guinea_campaign",
+            "role": "context",
+            "state": "ongoing"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -106.3,
+              35.88
+            ]
+          },
+          "properties": {
+            "id": "loc:los_alamos",
+            "name": "Los Alamos",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:manhattan_project",
+            "role": "context",
+            "state": "ongoing"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              177.57,
+              51.98
+            ]
+          },
+          "properties": {
+            "id": "loc:kiska",
+            "name": "Kiska",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:aleutian_islands_campaign",
+            "role": "context",
+            "state": "ongoing"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -176.65,
+              51.87
+            ]
+          },
+          "properties": {
+            "id": "loc:adak",
+            "name": "Adak Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:aleutian_islands_campaign",
+            "role": "context",
+            "state": "ongoing"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      106.55,
+      -9.44,
+      -106.3,
+      53.89
+    ],
+    "center": {
+      "lat": 22.225,
+      "lon": -179.875
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Midway"
+        }
+      },
+      {
+        "name": "events_during",
+        "args": {
+          "event_id": "event:battle_of_midway"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [
+      {
+        "id": "event:battle_of_midway",
+        "name": "Battle of Midway",
+        "typed": "Battle of Midway",
+        "matched_label": "Battle of Midway",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false,
+        "model_reading": false
+      }
+    ],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 2,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "events during Battle of Midway",
+        "total": 1,
+        "on_map": 0,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "area": null,
+    "timeline": null,
+    "operational": [
+      {
+        "family": "concurrency",
+        "handle": "rs-mock01"
+      }
+    ],
+    "ungrounded_dates": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}
