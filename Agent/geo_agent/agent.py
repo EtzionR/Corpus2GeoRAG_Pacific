@@ -466,6 +466,24 @@ def is_raw_answer(text: str) -> bool:
     return True
 
 
+STUB_WORDS = {"placeholder", "todo", "tbd", "tba", "n/a", "na", "none", "null", "answer", "xxx", "lorem ipsum", "...", "…", ""}
+STUB_TEMPLATE_RE = re.compile(r"^[<\[{]\s*(your |the )?(answer|placeholder|todo|text|response)\b[^>\]}]*[>\]}]$", re.I)
+STUB_ANSWER_NOTE = ("Rejected: your answer is a placeholder, not an answer. Write the answer to the question in sentences, "
+                    "from what the tools returned, and put the ids of what answers it in answer_ids. If the graph doesn't "
+                    "answer it, say so in a sentence.")
+
+
+def is_stub_answer(text: str) -> bool:
+    """A placeholder such as "placeholder", "TODO" or "<answer>" as the whole answer (spec R104); empty text is R80's."""
+    s = (text or "").strip()
+    if not s:
+        return False
+    if STUB_TEMPLATE_RE.match(s):
+        return True
+    core = s.strip(" \t\n\"'`*_").rstrip(".!?:;").strip().lower()
+    return core in STUB_WORDS or (s.strip(" .…") == "" and s.strip() != "")
+
+
 WHO_QUESTION_RE = re.compile(r"^\W*(who|whom|which (sides?|forces?|countr(y|ies)|nations?|units?|commanders?|armies|army|navy|navies|fleets?))\b",
                              re.I)
 WHO_ANSWER_NOTE = ("Rejected: the question asks who, but answer_ids holds no person, unit or country. Put the ids of the "
@@ -483,8 +501,9 @@ def _send_back(request: Any, response: Any, note: str) -> Any:
 
 
 class RawAnswerGuard(AgentMiddleware):
-    """Send back once a final answer that is a bare JSON value (spec R94). GLM answered "Which battles did
-    Holland Smith command?" with '["Holland Smith"]' after one search; ask() replaces a second one."""
+    """Send back once a final answer that is a bare JSON value (spec R94) or a stub such as "placeholder"
+    (spec R104). GLM answered "Which battles did Holland Smith command?" with '["Holland Smith"]' after one
+    search, and the Edson's Ridge sequence question with "placeholder"; ask() replaces a second one."""
 
     async def awrap_model_call(self, request: Any, handler: Any) -> Any:
         response = await handler(request)
@@ -492,6 +511,9 @@ class RawAnswerGuard(AgentMiddleware):
         if isinstance(parsed, AgentAnswer) and is_raw_answer(parsed.answer):
             log.info("final answer is raw data; sending it back once")
             response = await handler(_send_back(request, response, RAW_ANSWER_NOTE))
+        elif isinstance(parsed, AgentAnswer) and is_stub_answer(parsed.answer):
+            log.info("final answer is a stub; sending it back once")
+            response = await handler(_send_back(request, response, STUB_ANSWER_NOTE))
         return response
 
 
@@ -1851,6 +1873,9 @@ class GeoAgent:
                 if is_raw_answer(parsed.answer):  # spec R94: still raw after the guard's one retry
                     parsed = parsed.model_copy(update={"answer": EMPTY_ANSWER})
                     warnings.append("raw_answer")
+                elif is_stub_answer(parsed.answer):  # spec R104: still a stub after the guard's one retry
+                    parsed = parsed.model_copy(update={"answer": EMPTY_ANSWER})
+                    warnings.append("stub_answer")
 
             try:
                 out = finalize_answer(self.store, parsed, messages, self.sets)
