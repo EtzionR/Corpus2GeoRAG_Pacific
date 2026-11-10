@@ -602,7 +602,7 @@ def test_contract_what_happened_at_event_site_and_point_dates(tools):
 def test_contract_data_limits_stay_visible(tools, store):
     cov = call(tools, "graph_schema")["coverage"]
     assert cov["nodes_name_is_id"] == 1 and cov["nodes_type_other"] == 6  # 3 QID nodes, 2 ships, 1 weapon and cov["nodes_without_text"] == 1
-    assert cov["events_without_dates"] == 0 and cov["locations_without_geometry"] == 0
+    assert cov["events_without_dates"] == 1 and cov["locations_without_geometry"] == 0  # the Battle of Talasea (spec R66)
     assert cov["non_location_nodes_with_geometry"] == {"event": 1, "other": 2}
     assert cov["edges_with_point_date_only"] == 4 and cov["duplicate_assertions_combined"] == 1
     assert cov["edges_family_differs_from_catalog"] == 0 and cov["relation_types_not_in_catalog"] == 16  # the short vocabulary, incl. USED_IN
@@ -1313,3 +1313,301 @@ def test_r101_an_lfs_pointer_is_named_not_parsed(tmp_path):
     p.write_text("version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 140527675\n")
     with pytest.raises(ValueError, match="Git LFS pointer"):
         GraphStore.from_json(p)
+
+
+# ------------------------------------------------------------------ Phase M: trajectory and coverage (R60, R67)
+
+GUADALCANAL = ["loc:guadalcanal", "loc:henderson_field", "loc:tulagi"]
+
+
+def test_r60_unit_timeline_stops_in_date_order(store):
+    tl = store.entity_timeline("org:1st_marine_division")
+    stops = tl["stops"]
+    assert [s["label"] for s in stops] == ["A", "B", "C", "D", "E"]
+    assert [sorted(s["place_ids"]) for s in stops] == [
+        GUADALCANAL, ["loc:melbourne"], ["loc:cape_gloucester"], ["loc:peleliu"], ["loc:okinawa"]]
+    # the relation's own date wins over the event's: the division left Guadalcanal in December 1942
+    assert [(s["date"], s["date_precision"]) for s in stops] == [
+        ("1942-08-07", "day"), ("1943-01", "month"), ("1943-12-26", "day"), ("1944-09-15", "day"), ("1945-04-01", "day")]
+    assert stops[0]["end_date"] == "1942-12-09" and stops[0]["event_ids"] == ["event:guadalcanal_campaign"]
+    assert stops[1]["event_ids"] == [] and stops[1]["relations"] == ["BASED_AT"]  # a stay, not an event
+    assert [u["event_id"] for u in tl["undated"]] == ["event:battle_of_talasea"]  # "date unknown", not dropped
+    assert tl["dated_stops"] == 5 and tl["spans"] == [] and tl["sub_units"] == []
+
+
+def test_r60_include_subunits_merges_their_events(store):
+    tl = store.entity_timeline("org:1st_marine_division", include_subunits=True)
+    peleliu = next(s for s in tl["stops"] if s["place_ids"] == ["loc:peleliu"])
+    assert peleliu["event_ids"] == ["event:battle_of_peleliu"]  # one row, not one per unit
+    assert set(peleliu["units"]) == {"org:1st_marine_division", "org:1st_marines"}
+    assert {u["id"]: u["rows"] for u in tl["sub_units"]} == {"org:1st_marines": 1, "org:5th_marines": 1}
+    assert set(tl["undated"][0]["units"]) == {"org:1st_marine_division", "org:5th_marines"}
+    assert len(tl["stops"]) == 5
+
+
+def test_r60_sub_unit_without_dated_events(store):
+    tl = store.entity_timeline("org:5th_marines")
+    assert tl["stops"] == [] and tl["dated_stops"] == 0
+    assert [u["event_id"] for u in tl["undated"]] == ["event:battle_of_talasea"]
+
+
+def test_r60_date_filter_keeps_undated_rows(store):
+    tl = store.entity_timeline("org:1st_marine_division", date_from="1944-06", date_to="1945")  # Cape Gloucester ends Jan 1944
+    assert [s["place_ids"] for s in tl["stops"]] == [["loc:peleliu"], ["loc:okinawa"]]
+    assert [s["label"] for s in tl["stops"]] == ["A", "B"]
+    assert [u["event_id"] for u in tl["undated"]] == ["event:battle_of_talasea"]
+
+
+def _r60_graph():
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}  # noqa: E731
+    ev = lambda i, s, e, kind="battle": {"id": i, "name": i, "type": "event", "attributes": {"kind": kind, "start_date": s, "end_date": e}}  # noqa: E731
+    return GraphStore.from_dict({"nodes": [
+        {"id": "unit", "name": "Unit", "type": "org"},
+        {"id": "admiral", "name": "Admiral", "type": "person", "attributes": {"death_date": "1943-04-18"}},
+        {"id": "loc:a", "name": "A", "type": "location", "geometry": pt(160, -9)},
+        {"id": "loc:b", "name": "B", "type": "location", "geometry": pt(150, -6)},
+        ev("camp", "1942-08-01", "1943-02-01", "campaign"),
+        ev("b1", "1942-08-21", "1942-08-21"), ev("b2", "1942-09-12", "1942-09-14"), ev("b3", "1942-12-01", "1942-12-02"),
+        {**ev("raid", "1942-04-18", "1942-04-18"), "geometry": pt(139.7, 35.7)},  # placed only by its own point
+        ev("nowhere", "1942-05-01", "1942-05-02"),
+        ev("late", "1944-04-22", "1944-06-06"),
+        ev("war", "1941-12-07", "1945-09-02", "war"),
+    ], "edges": [
+        *({"source": x, "target": "unit", "type": "wd:P710"} for x in ("camp", "b1", "b2", "b3", "raid", "nowhere", "war")),
+        *({"source": x, "target": "admiral", "type": "wd:P4791"} for x in ("b1", "late")),
+        {"source": "b1", "target": "camp", "type": "wd:P361"}, {"source": "b2", "target": "camp", "type": "wd:P361"},
+        {"source": "camp", "target": "loc:a", "type": "wd:P276"}, {"source": "b1", "target": "loc:a", "type": "wd:P276"},
+        {"source": "b2", "target": "loc:a", "type": "wd:P276"}, {"source": "b3", "target": "loc:b", "type": "wd:P276"},
+        {"source": "late", "target": "loc:b", "type": "wd:P276"},
+    ]})
+
+
+def test_r60_merging_spans_own_points_and_limits():
+    tl = _r60_graph().entity_timeline("unit")
+    assert [s["event_ids"] for s in tl["stops"]] == [["raid"], ["b1", "b2"], ["b3"]]  # b1 and b2 merge at A
+    assert tl["stops"][0]["place_ids"] == [] and tl["stops"][0]["own_point"] is True
+    assert [r["event_id"] for r in tl["spans"]] == ["camp"]  # context: it holds the battles
+    assert [r["event_id"] for r in tl["unplaced"]] == ["nowhere"]  # listed, no stop
+    assert all("war" not in s["event_ids"] for s in tl["stops"]) and tl["undated"] == []  # war level out (R83)
+    assert [s["event_ids"] for s in _r60_graph().entity_timeline("admiral")["stops"]] == [["b1"]]  # R100: not after death
+
+
+def test_r60_a_long_battle_without_parts_is_a_stop_even_around_another():
+    """Revision 42: only an event with sub-events is a span (Cape Gloucester to April 1944 holds Talasea, no parts)."""
+    pt = {"type": "Point", "coordinates": [148.4, -5.4]}
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "div", "name": "Division", "type": "org"},
+        {"id": "loc:cg", "name": "Cape Gloucester", "type": "location", "geometry": pt},
+        {"id": "loc:nb", "name": "New Britain", "type": "location", "geometry": {"type": "Point", "coordinates": [150.5, -5.6]}},
+        {"id": "cg", "name": "Battle of Cape Gloucester", "type": "event", "attributes": {"kind": "battle", "start_date": "1943-12-26", "end_date": "1944-04-22"}},
+        {"id": "tal", "name": "Battle of Talasea", "type": "event", "attributes": {"kind": "battle", "start_date": "1944-03-06", "end_date": "1944-03-09"}},
+    ], "edges": [{"source": "cg", "target": "div", "type": "wd:P710"}, {"source": "tal", "target": "div", "type": "wd:P710"},
+                 {"source": "cg", "target": "loc:cg", "type": "wd:P276"}, {"source": "tal", "target": "loc:nb", "type": "wd:P276"}]})
+    tl = s.entity_timeline("div")
+    assert [st["event_ids"] for st in tl["stops"]] == [["cg"], ["tal"]] and tl["spans"] == []
+
+
+def test_r60_a_campaign_by_kind_holding_a_battle_is_a_span():
+    """Revision 44: the New Britain campaign has no parts in the graph, but its kind says it is a campaign."""
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}  # noqa: E731
+    ev = lambda i, kind, s, e: {"id": i, "name": i, "type": "event", "attributes": {"kind": kind, "start_date": s, "end_date": e}}  # noqa: E731
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "div", "name": "Division", "type": "org"},
+        {"id": "loc:nb", "name": "New Britain", "type": "location", "geometry": pt(150.5, -5.6)},
+        {"id": "loc:cg", "name": "Cape Gloucester", "type": "location", "geometry": pt(148.4, -5.4)},
+        ev("nbc", "campaign", "1943-12-15", "1945-08-21"), ev("cg", "battle", "1943-12-26", "1944-04-22"),
+        ev("op", "operation", "1944-05-01", "1944-05-02"),  # an operation that holds nothing stays a stop
+    ], "edges": [*({"source": x, "target": "div", "type": "wd:P710"} for x in ("nbc", "cg", "op")),
+                 {"source": "nbc", "target": "loc:nb", "type": "wd:P276"}, {"source": "cg", "target": "loc:cg", "type": "wd:P276"},
+                 {"source": "op", "target": "loc:nb", "type": "wd:P276"}]})
+    tl = s.entity_timeline("div")
+    assert [r["event_id"] for r in tl["spans"]] == ["nbc"]
+    assert [st["event_ids"] for st in tl["stops"]] == [["cg"], ["op"]]
+
+
+def test_the_division_is_not_an_alias_of_the_marine_corps(store):
+    """The USMC record no longer carries the alias "1st Marine Division": the division is its own clear match."""
+    hits = store.search_entities("1st Marine Division")
+    assert hits[0]["id"] == "org:1st_marine_division" and hits[0]["quality"] == "clear"
+    usmc = next((h for h in hits if h["id"] == "org:usmc"), None)
+    assert usmc is None or (usmc["match"] == "fuzzy" and usmc["score"] < 90)  # was an exact alias match (score 100)
+
+
+def test_r60_spans_are_in_the_result_set():
+    sets = ResultSets()
+    t = {x.name: x for x in build_tools(_r60_graph(), sets)}
+    out = call(t, "entity_timeline", entity_id="unit")
+    assert out["spans"][0]["event"] == "camp" and "camp" in sets.get(out["result_set"])["ids"]
+    assert "camp" in sets.get(out["result_set"])["meta"]["draw"]
+
+
+def test_r60_a_long_event_that_covers_nothing_is_a_stop():
+    tl = _r60_graph().entity_timeline("unit", date_from="1943-01", date_to="1943-01")  # only the campaign overlaps
+    assert [st["event_ids"] for st in tl["stops"]] == [["camp"]] and tl["spans"] == []
+
+
+def test_r60_tool_returns_a_result_set(tools):
+    out = call(tools, "entity_timeline", entity_id="org:1st_marine_division")
+    assert out["result_set"].startswith("rs") and out["dated_stops"] == 5 and out["undated"] == 1
+    assert [s["label"] for s in out["stops"]] == ["A", "B", "C", "D", "E"]
+    assert out["stops"][1]["places"] == ["Melbourne"] and out["stops"][1]["date"] == "1943-01"
+    empty = call(tools, "entity_timeline", entity_id="ship:enterprise_cvn65")
+    assert empty["result"].startswith("no dated events")
+
+
+def test_r67_probe_offers_the_parent_for_an_undated_sub_unit(store):
+    cov = store.operational_coverage("org:5th_marines")
+    assert cov["thin"] is True and cov["entity"]["dated_stops"] == 0 and cov["entity"]["undated"] == 1
+    assert [p["id"] for p in cov["parents"]] == ["org:1st_marine_division"]
+    assert cov["parents"][0]["dated_stops"] == 5 and cov["parents"][0]["span"] == ["1942-08-07", "1945-06-22"]
+    opts = cov["options"]
+    assert [o["entity_id"] for o in opts] == ["org:1st_marine_division", "org:5th_marines"]
+    assert opts[0]["kind"] == "parent unit" and opts[1]["kind"] == "undated events"
+    assert "1st Marine Division" in opts[0]["text"] and "Aug 1942" in opts[0]["text"] and "Jun 1945" in opts[0]["text"]
+
+
+def test_r67_probe_for_a_well_covered_unit_is_not_thin(store):
+    cov = store.operational_coverage("org:1st_marine_division")
+    assert cov["thin"] is False and cov["entity"]["dated_stops"] == 5
+    assert {c["id"] for c in cov["children"]} == {"org:1st_marines", "org:5th_marines"}
+
+
+def test_r67_probe_with_nothing_to_offer_and_no_class_records():
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "ship", "name": "USS Enterprise", "type": "other", "attributes": {"entity_class": "ship"}},
+        {"id": "tf", "name": "Task Force 77", "type": "org"},
+        {"id": "fleet", "name": "Seventh Fleet", "type": "org"},
+        {"id": "cls", "name": "task force", "type": "org"},
+        *({"id": f"loc{i}", "name": f"Place {i}", "type": "location", "geometry": {"type": "Point", "coordinates": [120 + i, 11]}}
+          for i in (2, 3, 4)),
+        *({"id": f"ev{i}", "name": f"Battle {i}", "type": "event", "attributes": {"start_date": f"194{i}-01-01"}} for i in (2, 3, 4)),
+    ], "edges": [
+        {"source": "tf", "target": "fleet", "type": "wd:P361"}, {"source": "tf", "target": "cls", "type": "wd:P361"},
+        *({"source": f"ev{i}", "target": "fleet", "type": "wd:P710"} for i in (2, 3, 4)),
+        *({"source": f"ev{i}", "target": "cls", "type": "wd:P710"} for i in (2, 3, 4)),
+        *({"source": f"ev{i}", "target": f"loc{i}", "type": "wd:P276"} for i in (2, 3, 4)),
+    ]})
+    ship = s.operational_coverage("ship")
+    assert ship["thin"] is True and ship["options"] == []
+    tf = s.operational_coverage("tf")
+    assert [o["entity_id"] for o in tf["options"]] == ["fleet"]  # the class record "task force" is never offered
+    cls = s.operational_coverage("cls")  # a fuzzy hit on the class itself is no unit
+    assert cls["entity"]["class_record"] is True and cls["options"] == [] and cls["parents"] == []
+
+
+def test_r67_probe_tool(tools):
+    out = call(tools, "operational_coverage", entity_id="org:5th_marines")
+    assert out["thin"] is True and out["options"][0]["entity_id"] == "org:1st_marine_division"
+    assert "ask" in out["next"]
+
+
+# ------------------------------------------------------------------ Phase M: concurrency, order of battle, sequence (R62)
+
+def test_r62_events_during_splits_concurrent_and_ongoing(store):
+    out = store.events_during("event:battle_of_midway")
+    assert out["window"] == ["1942-06-04", "1942-06-07"]
+    assert [r["event_id"] for r in out["concurrent"]] == ["event:battle_of_dutch_harbor"]
+    assert [r["event_id"] for r in out["ongoing"]] == ["event:bombing_of_chongqing", "event:new_guinea_campaign",
+                                                       "event:manhattan_project", "event:aleutian_islands_campaign"]
+    assert out["undated"] == 1  # the Battle of Talasea: no window, counted
+    assert all(r["event_id"] != "event:battle_of_midway" for r in out["concurrent"] + out["ongoing"])
+
+
+def test_r62_events_during_region_and_period(store):
+    near = store.events_during("event:battle_of_midway", lat=53.89, lon=-166.54, radius_km=300)
+    assert [r["event_id"] for r in near["concurrent"]] == ["event:battle_of_dutch_harbor"] and near["ongoing"] == []
+    period = store.events_during(date_from="1945-08", date_to="1945-08")
+    assert {"event:bombing_of_hiroshima", "event:bombing_of_nagasaki", "event:atomic_bomb_missions"} <= {
+        r["event_id"] for r in period["concurrent"]}
+    assert store.events_during()["error"].startswith("no window")
+
+
+def test_r62_events_during_leaves_out_the_events_family():
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "camp", "name": "Campaign", "type": "event", "attributes": {"start_date": "1942-01-01", "end_date": "1942-12-31"}},
+        {"id": "b", "name": "Battle", "type": "event", "attributes": {"start_date": "1942-06-01", "end_date": "1942-06-02"}},
+        {"id": "sub", "name": "Sub-action", "type": "event", "attributes": {"start_date": "1942-06-01", "end_date": "1942-06-01"}},
+        {"id": "other", "name": "Other", "type": "event", "attributes": {"start_date": "1942-06-02", "end_date": "1942-06-02"}},
+        {"id": "war", "name": "Pacific War", "type": "event", "attributes": {"kind": "war", "start_date": "1941", "end_date": "1945"}}],
+        "edges": [{"source": "b", "target": "camp", "type": "wd:P361"}, {"source": "sub", "target": "b", "type": "wd:P361"}]})
+    out = s.events_during("b")
+    assert [r["event_id"] for r in out["concurrent"]] == ["other"] and out["ongoing"] == []
+
+
+def test_r62_order_of_battle_sides_inference_and_unstated(store):
+    oob = store.order_of_battle("event:battle_of_midway")
+    by = {s["side"]: s for s in oob["sides"]}
+    assert set(by[1]["units"]) == {"org:us_navy"} and set(by[1]["commanders"]) == {"per:nimitz"}
+    assert set(by[2]["commanders"]) == {"per:yamamoto", "per:nagumo"}
+    assert set(by[2]["units"]) == {"org:ijn", "org:combined_fleet"}
+    fleet = oob["actors"]["org:combined_fleet"]
+    assert (fleet["side"], fleet["side_via"], fleet["via"], fleet["chain"]) == (2, "part_of", "org:ijn", ["org:ijn"])
+    assert oob["actors"]["org:ijn"]["side_via"] == "stated"
+    assert oob["side_not_stated"] == ["ship:enterprise_cv6"]  # no side and no sided parent: never guessed
+
+
+def test_r62_order_of_battle_names_sides_and_stops_at_the_service():
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "b", "name": "Battle of Peleliu", "type": "event", "attributes": {"start_date": "1944-09-15"}},
+        {"id": "us", "name": "United States", "type": "org", "attributes": {"entity_class": "country"}},
+        {"id": "usmc", "name": "United States Marine Corps", "type": "org"},
+        {"id": "dod", "name": "Department of Defense", "type": "org"},
+        {"id": "div", "name": "1st Marine Division", "type": "org"},
+        {"id": "reg", "name": "1st Marine Regiment", "type": "org"},
+        {"id": "jp14", "name": "14th Division", "type": "org"}, {"id": "split", "name": "Mixed Unit", "type": "org"},
+        {"id": "inf", "name": "infantry", "type": "org"}],
+        "edges": [
+        {"source": "b", "target": "div", "type": "wd:P710", "side": 1}, {"source": "b", "target": "jp14", "type": "wd:P710", "side": 2},
+        {"source": "reg", "target": "b", "type": "wd:P607"}, {"source": "b", "target": "split", "type": "wd:P710", "side": 1},
+        {"source": "b", "target": "split", "type": "wd:P710", "side": 2},  # two assertions that disagree: no side (R98)
+        {"source": "reg", "target": "div", "type": "wd:P361"}, {"source": "div", "target": "usmc", "type": "wd:P361"},
+        {"source": "usmc", "target": "dod", "type": "wd:P361"},
+        {"source": "div", "target": "usmc", "type": "wd:P241"}, {"source": "div", "target": "us", "type": "wd:P17"},
+        {"source": "div", "target": "inf", "type": "wd:P241"}]})  # a class ("infantry") never names a side
+    oob = s.order_of_battle("b")
+    side1 = next(x for x in oob["sides"] if x["side"] == 1)
+    assert set(side1["named_by"]) == {"usmc", "us"} and set(side1["units"]) == {"div", "reg"}
+    assert oob["actors"]["div"]["chain"] == ["usmc"]  # stops at the service, not at the Department of Defense
+    assert oob["actors"]["reg"]["side_via"] == "part_of" and oob["actors"]["split"]["side"] is None
+    assert oob["actors"]["split"]["sides_disagree"] is True and "split" in oob["side_not_stated"]
+
+
+def test_r62_event_chain_sequence_in_a_campaign(store):
+    ch = store.event_chain("event:battle_of_guam_1944")
+    (sq,) = ch["sequences"]
+    assert sq["parent"]["id"] == "event:island_hopping_campaign"
+    assert [(r["event_id"], r["position"]) for r in sq["rows"]] == [
+        ("event:battle_of_tarawa", "before"), ("event:battle_of_guam_1944", "asked"), ("event:battle_of_iwo_jima", "after")]
+    assert ch["causes"] == [] and ch["effects"] == []
+
+
+def test_r62_event_chain_causes_effects_and_no_war_level_sequence():
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "ph", "name": "Attack on Pearl Harbor", "type": "event", "attributes": {"start_date": "1941-12-07"}},
+        {"id": "dr", "name": "Doolittle Raid", "type": "event", "attributes": {"start_date": "1942-04-18"}},
+        {"id": "mid", "name": "Battle of Midway", "type": "event", "attributes": {"start_date": "1942-06-04"}},
+        {"id": "war", "name": "Pacific War", "type": "event", "attributes": {"kind": "war", "start_date": "1941", "end_date": "1945"}}],
+        "edges": [{"source": "mid", "target": "dr", "type": "wd:P828"}, {"source": "ph", "target": "dr", "type": "wd:P1542"},
+                  {"source": "mid", "target": "war", "type": "wd:P361"}, {"source": "ph", "target": "war", "type": "wd:P361"}]})
+    dr = s.event_chain("dr")
+    assert [c["event_id"] for c in dr["causes"]] == ["ph"] and [c["event_id"] for c in dr["effects"]] == ["mid"]
+    assert s.event_chain("mid")["sequences"] == []  # Pacific War is war level: no sequence through it
+
+
+def test_r62_tools_register_family_sets():
+    sets = ResultSets()
+    t = {x.name: x for x in build_tools(GraphStore.from_json(GRAPH), sets)}
+    conc = call(t, "events_during", event_id="event:battle_of_midway")
+    meta = sets.get(conc["result_set"])["meta"]
+    assert meta["family"] == "concurrency" and meta["features"]["event:battle_of_dutch_harbor"] == {"state": "concurrent"}
+    assert meta["features"]["event:aleutian_islands_campaign"] == {"state": "ongoing"} and conc["concurrent"][0]["event"] == "Battle of Dutch Harbor"
+    oob = call(t, "order_of_battle", event_id="event:battle_of_midway")
+    meta = sets.get(oob["result_set"])["meta"]
+    assert meta["features"]["org:combined_fleet"] == {"side": 2, "side_via": "part_of"} and oob["side_not_stated"] == ["USS Enterprise (CV-6)"]
+    fleet = next(u for s in oob["sides"] for u in s["units"] if u["name"] == "Combined Fleet")
+    assert fleet == {"name": "Combined Fleet", "side_via": "part_of", "via": "Imperial Japanese Navy", "part_of": ["Imperial Japanese Navy"]}
+    ch = call(t, "event_chain", event_id="event:battle_of_guam_1944")
+    meta = sets.get(ch["result_set"])["meta"]
+    assert meta["features"]["event:battle_of_tarawa"] == {"seq": 1, "state": "sequence"}
+    assert meta["features"]["event:battle_of_guam_1944"]["state"] == "asked"
+    assert call(t, "event_chain", event_id="event:battle_of_midway")["result"].startswith("the graph records no cause")

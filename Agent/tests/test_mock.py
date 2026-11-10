@@ -53,7 +53,7 @@ def test_all_reply_kinds(runner):
     assert {"event:battle_of_guam_1941", "event:battle_of_guam_1944"} <= set(both["context_ids"])
     assert "1941" in both["answer"] and "1944" in both["answer"] and "uncertain_match_used" not in both["warnings"]
     over = runner.ask_sync("Show me major battles in the Pacific War on the map", thread_id="g")  # R57
-    assert over["result_sets"][0]["total"] == 11 and any(i.startswith("broad question") for i in over["interpretation"])
+    assert over["result_sets"][0]["total"] == 16 and any(i.startswith("broad question") for i in over["interpretation"])
 
     poem = runner.ask_sync("Write me a poem about the ocean", thread_id="c")
     assert poem["warnings"] == ["off_topic"]
@@ -63,6 +63,22 @@ def test_all_reply_kinds(runner):
     assert sets["result_sets"][0]["total"] == 5 and len(sets["geojson"]["features"]) == 5
     for out in (ans, clar, follow, both, over, poem, err, sets):
         AskResult.model_validate(out)
+
+
+def test_r63_one_mock_reply_per_operational_family(runner):
+    tl = runner.ask_sync("Show the path of the 1st Marine Division", thread_id="p")
+    assert tl["timeline"]["dated_stops"] == 5 and tl["timeline"]["path"]["type"] == "LineString"
+    assert any(f["properties"]["role"] == "path" for f in tl["geojson"]["features"])
+    ask = runner.ask_sync("Show the path of the 5th Marine Regiment", thread_id="n")
+    assert ask["answer_ids"] == [] and "1st Marine Division" in ask["answer"] and ask["timeline"] is None
+    follow = runner.ask_sync("The 1st Marine Division", thread_id="n")
+    assert follow["timeline"]["stops"][0]["label"] == "A"
+    families = {q: runner.ask_sync(q, thread_id=q)["operational"][0]["family"] for q in (
+        "What else happened during the Battle of Midway?", "Who fought on each side at the Battle of Midway?",
+        "What came after the Battle of Tarawa in the island-hopping campaign?")}
+    assert list(families.values()) == ["concurrency", "order_of_battle", "sequence"]
+    oob = runner.ask_sync("Who fought on each side at the Battle of Midway?", thread_id="o")
+    assert {f["properties"].get("side_via") for f in oob["geojson"]["features"] if f["properties"]["type"] == "side"} == {"stated", "part_of"}
 
 
 def test_matching_ignores_case_and_punctuation(runner):

@@ -1,0 +1,57 @@
+{
+  "question": "Show the path of the 5th Marine Regiment",
+  "after": null,
+  "reply": {
+    "schema_version": "1.7",
+    "answer": "The graph has no dated records for the 5th Marine Regiment. I can show the parent unit 1st Marine Division (5 dated events, Aug 1942–Jun 1945), or the 5th Marine Regiment's 1 recorded event without dates. Which?",
+    "answer_ids": [],
+    "context_ids": [],
+    "entity_ids": [],
+    "sources": [],
+    "source_refs": [],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": []
+    },
+    "bbox": null,
+    "center": null,
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "5th Marine Regiment"
+        }
+      },
+      {
+        "name": "operational_coverage",
+        "args": {
+          "entity_id": "org:5th_marines"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [],
+    "interpretation": [],
+    "confidence": {
+      "level": "low",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 0,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [],
+    "dropped_sets": [],
+    "area": null,
+    "timeline": null,
+    "operational": [],
+    "ungrounded_dates": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

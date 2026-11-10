@@ -121,6 +121,25 @@ How to work:
   * a question with a "[Map area]" line (an area the user marked) -> what_happened_in_area(area_id=<its handle>):
     answer from what lies in the area; `containing` places are only context; don't widen it to places outside
   * call graph_schema when you are unsure which relation or entity types exist.
+  * the path, route or movements of a unit, person or ship over time ("show the path of the 1st Marine Division",
+    "where did Halsey go, in order", "follow E Company from England to Carentan"): search_entities ->
+    operational_coverage FIRST. If `thin` is false: entity_timeline (include_subunits=true when the question
+    includes the unit's regiments or sub-units), put its result_set in answer_sets, name the stops in order with
+    their letters, dates and places exactly as returned, say how many stops are dated, and list undated events as
+    "date unknown". If `thin` is true: don't answer in detail. Ask ONE short question offering the probe's
+    `options` (their text, nothing else), with answer_ids and context_ids []. If it has no options, say the graph
+    has no dated events for it. When the user then picks an option (by name or number), call entity_timeline
+    for that option's entity_id. Every stop, date and place comes from these tools, never from memory.
+  * what else happened during an event or a period ("what else happened in the Pacific during Midway"):
+    search_entities -> events_during(event_id) (or date_from/date_to; place_id or lat/lon only for a smaller
+    region such as an island group: "in the Pacific" needs no region, the graph covers the theatre). Name
+    the `concurrent` events with their dates, then the `ongoing` campaigns as context. Put result_set in answer_sets.
+  * who fought on which side, and under whom ("which units fought at Iwo Jima, and under whom"): search_entities ->
+    order_of_battle(event_id). Name each side by its `named_by` countries and services; say that a unit with
+    side_via "part_of" is placed on its parent unit's side (inferred); never put a `side_not_stated` actor on a side.
+  * what led to an event or what came before or after it ("what led to Midway", "what came next after Edson's
+    Ridge"): search_entities -> event_chain(event_id). Only `causes` / `effects` are causes; a campaign's
+    `sequences` are order in time ("came before", "came next"), never "led to". If both are empty, say so.
 - Back claims with evidence: prefer relations with higher counts, and use search_source_text for supporting text.
 - "Show me all locations connected to / associated with X", "all islands of X", "major battles" (of the whole graph),
   "where are A and B both connected": resolve the names, then use ONE set tool (connected_locations,
@@ -282,7 +301,7 @@ class AgentAnswer(BaseModel):
         description="Wikipedia page titles (from tool results) the answer relies on. Never a record id such as a Wikidata "
                     "QID or statement id (those stay in source_refs). [] only when there are no ids.")
     answer_sets: list[str] = Field(
-        description="Handles of result sets (the `result_set` value, like 'rs-3f9a1c') returned by connected_locations, "
+        description="Handles of result sets (the `result_set` value, like 'rs-3f9a1c') returned by connected_locations, entity_timeline, events_during, order_of_battle, event_chain, "
                     "find_entities or shared_connections that answer the question. The map then shows every member; "
                     "do not copy their ids. [] when you used no set tool.")
 
@@ -349,7 +368,8 @@ def get_llm() -> ChatOpenAI:
 
 
 EMPTY_ANSWER = "I couldn't finish an answer to this question from the graph. Please try asking it in a narrower way."
-SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning", "overview")
+SET_TOOLS = ("connected_locations", "find_entities", "shared_connections", "entities_mentioning", "overview",
+             "entity_timeline", "operational_coverage", "events_during", "order_of_battle", "event_chain")
 BUDGET_NOTE = ("TOKEN BUDGET REACHED for this question: do not call more tools. Give your final answer now "
                "with what you already have, and say that the answer may be incomplete.")
 
@@ -1246,6 +1266,100 @@ def mark_actor_sites(store: GraphStore, features: list[dict[str, Any]], answer_i
                 f["properties"].setdefault("answer_for", []).append(actor)
 
 
+# Spec R63 (schema 1.7): what each Phase M family adds to the map features
+CONTEXT_STATES = {"span", "ongoing", "asked"}  # drawn faintly; "stop", "concurrent", "sequence", "cause", "effect" answer
+NUMBER_WORDS = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+                "seventeen eighteen nineteen twenty").split()
+
+
+def _point_of(store: GraphStore, node_id: str) -> tuple[float, float] | None:
+    g = store.geoms.get(node_id)
+    if g is None:
+        return None
+    p = g.representative_point()
+    return p.x, p.y
+
+
+def _unwrap(coords: list[tuple[float, float]]) -> list[list[float]]:
+    """Longitudes made continuous, so a path across the 180° meridian doesn't wrap the whole world."""
+    out: list[list[float]] = []
+    for lon, lat in coords:
+        if out:
+            while lon - out[-1][0] > 180:
+                lon -= 360
+            while lon - out[-1][0] < -180:
+                lon += 360
+        out.append([round(lon, 6), round(lat, 6)])
+    return out
+
+
+def operational_view(store: GraphStore, used_sets: list[tuple[str, dict[str, Any]]],
+                     features: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[dict[str, Any]]]:
+    """Spec R63: (timeline, operational, extra features) for the Phase M sets in the answer.
+
+    Each set's per-id properties (seq, label, state, side, side_via, date) go onto the features drawn for that id
+    (its own feature, or the places drawn on its behalf); a span, an ongoing event and the asked event become
+    context. A trajectory adds a directed path (LineString through the stops, in order, role "path"); an order of
+    battle adds one feature per side and way of knowing it (stated, or inferred through part_of) at the battle's
+    sites, with its members. Nothing is added that the tools didn't return."""
+    timeline, operational, extra = None, [], []
+    for handle, entry in used_sets:
+        meta = entry["meta"]
+        family = meta.get("family")
+        if not family:
+            continue
+        props = meta.get("features") or {}
+        for f in features:
+            p = f["properties"]
+            own = props.get(p["id"]) or props.get(p.get("related_to") or "")
+            if own:
+                p.update(own)
+                if own.get("state") in CONTEXT_STATES:
+                    p["role"] = "context"
+        info: dict[str, Any] = {"family": family, "handle": handle}
+        if family == "trajectory" and timeline is None:
+            tl = meta["timeline"]
+            points = [pt for s in tl["stops"]
+                      if (pt := next((q for i in s["place_ids"] or s["event_ids"] if (q := _point_of(store, i))), None))]
+            path = {"type": "LineString", "coordinates": _unwrap(points)} if len(points) >= 2 else None
+            timeline = {**tl, "path": path}
+            if path:
+                extra.append({"type": "Feature", "geometry": path, "properties": {
+                    "id": f"path:{handle}", "name": f"path of {tl['name']}", "type": "path", "role": "path",
+                    "stops": len(points)}})
+        if family == "order_of_battle":
+            sites = [q for i in meta.get("site_ids") or [] if (q := _point_of(store, i))] or \
+                    ([q] if (q := _point_of(store, meta["event_id"])) else [])
+            info["event_id"], info["sides"] = meta["event_id"], []
+            for side in meta.get("sides") or []:
+                members = {"stated": [], "part_of": []}
+                for i, p in props.items():
+                    if p.get("side") == side["side"]:
+                        members["part_of" if p.get("side_via") == "part_of" else "stated"].append(i)
+                info["sides"].append({**side, "members": members["stated"], "inferred": members["part_of"]})
+                for via, ids in members.items():
+                    if ids and sites:
+                        extra.append({"type": "Feature", "geometry": {"type": "MultiPoint", "coordinates": _unwrap(sites)},
+                                      "properties": {"id": f"side-{side['side']}{'-inferred' if via == 'part_of' else ''}:{meta['event_id']}",
+                                                     "name": side["label"], "type": "side", "role": "answer",
+                                                     "side": side["side"], "side_via": via, "members": ids,
+                                                     "related_to": meta["event_id"]}})
+        operational.append(info)
+    return timeline, operational, extra
+
+
+def ungrounded_years(answer: str, turn: list[Any], question: str) -> list[str]:
+    """Spec R64: years 1930-1950 in an operational answer that no tool result of this turn (nor the question) holds."""
+    seen = question + " " + " ".join(json.dumps(data, ensure_ascii=False) for _, data in tool_results(turn))
+    return [y for y in dict.fromkeys(re.findall(r"\b19[3-5]\d\b", answer)) if y not in seen]
+
+
+def states_dated_stops(answer: str, n: int) -> bool:
+    """Spec R64: the answer says how many stops are dated (as digits, or a number word up to twenty)."""
+    text = answer.lower()
+    return bool(re.search(rf"\b{n}\b", text)) or (n < len(NUMBER_WORDS) and re.search(rf"\b{NUMBER_WORDS[n]}\b", text) is not None)
+
+
 def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any], sets: ResultSets | None = None) -> dict[str, Any]:
     """Turn the model's parsed answer and this run's messages into the UI output.
 
@@ -1390,6 +1504,13 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         if props["id"] in set_meta:
             props["via"], props["strength"] = set_meta[props["id"]]["via"], set_meta[props["id"]]["strength"]
     mark_actor_sites(store, geojson["features"], answer_ids, kept)
+    timeline, operational, extra_features = operational_view(store, used_sets, geojson["features"])  # R63
+    geojson["features"] += extra_features
+    ungrounded_dates = ungrounded_years(parsed.answer, turn, question) if operational else []  # R64
+    if ungrounded_dates:
+        warnings.append("ungrounded_dates")
+    if timeline and not states_dated_stops(parsed.answer, timeline["dated_stops"]):
+        warnings.append("dated_stops_unstated")
     drawn = {f["properties"]["id"] for f in geojson["features"]}
     if kept and not drawn:
         warnings.append("nothing_on_map")  # the answer's entities have no place in the graph to draw
@@ -1428,6 +1549,9 @@ def finalize_answer(store: GraphStore, parsed: AgentAnswer, messages: list[Any],
         "result_sets": result_sets,
         "dropped_sets": dropped_sets,
         "area": None,
+        "timeline": timeline,
+        "operational": operational,
+        "ungrounded_dates": ungrounded_dates,
     }
 
 
@@ -1462,7 +1586,8 @@ def off_topic_result(model_text: str, store: GraphStore | None = None) -> dict[s
         "tool_calls": [], "warnings": ["off_topic"],
         "dropped_ids": [], "unverified_sources": [], "unverified_numbers": [], "ungrounded_names": [], "resolved_entities": [], "interpretation": [],
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "n_providers": 0, "uncertain_match_used": False}},
-        "result_sets": [], "dropped_sets": [], "area": None, "off_topic_model_text": model_text,
+        "result_sets": [], "dropped_sets": [], "area": None, "timeline": None, "operational": [], "ungrounded_dates": [],
+        "off_topic_model_text": model_text,
     }
 
 
@@ -1491,6 +1616,9 @@ def error_result(run_id: str, exc: BaseException, stage: str, tool_calls: list[d
         "result_sets": [],
         "dropped_sets": [],
         "area": None,
+        "timeline": None,
+        "operational": [],
+        "ungrounded_dates": [],
         "confidence": {"level": "low", "basis": {"max_edge_count": 0, "n_source_pages": 0, "n_providers": 0, "uncertain_match_used": False}},
         "error": {"type": type(exc).__name__, "message": str(exc), "stage": stage},
     }

@@ -20,6 +20,25 @@
 - **`answer_for`** on a map feature lists the answer people or units shown there. A "who commanded at Leyte Gulf?" answer now highlights the gulf as `answer`, with `answer_for: [Halsey, Kurita, …]` (ids). Show their names in the popup ("Shown for").
 - Sources on the real graph now carry page titles instead of `enwiki:<id>`, so the source links read as titles.
 
+## Operational answers on the map (R60–R67, schema 1.7, 2026-11-10)
+`schema_version` "1.7", additive: a 1.6 app keeps working and simply draws plain markers. The agent sends data and the app draws it (R65). As before there is **no change to the layout or sizes**: map left, chat right. Only what the map draws changes. The reply's `operational` list says which kind of answer it is (`family`). Draw by `family`:
+
+| `family` | Question | What to draw |
+|---|---|---|
+| `trajectory` | "Show the path of the 1st Marine Division" | **Numbered stops and a directed line.** The features with `state: "stop"` get a marker with their `label` (A, B, C…; "B, D" when a place is two stops) and the `date` in the popup. The feature with `role: "path"` (`type: "path"`, a LineString in stop order) is the route: draw it as a polyline with arrowheads or a direction decoration, A→B→C. Features with `state: "span"` (a campaign holding the stops) are faint, small and unlabelled, with no arrow, and never on the line. Under the chat answer, a one-line timeline strip from `timeline.stops` is welcome but optional: a label and a short date per stop, then "date unknown: …" for `timeline.undated`. |
+| `concurrency` | "What else happened during the Battle of Midway?" | **Two styles.** `state: "concurrent"` (short events overlapping the asked one) gets normal answer markers. `state: "ongoing"` (long campaigns running at the time) is muted context, smaller and paler. `state: "asked"` (the battle asked about) is a distinct outline marker. |
+| `order_of_battle` | "Which units fought at Iwo Jima, and under whom?" | **Coloured by side.** Features of `type: "side"` sit at the battle's sites (a MultiPoint), one per side, with `side` (1, 2), `name` (the side's label, e.g. "United States / United States Navy") and `members` (ids). Give side 1 and side 2 two fixed, clearly different colours. A side feature with `side_via: "part_of"` holds the members placed on that side only through a parent unit: draw it **dashed or hatched** in the same colour, with "inferred" in its popup. `operational[i].sides` gives the legend (label, members, inferred). Actors the graph puts on no side are only in the answer text: never colour them. |
+| `sequence` | "What came after the Battle of Tarawa?" | **Numbered events.** Each feature with `seq` gets its number as the marker label, in order. `state: "asked"` marks the event asked about (outline). `state: "sequence"` rows are order in time. `state: "cause"` / `"effect"` rows (rare in the graph) get a different marker shape, so cause is never shown as mere order. |
+
+Rules for every family:
+- **Role values.** `role` can now be `path` too. Treat `context` features as quiet and unknown values as `context`.
+- **Date line.** The path's longitudes are continuous across the 180° meridian, so a value may be above 180 or below -180. Leaflet draws that correctly as one line; don't wrap it back.
+- **Stacked markers.** Several stops or side features can sit at the same point (two sides at one battle). Offset or spiderfy them slightly, or show them together in one popup.
+- **New reply keys:** `timeline`, `operational` and `ungrounded_dates` (years the answer gives that no tool returned; show the same "not from the graph" note as for `ungrounded_names`).
+- **New warnings:** `ungrounded_dates` and `dated_stops_unstated`.
+- **Mock mode** has a recorded reply for each family: "Show the path of the 1st Marine Division", "What else happened during the Battle of Midway?", "Who fought on each side at the Battle of Midway?" and "What came after the Battle of Tarawa in the island-hopping campaign?". It also has the clarify-and-narrow pair: "Show the path of the 5th Marine Regiment", then "The 1st Marine Division" in the same conversation.
+- **Thin coverage.** When the graph is too thin for a path (e.g. Task Force 77), the reply is a clarification question with no ids, offering the parent unit. Show it like any other clarification. The user's next message continues the same `thread_id`.
+
 ## Marking an area on the map (R102, 2026-11-09)
 `schema_version` "1.6". The agent developer writes this part of `App/app.py`, as agreed, with **no change to the layout or sizes**: map left, chat right.
 - **What the user does:** the map gets a draw control (circle, rectangle, polygon) inside the map frame. Drawing a shape asks "What happened in the marked area?" at once. While the shape stays marked, every typed question is sent with it ("who fought here in 1942?"). A line at the top of the chat box says an area is marked and offers "clear area"; New chat clears it too.

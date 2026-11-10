@@ -1,0 +1,352 @@
+{
+  "question": "Who fought on each side at the Battle of Midway?",
+  "after": null,
+  "reply": {
+    "schema_version": "1.7",
+    "answer": "At the Battle of Midway, **side 1**: the United States Navy, commanded by Chester W. Nimitz. **Side 2**: the Imperial Japanese Navy, commanded by Isoroku Yamamoto and Chuichi Nagumo; the Combined Fleet is placed on this side through the Imperial Japanese Navy (inferred). The graph states no side for USS Enterprise (CV-6).",
+    "answer_ids": [
+      "per:nimitz",
+      "org:us_navy",
+      "per:nagumo",
+      "per:yamamoto",
+      "org:ijn",
+      "org:combined_fleet"
+    ],
+    "context_ids": [
+      "event:battle_of_midway"
+    ],
+    "entity_ids": [
+      "per:nimitz",
+      "org:us_navy",
+      "per:nagumo",
+      "per:yamamoto",
+      "org:ijn",
+      "org:combined_fleet",
+      "event:battle_of_midway"
+    ],
+    "sources": [
+      "Chester W. Nimitz",
+      "United States Navy",
+      "Chuichi Nagumo",
+      "Isoroku Yamamoto",
+      "Imperial Japanese Navy"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Chester_W._Nimitz",
+        "page": "Chester W. Nimitz"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/United_States_Navy",
+        "page": "United States Navy"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Chuichi_Nagumo",
+        "page": "Chuichi Nagumo"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Isoroku_Yamamoto",
+        "page": "Isoroku Yamamoto"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Imperial_Japanese_Navy",
+        "page": "Imperial Japanese Navy"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Combined_Fleet",
+        "page": "Combined Fleet"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.37,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:midway_atoll",
+            "name": "Midway Atoll",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer",
+            "answer_for": [
+              "per:nimitz",
+              "org:us_navy",
+              "per:nagumo",
+              "per:yamamoto",
+              "org:ijn",
+              "org:combined_fleet"
+            ]
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.36,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:sand_island",
+            "name": "Sand Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer",
+            "answer_for": [
+              "per:nimitz",
+              "org:us_navy",
+              "per:nagumo",
+              "per:yamamoto",
+              "org:ijn",
+              "org:combined_fleet"
+            ]
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -177.33,
+              28.21
+            ]
+          },
+          "properties": {
+            "id": "loc:eastern_island",
+            "name": "Eastern Island",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_midway",
+            "role": "answer",
+            "answer_for": [
+              "per:nimitz",
+              "org:us_navy",
+              "per:nagumo",
+              "per:yamamoto",
+              "org:ijn",
+              "org:combined_fleet"
+            ]
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "MultiPoint",
+            "coordinates": [
+              [
+                -177.37,
+                28.21
+              ],
+              [
+                -177.36,
+                28.21
+              ],
+              [
+                -177.33,
+                28.21
+              ]
+            ]
+          },
+          "properties": {
+            "id": "side-1:event:battle_of_midway",
+            "name": "side 1",
+            "type": "side",
+            "role": "answer",
+            "side": 1,
+            "side_via": "stated",
+            "members": [
+              "org:us_navy",
+              "per:nimitz"
+            ],
+            "related_to": "event:battle_of_midway"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "MultiPoint",
+            "coordinates": [
+              [
+                -177.37,
+                28.21
+              ],
+              [
+                -177.36,
+                28.21
+              ],
+              [
+                -177.33,
+                28.21
+              ]
+            ]
+          },
+          "properties": {
+            "id": "side-2:event:battle_of_midway",
+            "name": "side 2",
+            "type": "side",
+            "role": "answer",
+            "side": 2,
+            "side_via": "stated",
+            "members": [
+              "org:ijn",
+              "per:yamamoto",
+              "per:nagumo"
+            ],
+            "related_to": "event:battle_of_midway"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "MultiPoint",
+            "coordinates": [
+              [
+                -177.37,
+                28.21
+              ],
+              [
+                -177.36,
+                28.21
+              ],
+              [
+                -177.33,
+                28.21
+              ]
+            ]
+          },
+          "properties": {
+            "id": "side-2-inferred:event:battle_of_midway",
+            "name": "side 2",
+            "type": "side",
+            "role": "answer",
+            "side": 2,
+            "side_via": "part_of",
+            "members": [
+              "org:combined_fleet"
+            ],
+            "related_to": "event:battle_of_midway"
+          }
+        }
+      ]
+    },
+    "bbox": [
+      -177.37,
+      28.21,
+      -177.33,
+      28.21
+    ],
+    "center": {
+      "lat": 28.21,
+      "lon": -177.35
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "Battle of Midway"
+        }
+      },
+      {
+        "name": "order_of_battle",
+        "args": {
+          "event_id": "event:battle_of_midway"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [
+      {
+        "id": "event:battle_of_midway",
+        "name": "Battle of Midway",
+        "typed": "Battle of Midway",
+        "matched_label": "Battle of Midway",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false,
+        "model_reading": false
+      }
+    ],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 5,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "order of battle of Battle of Midway",
+        "total": 6,
+        "on_map": 0,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "area": null,
+    "timeline": null,
+    "operational": [
+      {
+        "family": "order_of_battle",
+        "handle": "rs-mock01",
+        "event_id": "event:battle_of_midway",
+        "sides": [
+          {
+            "side": 1,
+            "label": "side 1",
+            "members": [
+              "org:us_navy",
+              "per:nimitz"
+            ],
+            "inferred": []
+          },
+          {
+            "side": 2,
+            "label": "side 2",
+            "members": [
+              "org:ijn",
+              "per:yamamoto",
+              "per:nagumo"
+            ],
+            "inferred": [
+              "org:combined_fleet"
+            ]
+          }
+        ]
+      }
+    ],
+    "ungrounded_dates": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

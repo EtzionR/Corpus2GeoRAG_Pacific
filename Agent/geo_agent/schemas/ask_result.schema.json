@@ -325,11 +325,12 @@
           "type": "string"
         },
         "role": {
-          "description": "`answer` when the feature (or the entity it is drawn for) answers the question; `area` for the area the user marked (spec R102)",
+          "description": "`answer` when the feature (or the entity it is drawn for) answers the question; `area` for the area the user marked (spec R102); `path` for a timeline's directed line through its stops (spec R63)",
           "enum": [
             "answer",
             "context",
-            "area"
+            "area",
+            "path"
           ],
           "title": "Role",
           "type": "string"
@@ -401,6 +402,114 @@
           "default": null,
           "description": "Answer people or units with no place of their own, shown at this site of a battle they took part in (role is then `answer`)",
           "title": "Answer For"
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Order in a timeline or sequence (1, 2, 3...); draw it as a number (spec R63)",
+          "title": "Seq"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A timeline stop's letter (A, B, C...); 'B, D' when a place is two stops",
+          "title": "Label"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "enum": [
+                "stop",
+                "span",
+                "concurrent",
+                "ongoing",
+                "asked",
+                "sequence",
+                "cause",
+                "effect"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase M family state: a timeline `stop` or `span` (context, faint); `concurrent` or `ongoing` (context) during an event; the `asked` event; a `sequence` row, `cause` or `effect`",
+          "title": "State"
+        },
+        "side": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Order of battle: the side (1, 2) the entity or side feature belongs to",
+          "title": "Side"
+        },
+        "side_via": {
+          "anyOf": [
+            {
+              "enum": [
+                "stated",
+                "part_of"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "`stated` by the relation; `part_of`: inferred from a parent unit on that side (draw dashed)",
+          "title": "Side Via"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A timeline stop's start date (partial ISO)",
+          "title": "Date"
+        },
+        "members": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A side feature's entity ids (type `side`)",
+          "title": "Members"
         }
       },
       "required": [
@@ -439,6 +548,99 @@
         "coordinates"
       ],
       "title": "Geometry",
+      "type": "object"
+    },
+    "OperationalInfo": {
+      "additionalProperties": true,
+      "properties": {
+        "family": {
+          "enum": [
+            "trajectory",
+            "concurrency",
+            "order_of_battle",
+            "sequence"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "handle": {
+          "description": "The result set it came from",
+          "title": "Handle",
+          "type": "string"
+        },
+        "event_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Order of battle: the battle",
+          "title": "Event Id"
+        },
+        "sides": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/OperationalSide"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Order of battle: one entry per side, for the legend",
+          "title": "Sides"
+        }
+      },
+      "required": [
+        "family",
+        "handle"
+      ],
+      "title": "OperationalInfo",
+      "type": "object"
+    },
+    "OperationalSide": {
+      "additionalProperties": true,
+      "properties": {
+        "side": {
+          "title": "Side",
+          "type": "integer"
+        },
+        "label": {
+          "description": "The side's countries and services, e.g. 'United States / United States Navy'",
+          "title": "Label",
+          "type": "string"
+        },
+        "members": {
+          "description": "Ids whose relation states this side",
+          "items": {
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "inferred": {
+          "description": "Ids placed on this side through a parent unit (side_via part_of)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Inferred",
+          "type": "array"
+        }
+      },
+      "required": [
+        "side",
+        "label",
+        "members",
+        "inferred"
+      ],
+      "title": "OperationalSide",
       "type": "object"
     },
     "ResolvedEntity": {
@@ -648,6 +850,189 @@
       "title": "SourceRef",
       "type": "object"
     },
+    "Timeline": {
+      "additionalProperties": true,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "dated_stops": {
+          "description": "Stops with a date; say this number",
+          "title": "Dated Stops",
+          "type": "integer"
+        },
+        "stops": {
+          "description": "In date order; draw numbered markers and the path",
+          "items": {
+            "$ref": "#/$defs/TimelineStop"
+          },
+          "title": "Stops",
+          "type": "array"
+        },
+        "spans": {
+          "description": "Campaigns holding the stops: context, drawn faintly",
+          "items": {
+            "$ref": "#/$defs/TimelineRow"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "undated": {
+          "description": "Events with no date: list as 'date unknown', never on the path",
+          "items": {
+            "$ref": "#/$defs/TimelineRow"
+          },
+          "title": "Undated",
+          "type": "array"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Geometry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "LineString through the stops in order (longitudes continuous across 180°); null under 2 stops"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "dated_stops",
+        "stops",
+        "spans",
+        "undated",
+        "path"
+      ],
+      "title": "Timeline",
+      "type": "object"
+    },
+    "TimelineRow": {
+      "additionalProperties": true,
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "place_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Place Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_id"
+      ],
+      "title": "TimelineRow",
+      "type": "object"
+    },
+    "TimelineStop": {
+      "additionalProperties": true,
+      "properties": {
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "label": {
+          "description": "A, B, C...: the marker label",
+          "title": "Label",
+          "type": "string"
+        },
+        "date": {
+          "description": "Partial ISO date, with its precision",
+          "title": "Date",
+          "type": "string"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Date"
+        },
+        "date_precision": {
+          "anyOf": [
+            {
+              "enum": [
+                "day",
+                "month",
+                "year"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date Precision"
+        },
+        "place_ids": {
+          "description": "Places of the stop; [] when the event is placed only by its own point",
+          "items": {
+            "type": "string"
+          },
+          "title": "Place Ids",
+          "type": "array"
+        },
+        "event_ids": {
+          "description": "Events merged into this stop; [] for a stay (based at, landed at)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Event Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "seq",
+        "label",
+        "date",
+        "place_ids",
+        "event_ids"
+      ],
+      "title": "TimelineStop",
+      "type": "object"
+    },
     "ToolCall": {
       "additionalProperties": true,
       "properties": {
@@ -844,6 +1229,33 @@
       ],
       "description": "The marked map area this answer used (spec R102); null without one"
     },
+    "timeline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Timeline"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A unit's, person's or ship's path (spec R63); null without one"
+    },
+    "operational": {
+      "description": "Phase M families in this answer and how to draw them (spec R63); [] when none",
+      "items": {
+        "$ref": "#/$defs/OperationalInfo"
+      },
+      "title": "Operational",
+      "type": "array"
+    },
+    "ungrounded_dates": {
+      "description": "Years in an operational answer that no tool result holds (spec R64); warning ungrounded_dates",
+      "items": {
+        "type": "string"
+      },
+      "title": "Ungrounded Dates",
+      "type": "array"
+    },
     "error": {
       "anyOf": [
         {
@@ -880,9 +1292,12 @@
     "result_sets",
     "dropped_sets",
     "area",
+    "timeline",
+    "operational",
+    "ungrounded_dates",
     "error"
   ],
   "title": "AskResult",
   "type": "object",
-  "$id": "geo_agent/ask_result/1.6"
+  "$id": "geo_agent/ask_result/1.7"
 }

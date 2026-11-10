@@ -897,3 +897,157 @@ def test_r103_a_common_word_record_is_not_an_ungrounded_name():
     from geo_agent.agent import ungrounded_names
     s, msgs = _r103_turn("Who commanded at Leyte Gulf?", "")
     assert ungrounded_names(s, "Kurita led the Japanese fleet.", turn_messages(msgs), "Who commanded at Leyte Gulf?") == []
+
+
+# Clarify and narrow (spec R67): probe first, offer the probe's options, follow up on the same thread
+
+def test_r67_prompt_probes_before_a_path():
+    p = agent_mod.SYSTEM_PROMPT
+    assert "operational_coverage FIRST" in p and "entity_timeline" in p and '"date unknown"' in p
+    assert {"entity_timeline", "operational_coverage"} <= set(agent_mod.SET_TOOLS)  # never trimmed from context
+
+
+def test_r67_clarify_then_timeline_on_the_same_thread():
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+
+    seen = []
+
+    class Script(BaseChatModel):
+        """Turn 1: search, probe, ask with the probe's options. Turn 2: the chosen option's timeline."""
+
+        def bind_tools(self, tools, **kwargs):
+            return self
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            last = messages[-1]
+            seen.append([getattr(m, "name", None) for m in messages])
+            n = len(seen)
+            call = lambda name, args: AIMessage("", tool_calls=[{"name": name, "id": f"c{n}", "args": args}])  # noqa: E731
+            final = lambda **a: call("AgentAnswer", {"answer_ids": [], "context_ids": [], "sources": [], "answer_sets": [], **a})  # noqa: E731
+            if last.type == "human":
+                if "5th Marine" in last.content:
+                    out = call("search_entities", {"query": "5th Marine Regiment"})
+                else:
+                    out = call("entity_timeline", {"entity_id": "org:1st_marine_division"})
+            elif last.name == "search_entities":
+                out = call("operational_coverage", {"entity_id": json.loads(last.content)[0]["id"]})
+            elif last.name == "operational_coverage":
+                texts = [o["text"] for o in json.loads(last.content)["options"]]
+                out = final(answer=f"The graph has no dated records for the 5th Marine Regiment. I can show {texts[0]}, "
+                                   f"or {texts[1]}. Which?")
+            else:
+                data = json.loads(last.content)
+                stops = "; ".join(f"{s['label']} {s['places'][0]} ({s['date']})" for s in data["stops"])
+                out = final(answer=f"{data['dated_stops']} dated stops: {stops}. Battle of Talasea: date unknown.",
+                            context_ids=["org:1st_marine_division"], answer_sets=[data["result_set"]])
+            return ChatResult(generations=[ChatGeneration(message=out)])
+
+        @property
+        def _llm_type(self):
+            return "script"
+
+    agent = asyncio.run(GeoAgent.create(graph_path=GRAPH, llm=Script()))
+    ask = asyncio.run(agent.ask("Show the path of the 5th Marine Regiment.", thread_id="m"))
+    assert ask["error"] is None, ask["error"]
+    assert ask["answer"].endswith("Which?") and "1st Marine Division (5 dated events, Aug 1942–Jun 1945)" in ask["answer"]
+    assert ask["answer_ids"] == [] and "ungrounded_names" not in ask["warnings"]
+    path = asyncio.run(agent.ask("The 1st Marine Division, please.", thread_id="m"))
+    assert path["error"] is None, path["error"]
+    assert "operational_coverage" in seen[-1]  # the follow-up sees the first turn
+    assert path["result_sets"][0]["label"] == "timeline of 1st Marine Division" and path["result_sets"][0]["total"] >= 5
+    drawn = {f["properties"]["id"] for f in path["geojson"]["features"]}
+    assert {"loc:guadalcanal", "loc:melbourne", "loc:cape_gloucester", "loc:peleliu", "loc:okinawa"} <= drawn
+    assert path["answer"].startswith("5 dated stops: A Guadalcanal")
+
+
+# Reply shape for the operational families (spec R63, R64; schema 1.7)
+
+def family_answer(tool, args, answer, store=STORE, context_ids=()):
+    sets = ResultSets()
+    t = {x.name: x for x in build_tools(store, sets)}
+    payload = t[tool].invoke(args)
+    turn_ = [msg("human", "q"), msg("ai", tool_calls=[{"name": tool, "args": args, "id": "x"}]), msg("tool", payload, name=tool)]
+    parsed = AgentAnswer(answer=answer, answer_ids=[], context_ids=list(context_ids), sources=[],
+                         answer_sets=[json.loads(payload)["result_set"]])
+    return finalize_answer(store, parsed, turn_, sets)
+
+
+def features_by_id(out):
+    return {f["properties"]["id"]: f for f in out["geojson"]["features"]}
+
+
+def test_r63_timeline_reply_numbered_stops_and_a_directed_path():
+    out = family_answer("entity_timeline", {"entity_id": "org:1st_marine_division"},
+                        "5 dated stops: A Guadalcanal (1942), B Melbourne (1943), C Cape Gloucester (1943), D Peleliu (1944), "
+                        "E Okinawa (1945); the Battle of Talasea, date unknown.")
+    tl = out["timeline"]
+    assert [s["label"] for s in tl["stops"]] == list("ABCDE") and tl["dated_stops"] == 5
+    assert tl["undated"] == [{"event_id": "event:battle_of_talasea", "place_ids": []}]
+    assert tl["path"]["type"] == "LineString" and len(tl["path"]["coordinates"]) == 5
+    assert tl["path"]["coordinates"][1] == [144.96, -37.81]  # B: Melbourne
+    f = features_by_id(out)
+    assert f["path:" + out["result_sets"][0]["handle"]]["properties"]["role"] == "path"
+    pel = f["loc:peleliu"]["properties"]
+    assert (pel["seq"], pel["label"], pel["state"], pel["role"], pel["date"]) == (4, "D", "stop", "answer", "1944-09-15")
+    assert out["operational"] == [{"family": "trajectory", "handle": out["result_sets"][0]["handle"]}]
+    assert out["ungrounded_dates"] == [] and "dated_stops_unstated" not in out["warnings"]
+
+
+def test_r63_spans_drawn_as_context():
+    pt = lambda lon, lat: {"type": "Point", "coordinates": [lon, lat]}  # noqa: E731
+    s = GraphStore.from_dict({"nodes": [
+        {"id": "unit", "name": "Unit", "type": "org"},
+        {"id": "loc:sol", "name": "Solomon Islands", "type": "location", "geometry": pt(160.0, -8.0)},
+        {"id": "loc:a", "name": "A", "type": "location", "geometry": pt(160.2, -9.4)},
+        {"id": "loc:b", "name": "B", "type": "location", "geometry": pt(155.5, -6.2)},
+        {"id": "camp", "name": "Campaign", "type": "event", "attributes": {"start_date": "1942-01-01", "end_date": "1945-08-01"}},
+        {"id": "b1", "name": "B1", "type": "event", "attributes": {"start_date": "1942-08-21", "end_date": "1942-08-21"}},
+        {"id": "b2", "name": "B2", "type": "event", "attributes": {"start_date": "1943-11-01", "end_date": "1943-11-02"}}],
+        "edges": [*({"source": x, "target": "unit", "type": "wd:P710"} for x in ("camp", "b1", "b2")),
+                  {"source": "b1", "target": "camp", "type": "wd:P361"}, {"source": "camp", "target": "loc:sol", "type": "wd:P276"},
+                  {"source": "b1", "target": "loc:a", "type": "wd:P276"}, {"source": "b2", "target": "loc:b", "type": "wd:P276"}]})
+    out = family_answer("entity_timeline", {"entity_id": "unit"}, "2 dated stops.", store=s)
+    sol = features_by_id(out)["loc:sol"]["properties"]
+    assert (sol["state"], sol["role"], sol.get("seq")) == ("span", "context", None)  # faint, never on the path
+    assert [r["event_id"] for r in out["timeline"]["spans"]] == ["camp"] and len(out["timeline"]["path"]["coordinates"]) == 2
+
+
+def test_r63_path_is_continuous_across_the_date_line():
+    assert agent_mod._unwrap([(179.0, 0.0), (-179.0, 1.0), (178.0, 2.0)]) == [[179.0, 0.0], [181.0, 1.0], [178.0, 2.0]]
+
+
+def test_r63_order_of_battle_features_by_side_and_inferred():
+    out = family_answer("order_of_battle", {"event_id": "event:battle_of_midway"},
+                        "Side 1: the US Navy under Nimitz. Side 2: the IJN under Yamamoto and Nagumo; the Combined Fleet (inferred).")
+    f = features_by_id(out)
+    inferred = f["side-2-inferred:event:battle_of_midway"]
+    assert inferred["properties"]["side_via"] == "part_of" and inferred["properties"]["members"] == ["org:combined_fleet"]
+    assert inferred["geometry"]["type"] == "MultiPoint" and inferred["properties"]["role"] == "answer"
+    assert set(f["side-1:event:battle_of_midway"]["properties"]["members"]) == {"org:us_navy", "per:nimitz"}
+    (op,) = out["operational"]
+    assert op["family"] == "order_of_battle" and [s["side"] for s in op["sides"]] == [1, 2]
+    assert op["sides"][1]["inferred"] == ["org:combined_fleet"]
+
+
+def test_r63_concurrency_and_sequence_states():
+    out = family_answer("events_during", {"event_id": "event:battle_of_midway"},
+                        "The Battle of Dutch Harbor (1942); the Aleutian Islands campaign was ongoing.")
+    f = features_by_id(out)
+    assert f["loc:unalaska"]["properties"]["state"] == "concurrent" and f["loc:unalaska"]["properties"]["role"] == "answer"
+    assert f["loc:kiska"]["properties"]["state"] == "ongoing" and f["loc:kiska"]["properties"]["role"] == "context"
+    seq = family_answer("event_chain", {"event_id": "event:battle_of_guam_1944"}, "Tarawa (1943), then Guam (1944), then Iwo Jima (1945).")
+    f = features_by_id(seq)
+    assert [f[i]["properties"]["seq"] for i in ("loc:tarawa", "loc:guam", "loc:iwo_jima")] == [1, 2, 3]
+    assert f["loc:guam"]["properties"]["state"] == "asked" and f["loc:tarawa"]["properties"]["state"] == "sequence"
+
+
+def test_r64_years_and_dated_stops_are_grounded():
+    out = family_answer("entity_timeline", {"entity_id": "org:1st_marine_division"},
+                        "A Guadalcanal (1942) and then Bougainville in 1943, finally Okinawa (1945).")
+    assert out["ungrounded_dates"] == [] and "dated_stops_unstated" in out["warnings"]  # 1943 is in the tool output (Melbourne)
+    bad = family_answer("entity_timeline", {"entity_id": "org:1st_marine_division"},
+                        "Five dated stops, from 1942 to 1945; the division also fought in Korea in 1950.")
+    assert bad["ungrounded_dates"] == ["1950"] and "ungrounded_dates" in bad["warnings"]
+    assert "dated_stops_unstated" not in bad["warnings"]  # "Five"

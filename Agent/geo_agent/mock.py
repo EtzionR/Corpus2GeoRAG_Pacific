@@ -167,6 +167,55 @@ SCENARIOS: list[dict[str, Any]] = [
                ["event:attack_on_pearl_harbor", "loc:pearl_harbor", "loc:hickam_field"],
                ["per:nagumo", "per:yamamoto", "org:ijn", "org:us_navy"], ["Attack on Pearl Harbor"]),
     ]}]},
+    # Phase M (spec R63): one reply per family, and the clarify-and-narrow pair (R67)
+    {"turns": [{"key": "trajectory_1st_marines", "question": "Show the path of the 1st Marine Division", "script": [
+        _call("search_entities", query="1st Marine Division"),
+        _call("operational_coverage", entity_id="org:1st_marine_division"),
+        _call("entity_timeline", entity_id="org:1st_marine_division"),
+        _final_with_set("The graph has **5 dated stops** for the 1st Marine Division: **A** Guadalcanal (from 7 August 1942), "
+                        "**B** Melbourne (stay, January to September 1943), **C** Cape Gloucester (from 26 December 1943), "
+                        "**D** Peleliu (from 15 September 1944) and **E** Okinawa (from 1 April 1945). The Battle of Talasea "
+                        "is also recorded, date unknown.", ["org:1st_marine_division"]),
+    ]}]},
+    {"turns": [
+        {"key": "narrow_5th_marines", "question": "Show the path of the 5th Marine Regiment", "script": [
+            _call("search_entities", query="5th Marine Regiment"),
+            _call("operational_coverage", entity_id="org:5th_marines"),
+            _final("The graph has no dated records for the 5th Marine Regiment. I can show the parent unit 1st Marine "
+                   "Division (5 dated events, Aug 1942–Jun 1945), or the 5th Marine Regiment's 1 recorded event "
+                   "without dates. Which?"),
+        ]},
+        {"key": "followup_1st_marines", "question": "The 1st Marine Division", "after": "narrow_5th_marines", "script": [
+            _call("entity_timeline", entity_id="org:1st_marine_division"),
+            _final_with_set("Here is the 1st Marine Division instead, with **5 dated stops**: A Guadalcanal (August 1942), "
+                            "B Melbourne (1943), C Cape Gloucester (December 1943), D Peleliu (September 1944) and E Okinawa "
+                            "(April 1945). The Battle of Talasea is recorded with no date.", ["org:1st_marine_division"]),
+        ]},
+    ]},
+    {"turns": [{"key": "concurrency_midway", "question": "What else happened during the Battle of Midway?", "script": [
+        _call("search_entities", query="Battle of Midway"),
+        _call("events_during", event_id="event:battle_of_midway"),
+        _final_with_set("During the Battle of Midway (4-7 June 1942) the graph has one short event: the **Battle of Dutch "
+                        "Harbor** (3-4 June 1942) on Unalaska. Ongoing at the time were the Aleutian Islands campaign (from "
+                        "3 June 1942), the New Guinea campaign, the Bombing of Chongqing and the Manhattan Project.",
+                        ["event:battle_of_midway"]),
+    ]}]},
+    {"turns": [{"key": "order_of_battle_midway", "question": "Who fought on each side at the Battle of Midway?", "script": [
+        _call("search_entities", query="Battle of Midway"),
+        _call("order_of_battle", event_id="event:battle_of_midway"),
+        _final_with_set("At the Battle of Midway, **side 1**: the United States Navy, commanded by Chester W. Nimitz. "
+                        "**Side 2**: the Imperial Japanese Navy, commanded by Isoroku Yamamoto and Chuichi Nagumo; the "
+                        "Combined Fleet is placed on this side through the Imperial Japanese Navy (inferred). The graph "
+                        "states no side for USS Enterprise (CV-6).", ["event:battle_of_midway"]),
+    ]}]},
+    {"turns": [{"key": "sequence_tarawa", "question": "What came after the Battle of Tarawa in the island-hopping campaign?", "script": [
+        _call("search_entities", query="Battle of Tarawa"),
+        _call("event_chain", event_id="event:battle_of_tarawa"),
+        _final_with_set("In the island-hopping campaign the Battle of Tarawa (20-23 November 1943) was followed by the "
+                        "**Battle of Guam (1944)** (21 July - 10 August 1944) and then the **Battle of Iwo Jima** "
+                        "(February-March 1945). This is the order in time; the graph records no cause for it.",
+                        ["event:battle_of_tarawa"]),
+    ]}]},
     {"turns": [{"key": "off_topic_poem", "question": "Write me a poem about the ocean", "script": [
         _final("I can only help with the Pacific theatre of WWII."),
     ]}]},

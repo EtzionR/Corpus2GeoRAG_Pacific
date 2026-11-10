@@ -2,7 +2,7 @@
   "question": "What happened in the marked area?",
   "after": null,
   "reply": {
-    "schema_version": "1.6",
+    "schema_version": "1.7",
     "answer": "The marked area holds **Pearl Harbor** and **Hickam Field**. The graph records one event there: the **Attack on Pearl Harbor** (7 December 1941), commanded by Chuichi Nagumo and planned by Isoroku Yamamoto, with the Imperial Japanese Navy attacking and the US Navy defending.",
     "answer_ids": [
       "event:attack_on_pearl_harbor",
@@ -179,6 +179,9 @@
         21.42
       ]
     },
+    "timeline": null,
+    "operational": [],
+    "ungrounded_dates": [],
     "run_id": "",
     "warnings": [],
     "error": null

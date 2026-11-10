@@ -1,0 +1,508 @@
+{
+  "question": "Show the path of the 1st Marine Division",
+  "after": null,
+  "reply": {
+    "schema_version": "1.7",
+    "answer": "The graph has **5 dated stops** for the 1st Marine Division: **A** Guadalcanal (from 7 August 1942), **B** Melbourne (stay, January to September 1943), **C** Cape Gloucester (from 26 December 1943), **D** Peleliu (from 15 September 1944) and **E** Okinawa (from 1 April 1945). The Battle of Talasea is also recorded, date unknown.",
+    "answer_ids": [
+      "event:guadalcanal_campaign",
+      "loc:guadalcanal",
+      "loc:tulagi",
+      "loc:henderson_field",
+      "loc:melbourne",
+      "event:battle_of_cape_gloucester",
+      "loc:cape_gloucester",
+      "event:battle_of_peleliu",
+      "loc:peleliu",
+      "event:battle_of_okinawa",
+      "loc:okinawa"
+    ],
+    "context_ids": [
+      "org:1st_marine_division"
+    ],
+    "entity_ids": [
+      "event:guadalcanal_campaign",
+      "loc:guadalcanal",
+      "loc:tulagi",
+      "loc:henderson_field",
+      "loc:melbourne",
+      "event:battle_of_cape_gloucester",
+      "loc:cape_gloucester",
+      "event:battle_of_peleliu",
+      "loc:peleliu",
+      "event:battle_of_okinawa",
+      "loc:okinawa",
+      "org:1st_marine_division"
+    ],
+    "sources": [
+      "Guadalcanal campaign",
+      "Guadalcanal",
+      "Tulagi",
+      "Henderson Field (Guadalcanal)",
+      "Melbourne"
+    ],
+    "source_refs": [
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Guadalcanal_campaign",
+        "page": "Guadalcanal campaign"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Guadalcanal",
+        "page": "Guadalcanal"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Tulagi",
+        "page": "Tulagi"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Henderson_Field_(Guadalcanal)",
+        "page": "Henderson Field (Guadalcanal)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Melbourne",
+        "page": "Melbourne"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Cape_Gloucester",
+        "page": "Battle of Cape Gloucester"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Cape_Gloucester",
+        "page": "Cape Gloucester"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Peleliu",
+        "page": "Battle of Peleliu"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Peleliu",
+        "page": "Peleliu"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Okinawa",
+        "page": "Battle of Okinawa"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Okinawa",
+        "page": "Okinawa"
+      }
+    ],
+    "geojson": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [
+                  159.6,
+                  -9.2
+                ],
+                [
+                  160.9,
+                  -9.2
+                ],
+                [
+                  160.9,
+                  -10.0
+                ],
+                [
+                  159.6,
+                  -10.0
+                ],
+                [
+                  159.6,
+                  -9.2
+                ]
+              ]
+            ]
+          },
+          "properties": {
+            "id": "loc:guadalcanal",
+            "name": "Guadalcanal",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:guadalcanal_campaign",
+            "role": "answer",
+            "seq": 1,
+            "label": "A",
+            "state": "stop",
+            "date": "1942-08-07"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              160.15,
+              -9.1
+            ]
+          },
+          "properties": {
+            "id": "loc:tulagi",
+            "name": "Tulagi",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:guadalcanal_campaign",
+            "role": "answer",
+            "seq": 1,
+            "label": "A",
+            "state": "stop",
+            "date": "1942-08-07"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              160.05,
+              -9.43
+            ]
+          },
+          "properties": {
+            "id": "loc:henderson_field",
+            "name": "Henderson Field",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:guadalcanal_campaign",
+            "role": "answer",
+            "seq": 1,
+            "label": "A",
+            "state": "stop",
+            "date": "1942-08-07"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              144.96,
+              -37.81
+            ]
+          },
+          "properties": {
+            "id": "loc:melbourne",
+            "name": "Melbourne",
+            "type": "location",
+            "geometry_source": "direct",
+            "role": "answer",
+            "seq": 2,
+            "label": "B",
+            "state": "stop",
+            "date": "1943-01"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              148.43,
+              -5.45
+            ]
+          },
+          "properties": {
+            "id": "loc:cape_gloucester",
+            "name": "Cape Gloucester",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_cape_gloucester",
+            "role": "answer",
+            "seq": 3,
+            "label": "C",
+            "state": "stop",
+            "date": "1943-12-26"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              134.24,
+              7.0
+            ]
+          },
+          "properties": {
+            "id": "loc:peleliu",
+            "name": "Peleliu",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_peleliu",
+            "role": "answer",
+            "seq": 4,
+            "label": "D",
+            "state": "stop",
+            "date": "1944-09-15"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              127.9,
+              26.4
+            ]
+          },
+          "properties": {
+            "id": "loc:okinawa",
+            "name": "Okinawa",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_okinawa",
+            "role": "answer",
+            "seq": 5,
+            "label": "E",
+            "state": "stop",
+            "date": "1945-04-01"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                160.25,
+                -9.6
+              ],
+              [
+                144.96,
+                -37.81
+              ],
+              [
+                148.43,
+                -5.45
+              ],
+              [
+                134.24,
+                7.0
+              ],
+              [
+                127.9,
+                26.4
+              ]
+            ]
+          },
+          "properties": {
+            "id": "path:rs-mock01",
+            "name": "path of 1st Marine Division",
+            "type": "path",
+            "role": "path",
+            "stops": 5
+          }
+        }
+      ]
+    },
+    "bbox": [
+      127.9,
+      -37.81,
+      160.9,
+      26.4
+    ],
+    "center": {
+      "lat": -5.705,
+      "lon": 144.4
+    },
+    "tool_calls": [
+      {
+        "name": "search_entities",
+        "args": {
+          "query": "1st Marine Division"
+        }
+      },
+      {
+        "name": "operational_coverage",
+        "args": {
+          "entity_id": "org:1st_marine_division"
+        }
+      },
+      {
+        "name": "entity_timeline",
+        "args": {
+          "entity_id": "org:1st_marine_division"
+        }
+      }
+    ],
+    "dropped_ids": [],
+    "unverified_sources": [],
+    "unverified_numbers": [],
+    "ungrounded_names": [],
+    "resolved_entities": [
+      {
+        "id": "org:1st_marine_division",
+        "name": "1st Marine Division",
+        "typed": "1st Marine Division",
+        "matched_label": "1st Marine Division",
+        "match": "name",
+        "score": 100,
+        "quality": "clear",
+        "model_rewritten_query": false,
+        "model_reading": false
+      }
+    ],
+    "interpretation": [],
+    "confidence": {
+      "level": "medium",
+      "basis": {
+        "max_edge_count": 0,
+        "n_source_pages": 5,
+        "n_providers": 0,
+        "uncertain_match_used": false
+      }
+    },
+    "result_sets": [
+      {
+        "handle": "rs-mock01",
+        "label": "timeline of 1st Marine Division",
+        "total": 11,
+        "on_map": 7,
+        "map_truncated": false
+      }
+    ],
+    "dropped_sets": [],
+    "area": null,
+    "timeline": {
+      "entity_id": "org:1st_marine_division",
+      "name": "1st Marine Division",
+      "dated_stops": 5,
+      "stops": [
+        {
+          "seq": 1,
+          "label": "A",
+          "date": "1942-08-07",
+          "end_date": "1942-12-09",
+          "date_precision": "day",
+          "place_ids": [
+            "loc:guadalcanal",
+            "loc:tulagi",
+            "loc:henderson_field"
+          ],
+          "event_ids": [
+            "event:guadalcanal_campaign"
+          ]
+        },
+        {
+          "seq": 2,
+          "label": "B",
+          "date": "1943-01",
+          "end_date": "1943-09",
+          "date_precision": "month",
+          "place_ids": [
+            "loc:melbourne"
+          ],
+          "event_ids": []
+        },
+        {
+          "seq": 3,
+          "label": "C",
+          "date": "1943-12-26",
+          "end_date": "1944-01-16",
+          "date_precision": "day",
+          "place_ids": [
+            "loc:cape_gloucester"
+          ],
+          "event_ids": [
+            "event:battle_of_cape_gloucester"
+          ]
+        },
+        {
+          "seq": 4,
+          "label": "D",
+          "date": "1944-09-15",
+          "end_date": "1944-11-27",
+          "date_precision": "day",
+          "place_ids": [
+            "loc:peleliu"
+          ],
+          "event_ids": [
+            "event:battle_of_peleliu"
+          ]
+        },
+        {
+          "seq": 5,
+          "label": "E",
+          "date": "1945-04-01",
+          "end_date": "1945-06-22",
+          "date_precision": "day",
+          "place_ids": [
+            "loc:okinawa"
+          ],
+          "event_ids": [
+            "event:battle_of_okinawa"
+          ]
+        }
+      ],
+      "spans": [],
+      "undated": [
+        {
+          "event_id": "event:battle_of_talasea",
+          "place_ids": []
+        }
+      ],
+      "path": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            160.25,
+            -9.6
+          ],
+          [
+            144.96,
+            -37.81
+          ],
+          [
+            148.43,
+            -5.45
+          ],
+          [
+            134.24,
+            7.0
+          ],
+          [
+            127.9,
+            26.4
+          ]
+        ]
+      }
+    },
+    "operational": [
+      {
+        "family": "trajectory",
+        "handle": "rs-mock01"
+      }
+    ],
+    "ungrounded_dates": [],
+    "run_id": "",
+    "warnings": [],
+    "error": null
+  }
+}

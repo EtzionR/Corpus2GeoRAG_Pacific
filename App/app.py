@@ -15,7 +15,7 @@ import folium
 import streamlit as st
 import json
 
-from folium.plugins import Draw, MarkerCluster
+from folium.plugins import Draw, MarkerCluster, PolyLineTextPath
 from streamlit_folium import st_folium
 
 # ==========================================
@@ -138,13 +138,21 @@ WARNING_LABELS = {
     "many_steps": "The agent needed many steps",
     "token_budget": "The question used more tokens than the budget; the answer may be incomplete",
     "mock_no_fixture": "Mock mode has no recorded reply for this question",
+    "dated_stops_unstated": "Some dated stops on the map aren't mentioned in the answer",
 }
 # Shown in their own way, not in the generic warning line (area_invalid: the answer text says why).
-SPECIAL_WARNINGS = {"off_topic", "low_confidence", "nothing_on_map", "ungrounded_names", "area_invalid"}
+SPECIAL_WARNINGS = {"off_topic", "low_confidence", "nothing_on_map", "ungrounded_names", "area_invalid", "ungrounded_dates"}
 
 # A marked map area (agent spec R102): drawing one asks this at once; later questions are sent with it.
 AREA_QUESTION = "What happened in the marked area?"
 AREA_STYLE = {"color": "#0284C7", "weight": 2, "dashArray": "6 4", "fill": False}
+
+# Operational answers (agent schema 1.7): paths, what ran at the same time, sides, sequences.
+OP_STATES = {"stop", "span", "concurrent", "ongoing", "asked", "sequence", "cause", "effect"}
+SIDE_COLORS = {"1": "#2563EB", "2": "#D97706"}  # two fixed, clearly different colours; never the answer red
+PATH_COLOR = "#B91C1C"
+SIDE_OFFSET_PX = 11  # two sides at one battle sit side by side, not on top of each other
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 ERROR_MESSAGES = {
     "busy": "Another question is still running in this conversation. Wait for its answer.",
@@ -200,6 +208,13 @@ MAP_CSS = """
 .c2g-legend .c2g-answer { color: #F87171; border-color: #F87171; }
 .c2g-legend .c2g-marker svg { width: 12px; height: 12px; }
 .c2g-legend-note { color: #8FA39B; margin-top: 5px; border-top: 1px solid #23343A; padding-top: 5px; }
+.c2g-op { min-width: 26px; width: auto; height: 26px; padding: 0 5px; border-radius: 13px; background: #fff;
+  font: 700 13px/1 system-ui, sans-serif; white-space: nowrap; }
+.c2g-op.c2g-span, .c2g-op.c2g-ongoing { opacity: .5; min-width: 16px; height: 16px; border-width: 1.5px; }
+.c2g-op.c2g-asked { border-style: double; border-width: 4px; }
+.c2g-op.c2g-cause, .c2g-op.c2g-effect { border-radius: 3px; }
+.c2g-op.c2g-inferred { border-style: dashed; }
+.c2g-swatch { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid; display: inline-block; }
 </style>
 """
 
@@ -457,6 +472,10 @@ def render_reply(res: Dict[str, Any]):
     for line in res.get("interpretation") or []:
         st.caption(f"🔎 {md_text(line)}")
 
+    strip = timeline_strip(res)
+    if strip:
+        st.caption(strip)
+
     meta = [c for c in [confidence_line(res)] if c] + result_set_lines(res)
     if meta:
         st.markdown(" · ".join(meta))
@@ -467,6 +486,8 @@ def render_reply(res: Dict[str, Any]):
     if res.get("ungrounded_names"):
         st.caption("❔ Not from the graph (the model's own knowledge): "
                    + ", ".join(md_text(n) for n in res["ungrounded_names"]))
+    if res.get("ungrounded_dates"):
+        st.caption("❔ Dates not from the graph: " + ", ".join(md_text(d) for d in res["ungrounded_dates"]))
 
     links = source_links(res)
     if links:
@@ -484,6 +505,26 @@ def render_reply(res: Dict[str, Any]):
         if res.get("dropped_ids") or res.get("unverified_sources"):
             st.json({"dropped_ids": res.get("dropped_ids") or [],
                      "unverified_sources": res.get("unverified_sources") or []}, expanded=False)
+
+
+def timeline_strip(res: Dict[str, Any]) -> Optional[str]:
+    """One line for a path answer (agent schema 1.7): 'A Guadalcanal · 7 Aug 1942 → B …', then the undated events."""
+    tl = res.get("timeline") or {}
+    names: Dict[str, str] = {}
+    parts = []
+    for stop in tl.get("stops") or []:
+        ids = (stop.get("place_ids") or []) + (stop.get("event_ids") or [])
+        where = entity_label(res, ids[0]) if ids else ""
+        if ids and where == ids[0]:
+            where = _entity_name(ids[0], names)
+        parts.append(f"**{md_text(stop.get('label', ''))}** {md_text(where)} · {md_text(short_date(stop.get('date', '')))}")
+    if not parts:
+        return None
+    line = "🧭 " + " → ".join(parts)
+    undated = [_entity_name(u["event_id"], names) for u in tl.get("undated") or [] if u.get("event_id")]
+    if undated:
+        line += " · date unknown: " + ", ".join(md_text(n) for n in undated)
+    return line
 
 
 def entity_label(res: Dict[str, Any], entity_id: str) -> str:
@@ -554,12 +595,14 @@ def prepare_geojson(fc: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[List[L
 
     for f in features:
         props = f.get("properties") or {}
-        role = props.get("role") if props.get("role") in ROLE_STYLES or props.get("role") == "area" else "context"
+        role = props.get("role") if props.get("role") in ROLE_STYLES or props.get("role") in ("area", "path") else "context"
         strength = props.get("strength")
         related = props.get("geometry_source") == "related"
         answer_for = props.get("answer_for") if isinstance(props.get("answer_for"), list) else []
-        f["properties"] = {key: html.escape(str(value)) for key, value in props.items() if key != "answer_for"}
+        members = props.get("members") if isinstance(props.get("members"), list) else []
+        f["properties"] = {key: html.escape(str(value)) for key, value in props.items() if key not in ("answer_for", "members")}
         f["properties"]["_answer_for"] = [html.escape(str(i)) for i in answer_for]
+        f["properties"]["_members"] = [html.escape(str(i)) for i in members]
         for key in ("name", "via", "related_to", "geometry_source"):
             f["properties"].setdefault(key, "")
         f["properties"]["role"] = role  # whitelisted, used by the style function
@@ -592,14 +635,118 @@ def _marker_html(etype: str, role: str, related: bool) -> str:
     return f'<div class="{classes}"><svg viewBox="0 0 24 24" aria-hidden="true">{TYPE_ICONS[etype]}</svg></div>'
 
 
-def _legend_html(counts: Dict[str, int], has_related: bool) -> str:
-    """Static legend: whitelisted labels, integer counts and our own icons only."""
+def _legend_html(counts: Dict[str, int], has_related: bool, extra: Optional[List[str]] = None) -> str:
+    """Static legend: whitelisted labels, integer counts, our own icons, and escaped operational rows."""
     rows = "".join(
         f'<div class="c2g-legend-row">{_marker_html(t, "answer", False)}<span>{TYPE_LABELS[t]} · {counts[t]}</span></div>'
         for t in ENTITY_TYPES if counts.get(t))
     note = ('<div class="c2g-legend-note">Red: answer · gray: context'
             + ("<br>Dashed: shown at a linked place" if has_related else "") + "</div>")
+    rows += "".join(f'<div class="c2g-legend-row">{r}</div>' for r in extra or [])
     return f'<div class="c2g-legend">{rows}{note}</div>'
+
+
+
+def is_operational(f: Dict[str, Any]) -> bool:
+    """A feature drawn by family (agent schema 1.7): the path, a stop or other dated state, or a side."""
+    props = f["properties"]
+    return props.get("role") == "path" or props.get("state") in OP_STATES or props.get("type") == "side"
+
+
+def short_date(value: str) -> str:
+    """'1942-08-07' -> '7 Aug 1942', '1943-01' -> 'Jan 1943', '1944' -> '1944'; anything else as it is."""
+    parts = str(value).split("-")
+    try:
+        if len(parts) >= 3:
+            return f"{int(parts[2])} {MONTHS[int(parts[1]) - 1]} {parts[0]}"
+        if len(parts) == 2:
+            return f"{MONTHS[int(parts[1]) - 1]} {parts[0]}"
+    except (ValueError, IndexError):
+        pass
+    return str(value)
+
+
+def _entity_name(entity_id: str, cache: Dict[str, str]) -> str:
+    if entity_id not in cache:
+        card = runner.get_entity_feature(entity_id) if runner else None
+        cache[entity_id] = str((card or {}).get("name") or entity_id)
+    return cache[entity_id]
+
+
+def _op_points(geometry: Dict[str, Any]) -> List[Tuple[float, float]]:
+    """Where an operational feature gets its marker: each point, or the middle of a shape's outline."""
+    kind, coords = geometry.get("type"), geometry.get("coordinates")
+    if kind == "Point":
+        return [(coords[0], coords[1])]
+    if kind == "MultiPoint":
+        return [(c[0], c[1]) for c in coords]
+    pts = list(_iter_positions(coords))
+    return [(sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))] if pts else []
+
+
+def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, Any]) -> List[str]:
+    """Draw a 1.7 operational answer (agent docs/UI_TEAM.md, "Operational answers on the map"); returns legend rows.
+
+    - trajectory: lettered stops, the route as a line with arrows, campaigns (spans) faint and off the line
+    - concurrency: concurrent events as answers, ongoing campaigns muted, the asked battle as a double ring
+    - order_of_battle: one marker per side at each battle site, in the side's colour; inferred members dashed
+    - sequence: events numbered in order; a cause or effect gets a square marker
+    Every value shown was HTML-escaped by prepare_geojson; names looked up here are escaped too."""
+    names: Dict[str, str] = {}
+    side_labels = {str(s.get("side")): str(s.get("label") or f"side {s.get('side')}")
+                   for op in res.get("operational") or [] for s in op.get("sides") or []}
+    legend: List[str] = []
+    for f in [f for f in feats if f["properties"].get("role") == "path"]:
+        line = [[lat, lon] for lon, lat in _iter_positions(f["geometry"].get("coordinates"))]
+        if len(line) >= 2:  # longitudes stay continuous across 180°: Leaflet draws one line
+            pl = folium.PolyLine(line, color=PATH_COLOR, weight=3, opacity=0.8, tooltip=f["properties"].get("name") or "path")
+            pl.add_to(m)
+            PolyLineTextPath(pl, "    ➤    ", repeat=True, offset=5,
+                             attributes={"fill": PATH_COLOR, "font-size": "14", "font-weight": "bold"}).add_to(m)
+            legend.append(f'<span style="color:{PATH_COLOR}">➤</span> path, in order (A, B, C…)')
+    for f in feats:
+        props = f["properties"]
+        if props.get("role") == "path":
+            continue
+        state, role = props.get("state") or "", props["role"] if props["role"] in ROLE_STYLES else "context"
+        if f["geometry"].get("type") in ("Polygon", "MultiPolygon"):  # the shape itself, quietly, under its marker
+            folium.GeoJson(f, style_function=lambda _f, r=role: {**ROLE_STYLES[r], "fillOpacity": 0.15}).add_to(m)
+        is_side = props.get("type") == "side"
+        side = html.unescape(props.get("side") or "")
+        inferred = props.get("side_via") == "part_of"
+        text = side if is_side else (props.get("label") or (props.get("seq") if state in ("asked", "sequence", "cause", "effect") else "") or "")
+        classes = f"c2g-marker c2g-op c2g-{role} c2g-{state}" + (" c2g-inferred" if inferred else "")
+        color = SIDE_COLORS.get(side) if is_side else None
+        style = f' style="color:{color};border-color:{color}"' if color else ""
+        lines = []
+        if is_side:
+            label = html.escape(side_labels.get(side, f"side {side}"))
+            members = [html.escape(_entity_name(html.unescape(i), names)) for i in props.get("_members") or []]
+            lines += [f"<b>{label}</b>" + (" (inferred: through a parent unit)" if inferred else ""), ", ".join(members)]
+        else:
+            lines.append(f"<b>{(props.get('label') + ' · ') if props.get('label') else ''}{props.get('name', '')}</b>")
+            if props.get("related_to"):
+                lines.append(html.escape(_entity_name(html.unescape(props["related_to"]), names)))
+            if props.get("date"):
+                lines.append(html.escape(short_date(html.unescape(props["date"]))))
+            if state:
+                lines.append(f"<i>{state}</i>")
+        for i, (lon, lat) in enumerate(_op_points(f["geometry"])):
+            dx = (SIDE_OFFSET_PX if side == "1" else -SIDE_OFFSET_PX) if is_side else 0
+            dy = -SIDE_OFFSET_PX if inferred else 0
+            icon = folium.DivIcon(html=f'<div class="{classes}"{style}>{text}</div>', icon_size=(26, 26),
+                                  icon_anchor=(13 + dx, 13 + dy))
+            folium.Marker([lat, lon], icon=icon, tooltip=props.get("name") or None,  # escaped: tooltips are HTML
+                          popup=folium.Popup("<br>".join(l for l in lines if l), max_width=320)).add_to(m)
+    for side, color in SIDE_COLORS.items():
+        if any(f["properties"].get("type") == "side" and html.unescape(f["properties"].get("side") or "") == side for f in feats):
+            legend.append(f'<span class="c2g-swatch" style="border-color:{color}"></span> '
+                          f'{html.escape(side_labels.get(side, "side " + side))}')
+    if any(f["properties"].get("side_via") == "part_of" for f in feats):
+        legend.append("Dashed: side inferred through a parent unit")
+    if any(f["properties"].get("state") in ("span", "ongoing") for f in feats):
+        legend.append("Faint: campaigns running at the time")
+    return legend
 
 
 def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Optional[Dict[str, Any]] = None) -> folium.Map:
@@ -631,7 +778,13 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
             folium.Circle(location=[lat, lon], radius=g["radius_km"] * 1000, tooltip="Marked area", **AREA_STYLE).add_to(m)
         else:
             folium.GeoJson(g, style_function=lambda _: AREA_STYLE, tooltip="Marked area").add_to(m)
+    ops = [f for f in fc["features"] if is_operational(f)]
+    fc["features"] = [f for f in fc["features"] if not is_operational(f)]
+    op_legend = draw_operational(m, ops, res or {}) if ops else []
     if not fc["features"]:
+        if op_legend:
+            m.get_root().header.add_child(folium.Element(MAP_CSS))
+            m.get_root().html.add_child(folium.Element(_legend_html({}, False, op_legend)))
         if bounds and not single_point:
             m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
         return m
@@ -703,7 +856,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
     counts = {t: len(groups[t]) for t in ENTITY_TYPES}
     has_related = any(f["properties"]["_dash"] for f in fc["features"])
     m.get_root().header.add_child(folium.Element(MAP_CSS))
-    m.get_root().html.add_child(folium.Element(_legend_html(counts, has_related)))
+    m.get_root().html.add_child(folium.Element(_legend_html(counts, has_related, op_legend)))
 
     if bounds and not single_point:  # a single point keeps the readable zoom set above
         m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
@@ -889,7 +1042,8 @@ else:
     with col_entity:
         # The reply's entities plus the places on the map (they can come from an earlier reply).
         map_ids = [str((f.get("properties") or {}).get("id")) for f in reply_features(st.session_state.map_reply)
-                   if (f.get("properties") or {}).get("id") and (f.get("properties") or {}).get("role") != "area"]
+                   if (f.get("properties") or {}).get("id") and (f.get("properties") or {}).get("role") not in ("area", "path")
+                   and (f.get("properties") or {}).get("type") != "side"]
         entity_ids = list(dict.fromkeys((last.get("entity_ids") or []) + map_ids))[:100]
         if entity_ids and runner is not None:
             st.markdown("##### 🔍 Entity details")

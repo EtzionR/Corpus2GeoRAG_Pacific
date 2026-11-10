@@ -2,7 +2,7 @@
   "question": "Show me major battles in the Pacific War on the map",
   "after": null,
   "reply": {
-    "schema_version": "1.6",
+    "schema_version": "1.7",
     "answer": "An overview of the **11 battles** in the graph, all shown on the map. The most documented: the Battle of Midway (June 1942), the Battle of Iwo Jima (February-March 1945), the Battle of the Coral Sea (May 1942), the Battle of Savo Island (August 1942) and the Battle of Tarawa (November 1943). Ask about one year, e.g. 1942, to narrow it down.",
     "answer_ids": [
       "event:battle_of_midway",
@@ -14,7 +14,12 @@
       "event:battle_of_guam_1944",
       "event:battle_of_bataan",
       "event:battle_of_guam_1941",
+      "event:battle_of_peleliu",
       "event:battle_of_tarakan",
+      "event:battle_of_cape_gloucester",
+      "event:battle_of_dutch_harbor",
+      "event:battle_of_okinawa",
+      "event:battle_of_talasea",
       "event:naval_battle_of_guadalcanal"
     ],
     "context_ids": [],
@@ -28,7 +33,12 @@
       "event:battle_of_guam_1944",
       "event:battle_of_bataan",
       "event:battle_of_guam_1941",
+      "event:battle_of_peleliu",
       "event:battle_of_tarakan",
+      "event:battle_of_cape_gloucester",
+      "event:battle_of_dutch_harbor",
+      "event:battle_of_okinawa",
+      "event:battle_of_talasea",
       "event:naval_battle_of_guadalcanal"
     ],
     "sources": [
@@ -96,8 +106,38 @@
       {
         "provider": "Wikipedia",
         "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Peleliu",
+        "page": "Battle of Peleliu"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
         "url": "https://en.wikipedia.org/wiki/Battle_of_Tarakan_(1942)",
         "page": "Battle of Tarakan (1942)"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Cape_Gloucester",
+        "page": "Battle of Cape Gloucester"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Dutch_Harbor",
+        "page": "Battle of Dutch Harbor"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Okinawa",
+        "page": "Battle of Okinawa"
+      },
+      {
+        "provider": "Wikipedia",
+        "record_id": null,
+        "url": "https://en.wikipedia.org/wiki/Battle_of_Talasea",
+        "page": "Battle of Talasea"
       },
       {
         "provider": "Wikipedia",
@@ -312,6 +352,24 @@
           "geometry": {
             "type": "Point",
             "coordinates": [
+              134.24,
+              7.0
+            ]
+          },
+          "properties": {
+            "id": "loc:peleliu",
+            "name": "Peleliu",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_peleliu",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
               117.6,
               3.3
             ]
@@ -322,6 +380,60 @@
             "type": "location",
             "geometry_source": "related",
             "related_to": "event:battle_of_tarakan",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              148.43,
+              -5.45
+            ]
+          },
+          "properties": {
+            "id": "loc:cape_gloucester",
+            "name": "Cape Gloucester",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_cape_gloucester",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              -166.54,
+              53.89
+            ]
+          },
+          "properties": {
+            "id": "loc:unalaska",
+            "name": "Unalaska",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_dutch_harbor",
+            "role": "answer"
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [
+              127.9,
+              26.4
+            ]
+          },
+          "properties": {
+            "id": "loc:okinawa",
+            "name": "Okinawa",
+            "type": "location",
+            "geometry_source": "related",
+            "related_to": "event:battle_of_okinawa",
             "role": "answer"
           }
         },
@@ -348,12 +460,12 @@
     "bbox": [
       117.6,
       -15.0,
-      -177.33,
-      28.21
+      -166.54,
+      53.89
     ],
     "center": {
-      "lat": 6.605,
-      "lon": 150.135
+      "lat": 19.445,
+      "lon": 155.53
     },
     "tool_calls": [
       {
@@ -376,7 +488,7 @@
     "ungrounded_names": [],
     "resolved_entities": [],
     "interpretation": [
-      "broad question: overview of 11 items in all battles"
+      "broad question: overview of 16 items in all battles"
     ],
     "confidence": {
       "level": "medium",
@@ -391,13 +503,16 @@
       {
         "handle": "rs-mock01",
         "label": "overview: battles in all battles",
-        "total": 11,
-        "on_map": 13,
+        "total": 16,
+        "on_map": 17,
         "map_truncated": false
       }
     ],
     "dropped_sets": [],
     "area": null,
+    "timeline": null,
+    "operational": [],
+    "ungrounded_dates": [],
     "run_id": "",
     "warnings": [],
     "error": null

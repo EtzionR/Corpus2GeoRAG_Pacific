@@ -503,6 +503,242 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None, areas: Areas 
                       "shown": len(payload["top"]), "truncated": data["total"] > len(payload["top"]),
                       "locations_on_map": len(data["draw"])})
 
+    TIMELINE_CAP = 30  # stops shown to the model; the result set holds all of them
+
+    @tool
+    def entity_timeline(
+        entity_id: str,
+        include_subunits: bool = False,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> str:
+        """The PATH of one unit, person or ship over time, for "show the path / route / movements of X",
+        "where did X go, in order", "follow X from A to B". One call returns the whole timeline.
+
+        Stops come from the graph only: the battles and operations X took part in or commanded (with the
+        events' places) and X's dated stays (based at, landed at, captured). Each stop has a letter (A, B,
+        C...), a date with its precision ("day", "month", "year") and its places, in date order; consecutive
+        events at the same place are one stop. Campaigns that hold X's battles are listed under `spans`
+        (context, not stops). Events with no date are under `undated_events` ("date unknown"); events with a
+        date but no place under `unplaced`. Wars as a whole are left out, and a person's timeline ends at death.
+        Args:
+            entity_id: from search_entities.
+            include_subunits: also merge the events of units that are part of X (a division's regiments);
+                `sub_units` then says which ones added rows.
+            date_from / date_to: optional period (undated events are still listed).
+        Returns a result set: `result_set` (put it in answer_sets: the map draws the stops), `dated_stops`,
+        `undated`, and the `stops` with their names. Name the stops in order with their letters and dates
+        exactly as given, say how many stops are dated, and list undated events as "date unknown". Never add
+        a stop, place or date that is not in this result.
+        """
+        tl = store.entity_timeline(entity_id, include_subunits, date_from, date_to)
+        if tl is None:
+            return _json({"result": f"unknown entity id {entity_id}: use search_entities"})
+        name = tl["entity"]["name"]
+        if not tl["rows"]:
+            return _json({"result": f"no dated events in the graph for {name}" + (" in that period" if date_from or date_to else ""),
+                          "entity": tl["entity"]})
+        names = lambda ids: [store.nodes[i].name for i in ids]  # noqa: E731
+        stops = [{"label": s["label"], "date": s["date"], "end_date": s["end_date"], "date_precision": s["date_precision"],
+                  "places": names(s["place_ids"]), "events": names(s["event_ids"]),
+                  **({"relations": s["relations"]} if not s["event_ids"] else {}),
+                  **({"units": names(s["units"])} if include_subunits else {})} for s in tl["stops"]]
+        spans = [r["event_id"] for r in tl["spans"]]  # context, drawn faintly (spec R60 revision 42)
+        draw = [i for s in tl["stops"] for i in (s["place_ids"] or s["event_ids"])] + spans
+        ids = [i for s in tl["stops"] for i in s["event_ids"] + s["place_ids"]] + spans
+        label = f"timeline of {name}"
+        feats: dict[str, dict[str, Any]] = {}
+        for s in tl["stops"]:  # a place in two stops ("New Britain", B and D) keeps its first seq; label lists both
+            for i in s["place_ids"] or s["event_ids"]:
+                f = feats.setdefault(i, {"seq": s["seq"], "label": s["label"], "state": "stop", "date": s["date"]})
+                if s["label"] not in f["label"].split(", "):
+                    f["label"] += f", {s['label']}"
+        for i in spans:
+            feats.setdefault(i, {"state": "span"})
+        keep = ("seq", "label", "date", "end_date", "date_precision", "place_ids", "event_ids")
+        timeline = {"entity_id": tl["entity"]["id"], "name": name, "dated_stops": tl["dated_stops"],
+                    "stops": [{k: s[k] for k in keep} for s in tl["stops"]],
+                    "spans": [{k: r[k] for k in ("event_id", "date", "end_date", "place_ids")} for r in tl["spans"]],
+                    "undated": [{k: r[k] for k in ("event_id", "place_ids")} for r in tl["undated"]]}
+        handle = register_family("trajectory", ids or [tl["entity"]["id"]], label, draw, feats, {"timeline": timeline})
+        row = lambda r: {"event": store.nodes[r["event_id"]].name if r["event_id"] else None,  # noqa: E731
+                         "date": r["date"], "end_date": r["end_date"], "places": names(r["place_ids"])}
+        return _json({"result_set": handle, "label": label, "entity": tl["entity"], "dated_stops": tl["dated_stops"],
+                      "undated": len(tl["undated"]), "stops_total": len(stops), "truncated": len(stops) > TIMELINE_CAP,
+                      "stops": stops[:TIMELINE_CAP], "spans": [row(r) for r in tl["spans"]][:10],
+                      "unplaced": [row(r) for r in tl["unplaced"]][:10],
+                      "undated_events": [{"event": store.nodes[r["event_id"]].name, "date": "date unknown",
+                                          "places": names(r["place_ids"])} for r in tl["undated"]][:10],
+                      **({"sub_units": tl["sub_units"]} if include_subunits else {})})
+
+    def register_family(family: str, ids: list[str], label: str, draw: list[str], features: dict[str, dict[str, Any]],
+                        extra: dict[str, Any] | None = None) -> str:
+        """A Phase M result set: ids, what the map draws, and per-id feature properties (spec R63)."""
+        return sets.add(list(dict.fromkeys(ids)), label, {"draw": list(dict.fromkeys(draw)), "locations": {},
+                                                          "family": family, "features": features, **(extra or {})})
+
+    @tool
+    def events_during(
+        event_id: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        place_id: str | None = None,
+        lat: float | None = None,
+        lon: float | None = None,
+        radius_km: float | None = None,
+    ) -> str:
+        """What ELSE happened at the same time as an event or in a period, for "what else happened during the
+        Battle of Midway", "what was going on in the Pacific in June 1942". One call.
+        Args:
+            event_id: the event whose dates are the window (from search_entities); it, the events it is part
+                of and its own sub-events are left out.
+            date_from / date_to: the window when there is no event (partial ISO dates, e.g. "1942-06").
+            place_id: optional region (a place id: its sub-places and what lies in its shape), or
+            lat / lon / radius_km: optional region as a point and radius (default 500 km).
+        Returns a result set: `concurrent` (short events, at most 30 days, that overlap the window) and
+        `ongoing` (longer campaigns and occupations running at the time, context), each with dates and
+        places; `undated` counts events with no date (they can't be placed in time). Put result_set in
+        answer_sets. In the answer, name the concurrent events first with their dates, then say which longer
+        campaigns were ongoing. Name only events in this result.
+        """
+        out = store.events_during(event_id, date_from, date_to, place_id, lat, lon, radius_km)
+        if out is None:
+            return _json({"result": "unknown id: use search_entities"})
+        if out.get("error"):
+            return _json({"result": out["error"]})
+        rows = out["concurrent"] + out["ongoing"]
+        if not rows:
+            regional = place_id or lat is not None
+            return _json({"result": "no other dated events overlap that window" + (" in that region" if regional else "") + " in the graph",
+                          "window": out["window"], "undated": out["undated"],
+                          **({"hint": "the region may hold few places with coordinates (an ocean or a theatre); the whole "
+                                      "graph is the Pacific theatre, so try again without a region"} if regional else {})})
+        names = lambda ids: [store.nodes[i].name for i in ids]  # noqa: E731
+        what = out["event"]["name"] if out["event"] else f"{out['window'][0]} to {out['window'][1]}"
+        label = f"events during {what}"
+        feats = {r["event_id"]: {"state": r["state"]} for r in rows}
+        if out["event"]:
+            feats[out["event"]["id"]] = {"state": "asked"}
+        handle = register_family("concurrency", [r["event_id"] for r in out["concurrent"]], label,  # ongoing: drawn, context
+                                 [r["event_id"] for r in rows] + ([out["event"]["id"]] if out["event"] else []), feats)
+        view = lambda r: {"event": r["name"], "date": r["date"], "end_date": r["end_date"], "places": names(r["place_ids"])[:3]}  # noqa: E731
+        return _json({"result_set": handle, "label": label, "window": out["window"],
+                      "concurrent_total": len(out["concurrent"]), "ongoing_total": len(out["ongoing"]),
+                      "truncated": len(out["concurrent"]) > 25 or len(out["ongoing"]) > 15,
+                      "concurrent": [view(r) for r in out["concurrent"][:25]], "ongoing": [view(r) for r in out["ongoing"][:15]],
+                      "undated": out["undated"]})
+
+    @tool
+    def order_of_battle(event_id: str) -> str:
+        """Who fought in a battle and on which side, for "which units fought at Iwo Jima, and under whom",
+        "who was on each side at Leyte Gulf". One call.
+        Args:
+            event_id: the battle (from search_entities).
+        Returns a result set and `sides`: per side, `named_by` (the side's countries and services, to name it),
+        its `commanders` and `units` (each unit with its `part_of` chain up to its service). A unit marked
+        `side_via: "part_of"` has no side of its own: it is placed on the side of the parent unit named in
+        `via`, so say it is inferred. `side_not_stated` lists the graph's other participants: never put them on
+        a side. Put result_set in answer_sets; name each side by its countries.
+        """
+        out = store.order_of_battle(event_id)
+        if out is None:
+            return _json({"result": "unknown event id: use search_entities"})
+        actors = out["actors"]
+        if not actors:
+            return _json({"result": f"the graph names no participants or commanders for {out['event']['name']}"})
+        nm = lambda i: store.nodes[i].name  # noqa: E731
+
+        def unit(i: str) -> dict[str, Any]:
+            r = actors[i]
+            return {"name": r["name"], **({"side_via": "part_of", "via": nm(r["via"])} if r["side_via"] == "part_of" else {}),
+                    **({"part_of": [nm(c) for c in r["chain"]]} if r.get("chain") else {})}
+        sides = [{"side": s["side"], "named_by": [nm(i) for i in s["named_by"]], "countries": [nm(i) for i in s["countries"]],
+                  "commanders": [nm(i) for i in s["commanders"]][:20], "units": [unit(i) for i in s["units"]][:30],
+                  "total": len(s["countries"]) + len(s["commanders"]) + len(s["units"])} for s in out["sides"]]
+        unstated = out["side_not_stated"]
+        label = f"order of battle of {out['event']['name']}"
+        feats = {i: {"side": r["side"], **({"side_via": r["side_via"]} if r["side_via"] else {})}
+                 for i, r in actors.items() if r["side"]}
+        ids = [i for s in out["sides"] for i in s["countries"] + s["commanders"] + s["units"]]
+        handle = register_family("order_of_battle", ids, label, [out["event"]["id"]], feats,
+                                 {"event_id": out["event"]["id"], "site_ids": out["site_ids"],
+                                  "sides": [{"side": sd["side"], "label": " / ".join(sd["named_by"]) or f"side {sd['side']}"}
+                                            for sd in sides]})
+        return _json({"result_set": handle, "label": label, "event": out["event"]["name"], "sides": sides,
+                      "side_not_stated_total": len(unstated), "side_not_stated": [nm(i) for i in unstated][:25],
+                      "truncated": any(len(s["units"]) > 30 or len(s["commanders"]) > 20 for s in out["sides"]) or len(unstated) > 25})
+
+    @tool
+    def event_chain(event_id: str) -> str:
+        """What led to an event and what followed it, for "what led to the Battle of Midway", "what came next
+        after Edson's Ridge in the Guadalcanal campaign". One call.
+        Args:
+            event_id: the event (from search_entities).
+        Returns `causes` and `effects` (only where the graph states a cause or effect relation) and
+        `sequences`: for each campaign or operation the event is part of, its dated parts in date order, each
+        `before`, `asked` or `after` the event. A sequence is order in time, NOT a cause: say "came before" /
+        "came next", never "led to", unless the event is under `causes`. If both are empty, say the graph
+        records no cause or sequence for it. Put result_set in answer_sets.
+        """
+        out = store.event_chain(event_id)
+        if out is None:
+            return _json({"result": "unknown event id: use search_entities"})
+        rows = [r for sq in out["sequences"] for r in sq["rows"]]
+        if not (out["causes"] or out["effects"] or rows):
+            return _json({"result": f"the graph records no cause, effect or campaign sequence for {out['event']['name']}"})
+        feats: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            feats.setdefault(r["event_id"], {"seq": r["seq"], "state": "asked" if r["position"] == "asked" else "sequence"})
+        for r in out["causes"] + out["effects"]:
+            feats[r["event_id"]] = {**feats.get(r["event_id"], {}), "state": r["link"]}
+        feats[out["event"]["id"]] = {**feats.get(out["event"]["id"], {}), "state": "asked"}
+        ids = [out["event"]["id"]] + [r["event_id"] for r in out["causes"] + out["effects"]] + [r["event_id"] for r in rows]
+        label = f"cause and sequence of {out['event']['name']}"
+        handle = register_family("sequence", ids, label, ids, feats)
+        nm = lambda i: store.nodes[i].name  # noqa: E731
+        return _json({"result_set": handle, "label": label, "event": out["event"]["name"], "date": out["event"]["date"],
+                      "causes": [{"event": r["name"], "date": r["date"]} for r in out["causes"]],
+                      "effects": [{"event": r["name"], "date": r["date"]} for r in out["effects"]],
+                      "sequences": [{"campaign": sq["parent"]["name"],
+                                     "order": [{"seq": r["seq"], "event": r["name"], "date": r["date"], "end_date": r["end_date"],
+                                                "position": r["position"]} for r in sq["rows"]][:30],
+                                     "undated": [nm(i) for i in sq["undated"]][:10]} for sq in out["sequences"]]})
+
+    @tool
+    def operational_coverage(
+        entity_id: str,
+        family: Literal["trajectory"] = "trajectory",
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> str:
+        """A quick probe to call FIRST for a path / route / movements question about a unit, person or ship,
+        before entity_timeline. It says how much the graph holds: the entity, its parent units and its sub-units,
+        each with its number of dated events and stops and their span.
+        Args:
+            entity_id: from search_entities.
+            family: "trajectory" (the only one for now).
+            date_from / date_to: optional period from the question.
+        Returns {entity, parents, children, thin, options, next}. If `thin` is false, call entity_timeline.
+        If `thin` is true, don't answer in detail: ask the user ONE short question that offers the `options`
+        (use their `text`; offer nothing else), with answer_ids and context_ids []. If `options` is empty,
+        say the graph has no dated events for this entity, and stop.
+        """
+        cov = store.operational_coverage(entity_id, family, date_from, date_to)
+        if cov is None:
+            return _json({"result": f"unknown entity id {entity_id}: use search_entities"})
+        if cov.get("error"):
+            return _json({"result": cov["error"]})
+        if cov["entity"].get("class_record"):
+            step = (f"'{cov['entity']['name']}' is a generic class, not a specific unit: say the graph has no such unit")
+        elif not cov["thin"]:
+            step = "enough coverage: call entity_timeline for this entity"
+        elif cov["options"]:
+            step = ("too thin: ask the user one question offering these options (their text, nothing else); "
+                    "when they choose one, call entity_timeline with its entity_id")
+        else:
+            step = "nothing to offer: say the graph has no dated events for this entity"
+        return _json({**cov, "next": step})
+
     return [
         graph_schema,
         list_relations,
@@ -522,4 +758,9 @@ def build_tools(store: GraphStore, sets: ResultSets | None = None, areas: Areas 
         shared_connections,
         entities_mentioning,
         overview,
+        entity_timeline,
+        operational_coverage,
+        events_during,
+        order_of_battle,
+        event_chain,
     ]
