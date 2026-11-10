@@ -298,6 +298,9 @@ if "area" not in st.session_state:
     st.session_state.area = None  # the marked map area sent with each question (GeoJSON for the agent)
     st.session_state.area_seen = None  # the last drawing already turned into an area
 
+if "view_hold" not in st.session_state:
+    st.session_state.view_hold = None  # bounds kept after "Clear area", until the next answer
+
 if "pending" not in st.session_state:
     # The running question's PendingAnswer. Kept here so a click while the agent works
     # (which reruns the script) doesn't lose the answer: every run checks it.
@@ -309,6 +312,7 @@ def finish_pending():
     st.session_state.pending = None
     st.session_state.messages.append({"role": "assistant", "data": res})
     st.session_state.last_reply = res
+    st.session_state.view_hold = None  # a new answer: frame it
     if reply_features(res):
         st.session_state.map_reply = res
 
@@ -332,6 +336,7 @@ def reset_conversation():
     st.session_state.map_reply = None
     st.session_state.pending = None
     st.session_state.area = None
+    st.session_state.view_hold = None
 
 
 def area_from_drawing(drawing: Any) -> Optional[Dict[str, Any]]:
@@ -807,17 +812,19 @@ def area_bounds(marked: Optional[Dict[str, Any]]) -> Optional[List[List[float]]]
 
 
 def set_view(m: folium.Map, bounds: Optional[List[List[float]]], single_point: bool,
-             marked: Optional[Dict[str, Any]]) -> None:
-    """While an area is marked the map frames it (the user's focus, also while the agent works);
-    otherwise it frames the reply. Every rerun rebuilds the map, so without this a drawing jumped back."""
-    view = area_bounds(marked)
+             marked: Optional[Dict[str, Any]], hold: Optional[List[List[float]]] = None) -> None:
+    """While an area is marked the map frames it (the user's focus, also while the agent works). After
+    "Clear area" it keeps that view (`hold`) until the next answer: the area answer's context places can span
+    half the globe. Otherwise it frames the reply. Every rerun rebuilds the map, so the view is set each time."""
+    view = area_bounds(marked) or hold
     if view:
         m.fit_bounds(view, padding=(30, 30), max_zoom=12)
     elif bounds and not single_point:  # a single point keeps the readable zoom set at creation
         m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
 
 
-def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Optional[Dict[str, Any]] = None) -> folium.Map:
+def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Optional[Dict[str, Any]] = None,
+                     hold: Optional[List[List[float]]] = None) -> folium.Map:
     tiles = {
         "OpenStreetMap (Standard)": "OpenStreetMap",
         "CartoDB Positron (Minimal)": "CartoDB positron",
@@ -855,7 +862,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
         if op_legend:
             m.get_root().header.add_child(folium.Element(MAP_CSS))
             m.get_root().html.add_child(folium.Element(_legend_html({}, False, op_legend)))
-        set_view(m, bounds, single_point, marked)
+        set_view(m, bounds, single_point, marked, hold)
         return m
 
     # Each feature gets the type of what it stands for: its own type, or, for a place drawn
@@ -927,7 +934,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
     m.get_root().header.add_child(folium.Element(MAP_CSS))
     m.get_root().html.add_child(folium.Element(_legend_html(counts, has_related, op_legend)))
 
-    set_view(m, bounds, single_point, marked)
+    set_view(m, bounds, single_point, marked, hold)
     folium.LayerControl(position="topright", collapsed=False).add_to(m)
     return m
 
@@ -1023,6 +1030,7 @@ with col_chat:
         if st.session_state.area:  # inside the chat box, so the layout and sizes don't change
             st.caption(f"📐 Questions are about {md_text(st.session_state.area['label'])} marked on the map.")
             if st.button("Clear area", key="clear_area", type="tertiary", disabled=busy):
+                st.session_state.view_hold = area_bounds(st.session_state.area)  # the map stays where it is
                 st.session_state.area = None
                 st.rerun()
         if not st.session_state.messages:
@@ -1049,7 +1057,8 @@ with col_chat:
         st.rerun()
 
 with col_map:
-    folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice, marked=st.session_state.area)
+    folium_map_obj = render_agent_map(st.session_state.map_reply, tile_theme=tile_choice, marked=st.session_state.area,
+                                      hold=st.session_state.view_hold)
     map_state = st_folium(folium_map_obj, width="100%", height=MAP_HEIGHT, key="agent_map",
                           returned_objects=["last_active_drawing", "all_drawings"])
     st.caption("Icons show what each place stands for: a place, event, person, organization or other · "

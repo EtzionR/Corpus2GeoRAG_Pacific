@@ -177,6 +177,12 @@ def test_a_marked_area_is_sent_drawn_and_cleared():
     assert "event:attack_on_pearl_harbor" in reply["answer_ids"]
     at.button(key="clear_area").click().run()
     assert at.session_state.area is None and not any("marked on the map" in c.value for c in at.caption)
+    # Clear keeps the view on the cleared area (the area answer's context places can span half the globe)
+    assert at.session_state.view_hold == [[21.3, -158.05], [21.42, -157.9]]
+    page = _map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)", hold=at.session_state.view_hold).get_root().render()
+    assert "[[21.3, -158.05], [21.42, -157.9]]" in page
+    ask(at, "Where did the Battle of Midway happen?")
+    assert at.session_state.view_hold is None  # the next answer is framed again
     # The map follows the marking, not the reply: after Clear area no outline, though the reply holds the area
     render = _map_helpers()["render_agent_map"]
     assert "Marked area" in render(reply, "OpenStreetMap (Standard)", marked={"geometry": PEARL_BOX}).get_root().render()
