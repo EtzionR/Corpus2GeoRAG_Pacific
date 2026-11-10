@@ -836,13 +836,10 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
     Draw(draw_options={"polyline": False, "marker": False, "circlemarker": False,
                        "polygon": {"allowIntersection": False}, "rectangle": True, "circle": True},
          edit_options={"edit": False, "remove": False}).add_to(m)
-    # The marked area the reply used is its first feature (role "area"): an outline under the answer.
-    areas = [f for f in fc["features"] if f["properties"].get("role") == "area"]
+    # The outline is always the area marked now, never the one inside the reply: after "Clear area" the map
+    # shows none, and a newly drawn area shows at once, before its answer. The reply's area feature isn't drawn.
     fc["features"] = [f for f in fc["features"] if f["properties"].get("role") != "area"]
-    if areas:
-        folium.GeoJson({"type": "FeatureCollection", "features": areas}, name="Marked area", style_function=lambda _: AREA_STYLE,
-                       tooltip=folium.GeoJsonTooltip(fields=["name"], labels=False)).add_to(m)
-    elif marked:  # still marked, but this reply didn't use it: show it anyway, so the user sees what is sent
+    if marked:
         g = marked["geometry"]
         if g.get("type") == "Point":
             lon, lat = g["coordinates"][:2]

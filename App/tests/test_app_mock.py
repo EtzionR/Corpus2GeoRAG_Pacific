@@ -177,6 +177,14 @@ def test_a_marked_area_is_sent_drawn_and_cleared():
     assert "event:attack_on_pearl_harbor" in reply["answer_ids"]
     at.button(key="clear_area").click().run()
     assert at.session_state.area is None and not any("marked on the map" in c.value for c in at.caption)
+    # The map follows the marking, not the reply: after Clear area no outline, though the reply holds the area
+    render = _map_helpers()["render_agent_map"]
+    assert "Marked area" in render(reply, "OpenStreetMap (Standard)", marked={"geometry": PEARL_BOX}).get_root().render()
+    assert "Marked area" not in render(reply, "OpenStreetMap (Standard)", marked=None).get_root().render()
+    # A newly drawn area shows at once, while the old reply is still on the map
+    other = {"type": "Polygon", "coordinates": [[[150.0, 10.0], [151.0, 10.0], [151.0, 11.0], [150.0, 10.0]]]}
+    page = render(reply, "OpenStreetMap (Standard)", marked={"geometry": other}).get_root().render()
+    assert "151.0" in page and "[[10.0, 150.0], [11.0, 151.0]]" in page
 
 
 # --- operational answers on the map (agent schema 1.7) -------------------------------------------
