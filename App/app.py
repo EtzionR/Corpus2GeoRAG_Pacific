@@ -153,6 +153,8 @@ SIDE_COLORS = {"1": "#2563EB", "2": "#D97706"}  # two fixed, clearly different c
 PATH_COLOR = "#B91C1C"
 SIDE_OFFSET_PX = 32  # side 1 left of the battle site, side 2 right of it: clear of the site marker (30 px)
 INFERRED_OFFSET_PX = 30  # an inferred side marker sits below its side's stated one
+BADGE_OFFSET_PX = 16  # a stop or number at a place that also has a type marker: a badge on its top-right corner
+BADGE_NEAR_DEGREES = 1.0  # how close a type marker must be for the badge (about 100 km: overlapping at theatre zoom)
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 ERROR_MESSAGES = {
@@ -701,14 +703,18 @@ def _merge_close(points: List[Tuple[float, float]], degrees: float = 0.5) -> Lis
     return [(sum(p[0] for p in g) / len(g), sum(p[1] for p in g) / len(g)) for g in groups]
 
 
-def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, Any]) -> List[str]:
+def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, Any],
+                     occupied: Optional[List[Tuple[float, float]]] = None) -> List[str]:
     """Draw a 1.7 operational answer (agent docs/UI_TEAM.md, "Operational answers on the map"); returns legend rows.
 
     - trajectory: lettered stops, the route as a line with arrows, campaigns (spans) faint and off the line
     - concurrency: concurrent events as answers, ongoing campaigns muted, the asked battle as a double ring
     - order_of_battle: one marker per side at each battle site, in the side's colour; inferred members dashed
     - sequence: events numbered in order; a cause or effect gets a square marker
-    Every value shown was HTML-escaped by prepare_geojson; names looked up here are escaped too."""
+    Every value shown was HTML-escaped by prepare_geojson; names looked up here are escaped too.
+    `occupied`: (lon, lat) of the reply's ordinary type markers. A labelled marker at one of them (a stop at its
+    battle) becomes a badge on that marker's top-right corner, drawn on top, so both stay visible."""
+    occupied = occupied or []
     names: Dict[str, str] = {}
     side_labels = {str(s.get("side")): str(s.get("label") or f"side {s.get('side')}")
                    for op in res.get("operational") or [] for s in op.get("sides") or []}
@@ -755,10 +761,15 @@ def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, 
         for i, (lon, lat) in enumerate(_merge_close(points) if is_side else points):
             dx = (SIDE_OFFSET_PX if side == "1" else -SIDE_OFFSET_PX) if is_side else 0
             dy = -INFERRED_OFFSET_PX if inferred else 0
+            near = [o for o in occupied if abs(o[0] - lon) <= BADGE_NEAR_DEGREES and abs(o[1] - lat) <= BADGE_NEAR_DEGREES]
+            if near and not is_side and not faint:  # pinned to the nearest type marker's top-right corner
+                lon, lat = min(near, key=lambda o: (o[0] - lon) ** 2 + (o[1] - lat) ** 2)
+                dx, dy = -BADGE_OFFSET_PX, BADGE_OFFSET_PX
             size = 20 if faint else 26
             icon = folium.DivIcon(html=f'<div class="{classes}"{style}>{text}</div>', icon_size=(size, size),
                                   icon_anchor=(size // 2 + dx, size // 2 + dy))
             folium.Marker([lat, lon], icon=icon, tooltip=props.get("name") or None,  # escaped: tooltips are HTML
+                          z_index_offset=0 if faint else 1000,  # labels above the type markers
                           popup=folium.Popup("<br>".join(l for l in lines if l), max_width=320)).add_to(m)
     for side, color in SIDE_COLORS.items():
         if any(f["properties"].get("type") == "side" and html.unescape(f["properties"].get("side") or "") == side for f in feats):
@@ -814,7 +825,9 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
             folium.GeoJson(g, style_function=lambda _: AREA_STYLE, tooltip="Marked area").add_to(m)
     ops = [f for f in fc["features"] if is_operational(f)]
     fc["features"] = [f for f in fc["features"] if not is_operational(f)]
-    op_legend = draw_operational(m, ops, res or {}) if ops else []
+    occupied = [p for f in fc["features"] if f["geometry"].get("type") in ("Point", "MultiPoint")
+                for p in _op_points(f["geometry"])]
+    op_legend = draw_operational(m, ops, res or {}, occupied) if ops else []
     if not fc["features"]:
         if op_legend:
             m.get_root().header.add_child(folium.Element(MAP_CSS))

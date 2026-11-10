@@ -216,6 +216,20 @@ def test_a_path_is_drawn_as_lettered_stops_and_a_line_with_arrows():
     assert strip.startswith("🧭 **A**") and "→ **B**" in strip and "Aug 1942" in strip and "date unknown" in strip
 
 
+def test_a_stop_at_a_battle_marker_becomes_a_badge_on_it():
+    """The path reply also shows the unit's battles (R103): the stop letter must not hide under the battle marker."""
+    stop = lambda lon, lat, label: {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]},  # noqa: E731
+                                    "properties": {"id": label, "name": label, "type": "location", "role": "answer",
+                                                   "state": "stop", "label": label}}
+    battle = {"type": "Feature", "geometry": {"type": "Point", "coordinates": [125.01, 11.17]},
+              "properties": {"id": "b", "name": "Battle of Leyte", "type": "event", "role": "answer"}}
+    reply = {"geojson": {"type": "FeatureCollection", "features": [stop(124.83, 10.83, "C"), stop(150.0, -30.0, "E"), battle]},
+             "operational": [{"family": "trajectory"}]}
+    page = _decoded(_map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)").get_root().render())
+    assert "[11.17, 125.01]" in page  # C is pinned to the battle marker, not to its own point
+    assert '"iconAnchor": [-3, 29]' in page and '"iconAnchor": [13, 13]' in page  # C a badge, E centred
+    assert '"zIndexOffset": 1000' in page
+
 def test_maps_without_a_path_keep_the_canvas_renderer():
     at = new_app()
     reply = ask(at, "Where did the Battle of Midway happen?")
