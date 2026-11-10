@@ -233,6 +233,16 @@ def test_concurrency_sides_and_sequence_have_their_own_styles():
     assert "c2g-sequence" in page and ">2</div>" in page and ">3</div>" in page
 
 
+def test_side_markers_sit_beside_the_site_and_faint_markers_show_an_icon():
+    at = new_app()
+    _, page = _map_html(at, "Who fought on each side at the Battle of Midway?")
+    # Midway Atoll, Sand Island and Eastern Island are one battle site: one marker per side, not three
+    assert page.count('#2563EB;border-color:#2563EB">1</div>') == 1
+    assert '"iconAnchor": [45, 13]' in page and '"iconAnchor": [-19, 13]' in page  # 32 px left, 32 px right
+    _, page = _map_html(at, "What else happened during the Battle of Midway?")
+    assert 'c2g-ongoing"><svg' in page and "campaign running at the time" in page and "the event you asked about" in page
+
+
 def test_operational_text_is_escaped_on_the_map():
     reply = {"geojson": {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [160.0, -9.5]},

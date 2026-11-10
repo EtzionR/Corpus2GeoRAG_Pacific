@@ -33,7 +33,8 @@
 Rules for every family:
 - **Role values.** `role` can now be `path` too. Treat `context` features as quiet and unknown values as `context`.
 - **Date line.** The path's longitudes are continuous across the 180° meridian, so a value may be above 180 or below -180. Leaflet draws that correctly as one line; don't wrap it back.
-- **Stacked markers.** Several stops or side features can sit at the same point (two sides at one battle). Offset or spiderfy them slightly, or show them together in one popup.
+- **Stacked markers.** Several stops or side features can sit at the same point (two sides at one battle), and a side feature's MultiPoint can hold several points a few km apart (Midway Atoll, Sand Island, Eastern Island). Merge close points into one marker per side and put the sides clearly apart (a marker's width or more), or show them together in one popup.
+- **Arrows need SVG.** Arrow decorations such as Leaflet.TextPath only work on SVG lines. On a canvas renderer (`preferCanvas`) they throw, and the whole map stays blank. Draw a reply with a `path` feature in SVG.
 - **New reply keys:** `timeline`, `operational` and `ungrounded_dates` (years the answer gives that no tool returned; show the same "not from the graph" note as for `ungrounded_names`).
 - **New warnings:** `ungrounded_dates` and `dated_stops_unstated`.
 - **Mock mode** has a recorded reply for each family: "Show the path of the 1st Marine Division", "What else happened during the Battle of Midway?", "Who fought on each side at the Battle of Midway?" and "What came after the Battle of Tarawa in the island-hopping campaign?". It also has the clarify-and-narrow pair: "Show the path of the 5th Marine Regiment", then "The 1st Marine Division" in the same conversation.

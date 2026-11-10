@@ -151,7 +151,8 @@ AREA_STYLE = {"color": "#0284C7", "weight": 2, "dashArray": "6 4", "fill": False
 OP_STATES = {"stop", "span", "concurrent", "ongoing", "asked", "sequence", "cause", "effect"}
 SIDE_COLORS = {"1": "#2563EB", "2": "#D97706"}  # two fixed, clearly different colours; never the answer red
 PATH_COLOR = "#B91C1C"
-SIDE_OFFSET_PX = 11  # two sides at one battle sit side by side, not on top of each other
+SIDE_OFFSET_PX = 32  # side 1 left of the battle site, side 2 right of it: clear of the site marker (30 px)
+INFERRED_OFFSET_PX = 30  # an inferred side marker sits below its side's stated one
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 ERROR_MESSAGES = {
@@ -210,10 +211,13 @@ MAP_CSS = """
 .c2g-legend-note { color: #8FA39B; margin-top: 5px; border-top: 1px solid #23343A; padding-top: 5px; }
 .c2g-op { min-width: 26px; width: auto; height: 26px; padding: 0 5px; border-radius: 13px; background: #fff;
   font: 700 13px/1 system-ui, sans-serif; white-space: nowrap; }
-.c2g-op.c2g-span, .c2g-op.c2g-ongoing { opacity: .5; min-width: 16px; height: 16px; border-width: 1.5px; }
+.c2g-op.c2g-span, .c2g-op.c2g-ongoing { opacity: .6; width: 20px; min-width: 20px; height: 20px; padding: 0;
+  border-width: 1.5px; border-style: dashed; }  /* a small dashed ring with the event icon: a campaign, faint */
+.c2g-op.c2g-span svg, .c2g-op.c2g-ongoing svg { width: 12px; height: 12px; }
 .c2g-op.c2g-asked { border-style: double; border-width: 4px; }
 .c2g-op.c2g-cause, .c2g-op.c2g-effect { border-radius: 3px; }
 .c2g-op.c2g-inferred { border-style: dashed; }
+.c2g-legend .c2g-op { width: 20px; min-width: 20px; height: 20px; padding: 0; font-size: 11px; }
 .c2g-swatch { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid; display: inline-block; }
 </style>
 """
@@ -684,6 +688,19 @@ def _op_points(geometry: Dict[str, Any]) -> List[Tuple[float, float]]:
     return [(sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))] if pts else []
 
 
+def _merge_close(points: List[Tuple[float, float]], degrees: float = 0.5) -> List[Tuple[float, float]]:
+    """Points within about 50 km of a kept one join it (one marker per battle site, not one per islet)."""
+    groups: List[List[Tuple[float, float]]] = []
+    for lon, lat in points:
+        for g in groups:
+            if abs(g[0][0] - lon) <= degrees and abs(g[0][1] - lat) <= degrees:
+                g.append((lon, lat))
+                break
+        else:
+            groups.append([(lon, lat)])
+    return [(sum(p[0] for p in g) / len(g), sum(p[1] for p in g) / len(g)) for g in groups]
+
+
 def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, Any]) -> List[str]:
     """Draw a 1.7 operational answer (agent docs/UI_TEAM.md, "Operational answers on the map"); returns legend rows.
 
@@ -714,7 +731,10 @@ def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, 
         is_side = props.get("type") == "side"
         side = html.unescape(props.get("side") or "")
         inferred = props.get("side_via") == "part_of"
+        faint = state in ("span", "ongoing")
         text = side if is_side else (props.get("label") or (props.get("seq") if state in ("asked", "sequence", "cause", "effect") else "") or "")
+        if not text:  # our own icon, so the marker reads as an event, not an empty shape
+            text = f'<svg viewBox="0 0 24 24" aria-hidden="true">{TYPE_ICONS["event"]}</svg>'
         classes = f"c2g-marker c2g-op c2g-{role} c2g-{state}" + (" c2g-inferred" if inferred else "")
         color = SIDE_COLORS.get(side) if is_side else None
         style = f' style="color:{color};border-color:{color}"' if color else ""
@@ -731,11 +751,13 @@ def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, 
                 lines.append(html.escape(short_date(html.unescape(props["date"]))))
             if state:
                 lines.append(f"<i>{state}</i>")
-        for i, (lon, lat) in enumerate(_op_points(f["geometry"])):
+        points = _op_points(f["geometry"])
+        for i, (lon, lat) in enumerate(_merge_close(points) if is_side else points):
             dx = (SIDE_OFFSET_PX if side == "1" else -SIDE_OFFSET_PX) if is_side else 0
-            dy = -SIDE_OFFSET_PX if inferred else 0
-            icon = folium.DivIcon(html=f'<div class="{classes}"{style}>{text}</div>', icon_size=(26, 26),
-                                  icon_anchor=(13 + dx, 13 + dy))
+            dy = -INFERRED_OFFSET_PX if inferred else 0
+            size = 20 if faint else 26
+            icon = folium.DivIcon(html=f'<div class="{classes}"{style}>{text}</div>', icon_size=(size, size),
+                                  icon_anchor=(size // 2 + dx, size // 2 + dy))
             folium.Marker([lat, lon], icon=icon, tooltip=props.get("name") or None,  # escaped: tooltips are HTML
                           popup=folium.Popup("<br>".join(l for l in lines if l), max_width=320)).add_to(m)
     for side, color in SIDE_COLORS.items():
@@ -744,8 +766,17 @@ def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, 
                           f'{html.escape(side_labels.get(side, "side " + side))}')
     if any(f["properties"].get("side_via") == "part_of" for f in feats):
         legend.append("Dashed: side inferred through a parent unit")
+    icon = f'<svg viewBox="0 0 24 24" aria-hidden="true">{TYPE_ICONS["event"]}</svg>'
+    if any(f["properties"].get("state") == "asked" for f in feats):
+        legend.append(f'<div class="c2g-marker c2g-op c2g-context c2g-asked">{icon}</div> the event you asked about')
+    if any(f["properties"].get("state") in ("sequence", "cause", "effect") for f in feats):
+        legend.append('<div class="c2g-marker c2g-op c2g-answer c2g-sequence">2</div> events in order (1, 2, 3…)')
+    if any(f["properties"].get("state") == "concurrent" for f in feats):
+        legend.append(f'<div class="c2g-marker c2g-op c2g-answer c2g-concurrent">{icon}</div> event at the same time')
     if any(f["properties"].get("state") in ("span", "ongoing") for f in feats):
-        legend.append("Faint: campaigns running at the time")
+        legend.append(f'<div class="c2g-marker c2g-op c2g-context c2g-ongoing">'
+                      f'<svg viewBox="0 0 24 24" aria-hidden="true">{TYPE_ICONS["event"]}</svg></div> '
+                      "campaign running at the time")
     return legend
 
 
