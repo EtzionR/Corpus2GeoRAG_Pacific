@@ -758,9 +758,12 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
 
     fc, bounds = prepare_geojson((res or {}).get("geojson") or {})
     single_point = bool(bounds) and bounds[0] == bounds[1]
+    # The path's arrows (Leaflet.TextPath) need SVG lines: on a canvas the plugin throws and the whole
+    # map stays blank. A path answer has few features, so it is drawn in SVG; everything else keeps canvas.
+    has_path = any(f["properties"].get("role") == "path" for f in fc["features"])
     m = folium.Map(location=bounds[0] if single_point else DEFAULT_CENTER,
                    zoom_start=6 if single_point else DEFAULT_ZOOM, tiles=tiles,
-                   control_scale=True, prefer_canvas=True, world_copy_jump=True)
+                   control_scale=True, prefer_canvas=not has_path, world_copy_jump=True)
     # Mark an area to ask about (agent spec R102): circle, rectangle or polygon; no markers or lines.
     Draw(draw_options={"polyline": False, "marker": False, "circlemarker": False,
                        "polygon": {"allowIntersection": False}, "rectangle": True, "circle": True},

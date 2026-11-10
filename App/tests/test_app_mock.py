@@ -209,8 +209,18 @@ def test_a_path_is_drawn_as_lettered_stops_and_a_line_with_arrows():
     reply, page = _map_html(at, "Show the path of the 1st Marine Division")
     assert "c2g-stop" in page and ">A</div>" in page and ">E</div>" in page
     assert "setText" in page and "➤" in page  # PolyLineTextPath: the direction along the route
+    # Leaflet.TextPath only works on SVG lines: on a canvas map it throws and the whole map stays blank
+    assert '"preferCanvas": false' in page
+
     strip = _map_helpers()["timeline_strip"](reply)
     assert strip.startswith("🧭 **A**") and "→ **B**" in strip and "Aug 1942" in strip and "date unknown" in strip
+
+
+def test_maps_without_a_path_keep_the_canvas_renderer():
+    at = new_app()
+    reply = ask(at, "Where did the Battle of Midway happen?")
+    page = _map_helpers()["render_agent_map"](reply, "OpenStreetMap (Standard)").get_root().render()
+    assert '"preferCanvas": true' in page
 
 
 def test_concurrency_sides_and_sequence_have_their_own_styles():
