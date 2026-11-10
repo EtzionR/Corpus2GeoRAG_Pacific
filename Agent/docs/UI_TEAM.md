@@ -1,6 +1,6 @@
 # Notes for the UI team: connecting the Streamlit app to the agent
 
-**From:** the agent (Michael) · **Date:** 2026-10-13, updated 2026-11-09 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract"), rechecked at `2411e43`, and the agent in `Agent/`
+**From:** the agent (Michael) · **Date:** 2026-10-13, updated 2026-11-10 · **About:** `App/app.py` at commit `9bc81e5` ("App: align with the Agent output contract"), rechecked at `2411e43`, and the agent in `Agent/`
 
 ## Summary
 - **The app's latest version already does most of the integration well.**
@@ -46,6 +46,10 @@ Rules for every family:
 - **What the app sends:** `runner.submit(question, thread_id, area=...)` with a GeoJSON `Polygon` in lon/lat, or a circle as `{"type": "Point", "coordinates": [lon, lat], "radius_km": r}` (Leaflet gives the radius in metres).
 - **What comes back:** a new key `area` (`{handle, kind, center, radius_km | bbox}` or null), and the area as the first map feature, with `type` and `role` `area`: draw it as a dashed outline without fill. An area the agent can't use (too large, a crossed outline) comes back as a short reply with warning `area_invalid`.
 - `role` can now be `area` as well as `answer` and `context`; treat any other value as `context`.
+- **The map view (as built in the app, 2026-11-10).** Streamlit rebuilds the map on every rerun, so set the view each time:
+  - **While an area is marked, frame the area,** before and after its answer. Otherwise the map jumps back to the previous answer right after a drawing.
+  - **Draw the outline from the area marked now,** not from the reply's `area` feature. Then "clear area" removes it, and a new drawing shows at once, before its answer.
+  - **After "clear area", keep the view** until the next answer. An area answer's context places and people can be far away, and fitting them all zooms out to half the globe.
 
 ## What changed for the app (2026-11-09)
 The reply format is unchanged (`schema_version` stays "1.4"), so the app needs no code change.
