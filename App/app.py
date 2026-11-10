@@ -14,6 +14,7 @@ from urllib.parse import quote, urlsplit
 import folium
 import streamlit as st
 import json
+import math
 
 from folium.plugins import Draw, MarkerCluster, PolyLineTextPath
 from streamlit_folium import st_folium
@@ -791,6 +792,31 @@ def draw_operational(m: folium.Map, feats: List[Dict[str, Any]], res: Dict[str, 
     return legend
 
 
+def area_bounds(marked: Optional[Dict[str, Any]]) -> Optional[List[List[float]]]:
+    """[[s, w], [n, e]] of the marked area: a polygon's corners, or a circle's center +/- its radius."""
+    g = (marked or {}).get("geometry") or {}
+    if g.get("type") == "Point" and isinstance(g.get("radius_km"), (int, float)):
+        lon, lat = g["coordinates"][:2]
+        dlat = g["radius_km"] / 111.0
+        dlon = g["radius_km"] / (111.0 * max(math.cos(math.radians(lat)), 0.05))
+        return [[lat - dlat, lon - dlon], [lat + dlat, lon + dlon]]
+    pts = list(_iter_positions(g.get("coordinates")))
+    if not pts:
+        return None
+    return [[min(p[1] for p in pts), min(p[0] for p in pts)], [max(p[1] for p in pts), max(p[0] for p in pts)]]
+
+
+def set_view(m: folium.Map, bounds: Optional[List[List[float]]], single_point: bool,
+             marked: Optional[Dict[str, Any]]) -> None:
+    """While an area is marked the map frames it (the user's focus, also while the agent works);
+    otherwise it frames the reply. Every rerun rebuilds the map, so without this a drawing jumped back."""
+    view = area_bounds(marked)
+    if view:
+        m.fit_bounds(view, padding=(30, 30), max_zoom=12)
+    elif bounds and not single_point:  # a single point keeps the readable zoom set at creation
+        m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
+
+
 def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Optional[Dict[str, Any]] = None) -> folium.Map:
     tiles = {
         "OpenStreetMap (Standard)": "OpenStreetMap",
@@ -814,7 +840,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
     areas = [f for f in fc["features"] if f["properties"].get("role") == "area"]
     fc["features"] = [f for f in fc["features"] if f["properties"].get("role") != "area"]
     if areas:
-        folium.GeoJson({"type": "FeatureCollection", "features": areas}, style_function=lambda _: AREA_STYLE,
+        folium.GeoJson({"type": "FeatureCollection", "features": areas}, name="Marked area", style_function=lambda _: AREA_STYLE,
                        tooltip=folium.GeoJsonTooltip(fields=["name"], labels=False)).add_to(m)
     elif marked:  # still marked, but this reply didn't use it: show it anyway, so the user sees what is sent
         g = marked["geometry"]
@@ -822,7 +848,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
             lon, lat = g["coordinates"][:2]
             folium.Circle(location=[lat, lon], radius=g["radius_km"] * 1000, tooltip="Marked area", **AREA_STYLE).add_to(m)
         else:
-            folium.GeoJson(g, style_function=lambda _: AREA_STYLE, tooltip="Marked area").add_to(m)
+            folium.GeoJson(g, name="Marked area", style_function=lambda _: AREA_STYLE, tooltip="Marked area").add_to(m)
     ops = [f for f in fc["features"] if is_operational(f)]
     fc["features"] = [f for f in fc["features"] if not is_operational(f)]
     occupied = [p for f in fc["features"] if f["geometry"].get("type") in ("Point", "MultiPoint")
@@ -832,8 +858,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
         if op_legend:
             m.get_root().header.add_child(folium.Element(MAP_CSS))
             m.get_root().html.add_child(folium.Element(_legend_html({}, False, op_legend)))
-        if bounds and not single_point:
-            m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
+        set_view(m, bounds, single_point, marked)
         return m
 
     # Each feature gets the type of what it stands for: its own type, or, for a place drawn
@@ -905,8 +930,7 @@ def render_agent_map(res: Optional[Dict[str, Any]], tile_theme: str, marked: Opt
     m.get_root().header.add_child(folium.Element(MAP_CSS))
     m.get_root().html.add_child(folium.Element(_legend_html(counts, has_related, op_legend)))
 
-    if bounds and not single_point:  # a single point keeps the readable zoom set above
-        m.fit_bounds(bounds, padding=(30, 30), max_zoom=8)
+    set_view(m, bounds, single_point, marked)
     folium.LayerControl(position="topright", collapsed=False).add_to(m)
     return m
 

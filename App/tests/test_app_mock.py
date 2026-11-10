@@ -230,6 +230,19 @@ def test_a_stop_at_a_battle_marker_becomes_a_badge_on_it():
     assert '"iconAnchor": [-3, 29]' in page and '"iconAnchor": [13, 13]' in page  # C a badge, E centred
     assert '"zIndexOffset": 1000' in page
 
+def test_a_marked_area_keeps_the_map_on_it():
+    """Each rerun rebuilds the map: with an area marked it must frame the area, not jump back to the last reply."""
+    ns = _map_helpers()
+    box = {"type": "Polygon", "coordinates": [[[-158.1, 21.3], [-157.9, 21.3], [-157.9, 21.45], [-158.1, 21.45], [-158.1, 21.3]]]}
+    reply = ask(new_app(), "Where did the Battle of Midway happen?")
+    page = ns["render_agent_map"](reply, "OpenStreetMap (Standard)", marked={"geometry": box}).get_root().render()
+    assert "[[21.3, -158.1], [21.45, -157.9]]" in page  # the area's bounds, not Midway's
+    page = ns["render_agent_map"](None, "OpenStreetMap (Standard)", marked={"geometry": box}).get_root().render()
+    assert "[[21.3, -158.1], [21.45, -157.9]]" in page  # also before any reply
+    assert "Marked area" in page and "macro_element" not in page.split("L.control.layers")[-1][:2000]
+    circle = ns["area_bounds"]({"geometry": {"type": "Point", "coordinates": [141.3, 24.8], "radius_km": 111.0}})
+    assert circle[0][0] == 23.8 and circle[1][0] == 25.8 and circle[0][1] < 140.3
+
 def test_maps_without_a_path_keep_the_canvas_renderer():
     at = new_app()
     reply = ask(at, "Where did the Battle of Midway happen?")
