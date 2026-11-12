@@ -1,0 +1,63 @@
+# Seed pages: 55 Articles that are clearly about US–Japan fighting in WWII, used as positive few-shot examples.
+# Hand-picked by Claude on 2026-10-19, not yet verified by a person. Every title is in tagged.jsonl, and none is
+# in eval_set.yaml, corpus_audit.yaml or the gray_labels.yaml holdout, so using these as examples cannot leak into
+# the evaluation.
+battles:
+  - Attack on Pearl Harbor
+  - Battle of Wake Island
+  - Battle of Bataan
+  - Battle of Corregidor
+  - Battle of the Coral Sea
+  - Battle of Midway
+  - Guadalcanal campaign
+  - Battle of Savo Island
+  - Battle of the Eastern Solomons
+  - Naval Battle of Guadalcanal
+  - Battle of Tassafaronga
+  - Battle of Attu
+  - Battle of Tarawa
+  - Battle of Makin
+  - Battle of Kwajalein
+  - Battle of Eniwetok
+  - Battle of Saipan
+  - Battle of the Philippine Sea
+  - Battle of Guam (1944)
+  - Battle of Peleliu
+  - Battle of Leyte
+  - Battle of Leyte Gulf
+  - Battle off Samar
+  - Battle of Manila (1945)
+  - Battle of Iwo Jima
+  - Battle of Okinawa
+operations_and_events:
+  - Pacific War
+  - Bataan Death March
+  - Doolittle Raid
+  - Raid on Makin Island
+  - Operation Vengeance
+  - Operation Hailstone
+  - Bombing of Tokyo (10 March 1945)
+  - Atomic bombings of Hiroshima and Nagasaki
+  - Operation Downfall
+  - Surrender of Japan
+  - Raising the Flag on Iwo Jima
+  - Kamikaze
+  - Magic (cryptography)
+ships_and_aircraft:
+  - USS Enterprise (CV-6)
+  - USS Indianapolis (CA-35)
+  - Japanese aircraft carrier Akagi
+  - Japanese aircraft carrier Shōkaku
+  - Japanese battleship Yamato
+  - Mitsubishi A6M Zero
+  - Grumman F6F Hellcat
+  - Boeing B-29 Superfortress
+people_and_units:
+  - Chester W. Nimitz
+  - Douglas MacArthur
+  - Raymond A. Spruance
+  - William Halsey Jr.
+  - Isoroku Yamamoto
+  - Chūichi Nagumo
+  - Tomoyuki Yamashita
+  - 1st Marine Division
