@@ -48,7 +48,8 @@ fi
 say "2/5  Downloading the app"
 export GIT_LFS_SKIP_SMUDGE=1
 if [ -d "$CODE/.git" ]; then
-    git -C "$CODE" fetch -q --depth 1 origin "$BRANCH" || fail "Could not download the update. Check your internet connection."
+    git -C "$CODE" remote set-url origin "$REPO"   # always update from the repository asked for now
+    git -C "$CODE" fetch -q --depth 1 origin "$BRANCH" || fail "Could not download the update (branch $BRANCH of $REPO). Check your internet connection."
     # --keep updates the files but stops, without losing anything, if you edited a file the update changes.
     git -C "$CODE" reset -q --keep FETCH_HEAD || fail "You changed files in $CODE that the update also changes. Undo your changes, or delete that folder, and run again."
 else
@@ -58,6 +59,7 @@ fi
 
 # --- 3. The graph: unpack the .gz and check it against SHA256SUMS ----------------------------
 say "3/5  Unpacking the knowledge graph"
+[ -f "$GRAPH_DIR/graph.selffix.json.gz" ] || fail "The downloaded code has no compressed graph (Agent/data/partof521/graph.selffix.json.gz on branch $BRANCH of $REPO). That version of the app predates the installer: ask the agent developer."
 want=$(awk '$2 == "graph.selffix.json" { print $1 }' "$GRAPH_DIR/SHA256SUMS")
 [ -n "$want" ] || fail "The graph's checksum is missing from $GRAPH_DIR/SHA256SUMS."
 if [ ! -f "$GRAPH" ] || [ "$(sha256 "$GRAPH")" != "$want" ]; then

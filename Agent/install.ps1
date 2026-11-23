@@ -1,6 +1,9 @@
-# One-line installer for the Corpus2GeoRAG Pacific app, Windows (spec R105). In PowerShell:
+# One-line installer for the Corpus2GeoRAG Pacific app, Windows (spec R105). In PowerShell or Command Prompt:
 #
-#   irm https://raw.githubusercontent.com/EtzionR/Corpus2GeoRAG_Pacific/main/Agent/install.ps1 | iex
+#   powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/EtzionR/Corpus2GeoRAG_Pacific/main/Agent/install.ps1 | iex"
+#
+# The outer `powershell -ExecutionPolicy Bypass` runs it in a separate PowerShell with the script policy
+# lifted for that one run, so a computer whose policy blocks scripts needs no setting changed.
 #
 # Everything goes into one folder (default: Corpus2GeoRAG_Pacific in your user folder): uv, Python 3.13,
 # the packages, the code and your key. Nothing is installed system-wide and no admin rights are needed;
@@ -55,8 +58,9 @@
         Say '2/5  Downloading the app'
         $env:GIT_LFS_SKIP_SMUDGE = '1'
         if (Test-Path (Join-Path $Code '.git')) {
+            git -C $Code remote set-url origin $Repo   # always update from the repository asked for now
             git -C $Code fetch -q --depth 1 origin $Branch
-            if ($LASTEXITCODE -ne 0) { throw 'Could not download the update. Check your internet connection.' }
+            if ($LASTEXITCODE -ne 0) { throw "Could not download the update (branch $Branch of $Repo). Check your internet connection." }
             # --keep updates the files but stops, without losing anything, if you edited a file the update changes.
             git -C $Code reset -q --keep FETCH_HEAD
             if ($LASTEXITCODE -ne 0) { throw "You changed files in $Code that the update also changes. Undo your changes, or delete that folder, and run again." }
@@ -69,6 +73,9 @@
 
         # --- 3. The graph: unpack the .gz and check it against SHA256SUMS -------------------
         Say '3/5  Unpacking the knowledge graph'
+        if (-not (Test-Path (Join-Path $GraphDir 'graph.selffix.json.gz'))) {
+            throw "The downloaded code has no compressed graph (Agent\data\partof521\graph.selffix.json.gz on branch $Branch of $Repo). That version of the app predates the installer: ask the agent developer."
+        }
         $want = $null
         foreach ($line in Get-Content (Join-Path $GraphDir 'SHA256SUMS')) {
             $parts = $line -split '\s+'
