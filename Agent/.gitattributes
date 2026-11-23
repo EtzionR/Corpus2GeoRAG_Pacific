@@ -1,2 +1,6 @@
 # Built graphs are Git LFS files (spec: the self-fixed graph ships with the agent)
 data/*/graph.selffix.json filter=lfs diff=lfs merge=lfs -text
+
+# The installers are fetched raw by curl | sh and irm | iex: keep their line endings fixed
+*.sh text eol=lf
+*.ps1 text eol=crlf

@@ -2,8 +2,9 @@
 
 `graph.selffix.json` is the graph the agent should load (`GRAPH_PATH=data/partof521/graph.selffix.json`). It is stored with **Git LFS** (140 MB).
 
-- **Get it:** after cloning, run `git lfs pull`. Without Git LFS, download it from `https://media.githubusercontent.com/media/EtzionR/Corpus2GeoRAG_Pacific/main/Agent/data/partof521/graph.selffix.json`.
-- **Check it:** `shasum -a 256 -c SHA256SUMS` in this folder. If the agent reports a "Git LFS pointer", the file hasn't been downloaded yet.
+- **Get it without Git LFS:** `graph.selffix.json.gz` is the same graph, gzip-compressed (19 MB), committed as an ordinary file. The install scripts (`install.sh`, `install.ps1`) unpack it to `graph.selffix.local.json` and check it. By hand: `gzip -dc graph.selffix.json.gz > graph.selffix.local.json`, then point `GRAPH_PATH` at it.
+- **Get it with Git LFS:** after cloning, run `git lfs pull`, or download it from `https://media.githubusercontent.com/media/EtzionR/Corpus2GeoRAG_Pacific/main/Agent/data/partof521/graph.selffix.json`.
+- **Check it:** `SHA256SUMS` holds the hashes of the graph and of its `.gz`. The unpacked `graph.selffix.local.json` must have the same hash as `graph.selffix.json`. If the agent reports a "Git LFS pointer", the file hasn't been downloaded yet.
 - **Built from:** the graph team's partof521 delivery (team PR #46, 2026-11-08), `graph.json`, SHA-256 `337cd76503c182aefeec255a2934ccc3feb5a17b5698fea7d87d92111c620631`.
 - **Built with:** `graph_enrichment` 0.3.0 (Wikidata enrichment, then self-fix steps 1, 3, 5 and 6, then birth and death dates, then page titles), on 2026-11-09. Rebuild it with the command in `graph_enrichment/README.md`.
 - **What it adds to the delivery:**
