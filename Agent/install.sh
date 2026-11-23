@@ -100,7 +100,7 @@ else
     printf 'No terminal to ask in; skipping the key.\n'
 fi
 case "$key" in
-    "") printf 'No key: the app will run in demo mode, with recorded answers. Run this command again to add one.\n' ;;
+    "") printf 'No key for now: the app runs in demo mode, with recorded answers. The launcher asks for a key again each time you start the app.\n' ;;
     sk-or-*) printf 'Key saved.\n' ;;
     *) printf 'Key saved, but it does not look like an OpenRouter key (they start with sk-or-).\n' ;;
 esac
@@ -118,6 +118,26 @@ cat > "$DIR/start.sh" <<'LAUNCHER'
 #!/bin/sh
 # Starts the Corpus2GeoRAG Pacific app (written by install.sh). Close this window, or press Ctrl+C, to stop it.
 HERE=$(cd "$(dirname "$0")" && pwd)
+ENV_FILE="$HERE/code/Agent/.env"
+# No key saved (it was skipped during the install)? Ask again, hidden. Enter starts demo mode this time.
+# Not asked when there's no terminal to ask in, or right after the installer, where it was just skipped.
+if [ -t 0 ] && [ "${GEORAG_SKIP_KEY_PROMPT:-}" != 1 ] && ! grep -q '^OPENROUTER_API_KEY=.' "$ENV_FILE" 2>/dev/null; then
+    printf 'No OpenRouter key is saved, so the app would run in demo mode (recorded answers only).\n'
+    stty -echo 2>/dev/null || true  # before the prompt, so a fast paste is never shown
+    printf 'Paste your key to use the real agent (it stays hidden), or press Enter for demo mode: '
+    IFS= read -r typed || typed=""
+    stty echo 2>/dev/null || true
+    printf '\n'
+    typed=$(printf '%s' "$typed" | tr -d ' \t\r')
+    if [ -n "$typed" ]; then
+        umask 077
+        touch "$ENV_FILE"
+        awk -v k="$typed" '/^OPENROUTER_API_KEY=/ { print "OPENROUTER_API_KEY=" k; done = 1; next } { print }
+                           END { if (!done) print "OPENROUTER_API_KEY=" k }' "$ENV_FILE" > "$ENV_FILE.tmp" \
+            && mv "$ENV_FILE.tmp" "$ENV_FILE" && printf 'Key saved.\n'
+        umask 022
+    fi
+fi
 cd "$HERE/code/App" || exit 1
 URL=http://localhost:8501
 echo "Starting the app at $URL (the first start takes up to a minute). Keep this window open while you use it."
@@ -150,4 +170,4 @@ else
     printf 'Next time, run: %s/start.sh\n' "$DIR"
 fi
 [ "${GEORAG_NO_START:-}" = 1 ] && exit 0
-exec "$DIR/start.sh"
+GEORAG_SKIP_KEY_PROMPT=1 exec "$DIR/start.sh"   # the key was just asked for

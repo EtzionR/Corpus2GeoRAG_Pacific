@@ -114,17 +114,42 @@
         try { $typed = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
         $typed = ($typed -replace '\s', '')
         if ($typed) { $key = $typed }
-        if (-not $key) { Write-Host 'No key: the app will run in demo mode, with recorded answers. Run this command again to add one.' }
+        if (-not $key) { Write-Host 'No key for now: the app runs in demo mode, with recorded answers. The launcher asks for a key again each time you start the app.' }
         elseif ($key -like 'sk-or-*') { Write-Host 'Key saved.' }
         else { Write-Host 'Key saved, but it does not look like an OpenRouter key (they start with sk-or-).' }
         $graphFwd = $Graph -replace '\\', '/'
         Write-NoBom $EnvFile ("# Written by install.ps1. Keep this file private: whoever has the key can spend its credit.`n" +
                               "OPENROUTER_API_KEY=$key`nGRAPH_PATH=$graphFwd`nGEO_AGENT_RUN_TIMEOUT=240`n")
 
-        # --- The launcher and a desktop shortcut ----------------------------------------------
+        # --- The launcher, its key prompt, and a desktop shortcut -------------------------------
+        # set-key.ps1: when no key is saved (it was skipped during the install), start.bat asks again,
+        # hidden; Enter starts demo mode this time. A batch file can't read hidden input itself.
+        $setKey = @'
+# Asks for the OpenRouter key when none is saved (written by install.ps1, run by start.bat).
+if ($env:GEORAG_SKIP_KEY_PROMPT -eq '1') { return }   # right after the installer, which just asked
+$envFile = Join-Path $PSScriptRoot 'code\Agent\.env'
+$lines = @()
+if (Test-Path $envFile) { $lines = @(Get-Content $envFile) }
+foreach ($l in $lines) { if ($l -match '^OPENROUTER_API_KEY=.+') { return } }
+Write-Host 'No OpenRouter key is saved, so the app would run in demo mode (recorded answers only).'
+$s = Read-Host -Prompt 'Paste your key to use the real agent (it stays hidden), or press Enter for demo mode' -AsSecureString
+$b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
+try { $k = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($b) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b) }
+$k = $k -replace '\s', ''
+if (-not $k) { return }
+$out = @(); $done = $false
+foreach ($l in $lines) {
+    if ($l -like 'OPENROUTER_API_KEY=*') { $out += "OPENROUTER_API_KEY=$k"; $done = $true } else { $out += $l }
+}
+if (-not $done) { $out += "OPENROUTER_API_KEY=$k" }
+[IO.File]::WriteAllText($envFile, (($out -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
+Write-Host 'Key saved.'
+'@
+        Write-NoBom (Join-Path $Dir 'set-key.ps1') (($setKey -split "`r?`n") -join "`r`n")
         $bat = @(
             '@echo off',
             'rem Starts the Corpus2GeoRAG Pacific app (written by install.ps1). Close this window to stop it.',
+            'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0set-key.ps1"',
             'cd /d "%~dp0code\App"',
             'echo Starting the app at http://localhost:8501 (the first start takes up to a minute). Keep this window open while you use it.',
             'start "" /b powershell -NoProfile -WindowStyle Hidden -Command "for($i=0;$i -lt 180;$i++){try{$null=Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://localhost:8501/_stcore/health;Start-Process http://localhost:8501;break}catch{Start-Sleep 1}}"',
@@ -145,7 +170,10 @@
 
         Say "Done. The app is installed in $Dir"
         Write-Host "Next time, double-click $made."
-        if ($env:GEORAG_NO_START -ne '1') { & (Join-Path $Dir 'start.bat') }
+        if ($env:GEORAG_NO_START -ne '1') {
+            $env:GEORAG_SKIP_KEY_PROMPT = '1'   # the key was just asked for
+            try { & (Join-Path $Dir 'start.bat') } finally { Remove-Item Env:GEORAG_SKIP_KEY_PROMPT -ErrorAction SilentlyContinue }
+        }
     } catch {
         Write-Host ''
         Write-Host "Stopped: $($_.Exception.Message)" -ForegroundColor Red
